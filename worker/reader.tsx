@@ -1,15 +1,16 @@
 import { renderToString } from "react-dom/server";
 import type { Language } from "../shared/contracts";
 import { renderMarkdown } from "../shared/markdown";
+import { publicPath } from "../shared/paths";
 import type { ReaderData } from "../shared/reader";
 import { App } from "../src/App";
 import {
   getNavigation,
   getPage,
+  getPublishedPages,
   getTranslations,
-  publishedPages,
   searchPages,
-} from "./content/catalog";
+} from "./content/public";
 import {
   escapeHtml,
   jsonError,
@@ -23,18 +24,13 @@ function isLanguage(value: string | undefined): value is Language {
   return value === "zh" || value === "en";
 }
 
-export function publicSearch(request: Request) {
-  if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed();
-  const url = new URL(request.url);
-  const language = url.searchParams.get("lang") ?? "zh";
-  const query = url.searchParams.get("q") ?? "";
-  if (!isLanguage(language)) return jsonError("Unsupported language", 400);
-  if (query.length > 200) return jsonError("Search query is too long", 400);
+function contentUnavailable(request: Request) {
   return new Response(
     request.method === "HEAD"
       ? null
-      : JSON.stringify({ results: searchPages(language, query) }),
+      : JSON.stringify({ error: "Content temporarily unavailable" }),
     {
+      status: 503,
       headers: {
         ...securityHeaders,
         "Content-Type": "application/json; charset=utf-8",
@@ -43,25 +39,53 @@ export function publicSearch(request: Request) {
   );
 }
 
-export function sitemap(request: Request) {
+export async function publicSearch(request: Request, env: Env) {
   if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed();
-  const entries = publishedPages
-    .map(
-      (page) =>
-        `<url><loc>${canonicalOrigin}/${page.language}/${page.path}</loc><lastmod>${page.updatedAt.slice(0, 10)}</lastmod></url>`,
-    )
-    .join("");
-  return new Response(
-    request.method === "HEAD"
-      ? null
-      : `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</urlset>`,
-    {
-      headers: {
-        ...securityHeaders,
-        "Content-Type": "application/xml; charset=utf-8",
+  const url = new URL(request.url);
+  const language = url.searchParams.get("lang") ?? "zh";
+  const query = url.searchParams.get("q") ?? "";
+  if (!isLanguage(language)) return jsonError("Unsupported language", 400);
+  if (query.length > 200) return jsonError("Search query is too long", 400);
+  try {
+    const results = await searchPages(env.DB, language, query);
+    return new Response(
+      request.method === "HEAD" ? null : JSON.stringify({ results }),
+      {
+        headers: {
+          ...securityHeaders,
+          "Content-Type": "application/json; charset=utf-8",
+        },
       },
-    },
-  );
+    );
+  } catch {
+    return contentUnavailable(request);
+  }
+}
+
+export async function sitemap(request: Request, env: Env) {
+  if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed();
+  try {
+    const pages = await getPublishedPages(env.DB);
+    const entries = pages
+      .map(
+        (page) =>
+          `<url><loc>${escapeHtml(canonicalOrigin + publicPath(page.language, page.path))}</loc><lastmod>${escapeHtml(page.updatedAt.slice(0, 10))}</lastmod></url>`,
+      )
+      .join("");
+    return new Response(
+      request.method === "HEAD"
+        ? null
+        : `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</urlset>`,
+      {
+        headers: {
+          ...securityHeaders,
+          "Content-Type": "application/xml; charset=utf-8",
+        },
+      },
+    );
+  } catch {
+    return contentUnavailable(request);
+  }
 }
 
 export async function renderReader(
@@ -69,29 +93,71 @@ export async function renderReader(
   env: Env,
 ): Promise<Response> {
   if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed();
+  try {
+    return await renderReaderDocument(request, env);
+  } catch {
+    // Fail closed on unavailable storage or invalid stored content. Do not
+    // expose database errors or silently serve an obsolete static publication.
+    return contentUnavailable(request);
+  }
+}
+
+async function renderReaderDocument(
+  request: Request,
+  env: Env,
+): Promise<Response> {
   const url = new URL(request.url);
   const segments = url.pathname.split("/").filter(Boolean);
   const language = isLanguage(segments[0]) ? segments[0] : "zh";
   const validLanguage = url.pathname === "/" || isLanguage(segments[0]);
-  const path = segments.slice(1).join("/") || "home";
+  let decodedSegments: string[];
+  try {
+    decodedSegments = segments.slice(1).map(decodeURIComponent);
+  } catch {
+    return jsonError("Invalid document path", 400);
+  }
+  if (
+    decodedSegments.some(
+      (segment) =>
+        segment.includes("/") ||
+        segment.includes("\\") ||
+        [...segment].some((character) => character.charCodeAt(0) < 32),
+    )
+  ) {
+    return jsonError("Invalid document path", 400);
+  }
+  const path = decodedSegments.join("/") || "home";
   const search = validLanguage && path === "search";
   const query = url.searchParams.get("q") ?? "";
   if (query.length > 200) return jsonError("Search query is too long", 400);
-  const page = !search && validLanguage ? getPage(language, path) : null;
+  const [page, navigation, searchResults] = await Promise.all([
+    !search && validLanguage ? getPage(env.DB, language, path) : null,
+    getNavigation(env.DB, language),
+    search ? searchPages(env.DB, language, query) : [],
+  ]);
+  if (page && page.path !== path) {
+    return new Response(null, {
+      status: 301,
+      headers: {
+        ...securityHeaders,
+        Location: publicPath(page.language, page.path),
+      },
+    });
+  }
   const data: ReaderData = {
     language,
     page,
     rendered: page ? await renderMarkdown(page.markdown, language) : null,
-    navigation: getNavigation(language),
+    navigation,
     translations: search
       ? {
           zh: `/zh/search?q=${encodeURIComponent(query)}`,
           en: `/en/search?q=${encodeURIComponent(query)}`,
         }
-      : getTranslations(page),
+      : await getTranslations(env.DB, page),
     mode: search ? "search" : page ? "article" : "not-found",
     searchQuery: search ? query : "",
-    searchResults: search ? searchPages(language, query) : [],
+    searchResults,
   };
   const status = data.mode === "not-found" ? 404 : 200;
   const title =
@@ -106,7 +172,9 @@ export async function renderReader(
   const description =
     page?.description ??
     (language === "zh" ? "Emby Wiki 技术文档" : "Emby Wiki documentation");
-  const canonical = `${canonicalOrigin}/${language}/${page?.path ?? (search ? "search" : "home")}`;
+  const canonical =
+    canonicalOrigin +
+    publicPath(language, page?.path ?? (search ? "search" : "home"));
   const alternateLinks = Object.entries(data.translations)
     .map(
       ([lang, path]) =>

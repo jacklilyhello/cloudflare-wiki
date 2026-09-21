@@ -95,6 +95,16 @@ async function check() {
     }
   }
 
+  const chineseSearch = await get(
+    `/api/public/search?lang=zh&q=${encodeURIComponent("阅读指南")}`,
+  );
+  assert.equal(chineseSearch.status, 200, "Chinese phrase search HTTP status");
+  const chineseResults = (await chineseSearch.json()).results;
+  assert.ok(
+    chineseResults.some((result) => result.path === "/zh/guide/reading"),
+    "Chinese phrase search finds the published reading guide",
+  );
+
   const searchPage = await get("/zh/search?q=Markdown");
   assert.equal(searchPage.status, 200, "Search page HTTP status");
   checkReaderHeaders(searchPage);

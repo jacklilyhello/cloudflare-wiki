@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "Cloudflare-native bilingual Markdown wiki for emby.wiki, with Wiki.js 3-style UI, single-admin CMS, and GitHub Actions deployment.",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "npm run db:local && vite --host 127.0.0.1",
+    "db:local": "wrangler d1 migrations apply DB --local --config wrangler.jsonc",
     "preview": "vite preview --host 127.0.0.1",
     "cf:types": "wrangler types",
     "lint": "biome lint .",
