@@ -202,10 +202,10 @@ export class AuthService {
     const owner =
       "SELECT 1 FROM administrators WHERE id=1 AND auth_version=1 AND password_hash=?";
     const results = await this.storage(() =>
-      this.db.batch([
+      this.db.batch<{ id: number }>([
         this.statement(
           `INSERT INTO administrators(id,username,password_hash,auth_version,created_at,updated_at)
-        SELECT 1,?,?,1,?,? WHERE EXISTS(${eligible}) AND NOT EXISTS(SELECT 1 FROM administrators)`,
+        SELECT 1,?,?,1,?,? WHERE EXISTS(${eligible}) AND NOT EXISTS(SELECT 1 FROM administrators) RETURNING id`,
           [name, encoded, now, now, setupHash, now],
         ),
         this.statement(
@@ -220,7 +220,9 @@ export class AuthService {
         ),
       ]),
     );
-    if (results[0]?.meta.changes !== 1 || results[2]?.meta.changes !== 1)
+    // Trigger side effects contribute to D1 changes; only returned owner and
+    // bootstrap rows prove that this exact setup transaction won.
+    if (results[0]?.results[0]?.id !== 1 || results[2]?.results[0]?.id !== 1)
       throw new AuthError(409, "Administrator setup has already changed.");
     return {
       token: rawToken,
