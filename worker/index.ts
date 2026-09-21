@@ -28,11 +28,11 @@ export default {
         },
       );
     }
-    if (pathname === "/api/public/search") return publicSearch(request);
+    if (pathname === "/api/public/search") return publicSearch(request, env);
     if (pathname === "/api" || pathname.startsWith("/api/")) {
       return Response.json({ error: "Not found" }, { status: 404, headers });
     }
-    if (pathname === "/sitemap.xml") return sitemap(request);
+    if (pathname === "/sitemap.xml") return sitemap(request, env);
     // Asset paths stay on the asset service. Unknown document paths reach the
     // Worker for a real 404, never the old successful SPA fallback.
     if (

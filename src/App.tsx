@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { publicPath } from "../shared/paths";
 import type { NavigationEntry, ReaderData, WikiPage } from "../shared/reader";
 
 type IconName =
@@ -144,7 +145,7 @@ export function App({ data }: { data: ReaderData }) {
   const zh = data.language === "zh";
   const home = `/${data.language}/home`;
   const currentPath = data.page
-    ? `/${data.page.language}/${data.page.path}`
+    ? publicPath(data.page.language, data.page.path)
     : "";
   const title =
     data.mode === "search"

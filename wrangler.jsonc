@@ -5,6 +5,15 @@
   "compatibility_date": "2026-09-21",
   "workers_dev": true,
   "preview_urls": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cloudflare-wiki-test",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+      "remote": false
+    }
+  ],
   "assets": {
     "binding": "ASSETS",
     "html_handling": "none",

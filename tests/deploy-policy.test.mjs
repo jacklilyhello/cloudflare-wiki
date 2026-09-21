@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import {
+  D1_BINDING,
+  D1_NAME,
+  LOCAL_D1_ID,
+  validateD1Config,
+} from "../scripts/d1-policy.mjs";
+import {
   buildDeploymentConfig,
   TEST_DOMAIN,
   validateDeployment,
@@ -32,6 +38,16 @@ test("keeps workers.dev enabled and Preview URLs disabled in source and deployme
   );
   assert.equal(sourceConfig.workers_dev, true);
   assert.equal(sourceConfig.preview_urls, false);
+  assert.doesNotThrow(() => validateD1Config(sourceConfig));
+  assert.deepEqual(sourceConfig.d1_databases, [
+    {
+      binding: D1_BINDING,
+      database_name: D1_NAME,
+      database_id: LOCAL_D1_ID,
+      migrations_dir: "migrations",
+      remote: false,
+    },
+  ]);
 
   const config = buildDeploymentConfig(
     {

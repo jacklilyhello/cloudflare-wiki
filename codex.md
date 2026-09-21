@@ -6,7 +6,7 @@ Repository: `jacklilyhello/cloudflare-wiki`. This is an independent greenfield i
 
 The product combines **emby.wiki's documentation organization**, **Wiki.js 3's visual and interaction direction**, and **Cloudflare Native architecture**. Wiki.js is a product reference, not a source-code port: do not copy its Node.js server, PostgreSQL or GraphQL backend. Ground later UI development in then-current product references; initialization does not attempt the full UI.
 
-Initialization is complete. A separate product-development task authorizes the Git/PR/CI/squash/test-deployment loop and goal mode. The current implementation adds a public reader and shared Markdown renderer. CMS, editor, navigation manager, authentication and persistence remain subsequent work; do not report them as implemented.
+Initialization is complete. A separate product-development task authorizes the Git/PR/CI/squash/test-deployment loop and goal mode. The current implementation includes a public reader, shared Markdown renderer, D1 publication/revision services and indexed bilingual search. Administrator authentication, CMS/editor UI, visual navigation management, assets and settings remain subsequent work; do not report them as implemented.
 
 ## Product contract
 
@@ -20,7 +20,7 @@ Excluded: ordinary accounts/login, registration, groups, RBAC, comments, watches
 
 ### Chinese and English only
 
-The closed language union is `zh | en` in `shared/contracts.ts`. Future articles have stable identities with Chinese and English versions and language-specific slugs. Translation relationships must survive moves/renames. Navigation is separate per language; search ranks the current language first. Missing translations must be explicit. Do not build a general dozens-of-locales platform. The final header offers `中文 | English`.
+The closed language union is `zh | en` in `shared/contracts.ts`. Articles have stable identities with Chinese and English versions and language-specific slugs. Translation relationships must survive moves/renames. Navigation is separate per language; search ranks the current language first. Missing translations must be explicit. Do not build a general dozens-of-locales platform. The final header offers `中文 | English`.
 
 ### Markdown only
 
@@ -30,7 +30,7 @@ Future administrator editor: Monaco + live preview, lazy-loaded only in the admi
 
 ### Public experience
 
-The reader provides a header, nested left navigation, main article and right TOC; responsive navigation, dark mode, breadcrumbs, current-page highlighting, search, language switching, last updated, code copy and friendly 404. The Worker renders article HTML plus canonical, alternate-language and OpenGraph metadata and a fixed-origin sitemap. Original starter articles live in `content/`, behind the published catalog in `worker/content/catalog.ts`. There is no persistence or administrative publishing yet. Test is deliberately noindex and blocked in robots.txt.
+The reader provides a header, nested left navigation, main article and right TOC; responsive navigation, dark mode, breadcrumbs, current-page highlighting, search, language switching, last updated, code copy and friendly 404. The Worker renders article HTML plus canonical, alternate-language and OpenGraph metadata and a fixed-origin sitemap. Original starter articles are initialized once by `migrations/0003_starter_content.sql`; `content/` preserves their reference Markdown. Public reads in `worker/content/public.ts` join the current publication pointer to its owned immutable D1 revision. Drafts, deleted pages and unpublished translations cannot enter public article, navigation, translation, search or sitemap results. Administrative content services exist but have no HTTP mutation routes yet. Test is deliberately noindex and blocked in robots.txt.
 
 ## Architecture decision
 
@@ -38,24 +38,29 @@ Selected: **React 19 + TypeScript + Vite 8 + official Cloudflare Vite plugin + o
 
 React supports the server-rendered reader and future lazy admin UI, with Monaco and document components. Vite gives a familiar, small build surface and fast local updates. Cloudflare's official plugin runs backend code in workerd locally and builds the Worker and assets together. A Web-standard Worker keeps the initial backend small; evaluate Hono only when routing complexity warrants it. SSR meta-frameworks were considered, but impose extra conventions before article requirements exist. This choice does not inherit Astro.
 
-`worker/reader.tsx` renders the same React reader used by browser hydration into the Vite HTML shell using HTMLRewriter. Inert JSON hydration data escapes HTML delimiters, and dynamic responses receive explicit security headers. Article content and metadata do not rely on client JavaScript. Admin can remain client-only. The current no-store policy avoids publication/cache consistency problems before persistent publishing exists.
+`worker/reader.tsx` renders the same React reader used by browser hydration into the Vite HTML shell using HTMLRewriter. Inert JSON hydration data escapes HTML delimiters, and dynamic responses receive explicit security headers. Article content and metadata do not rely on client JavaScript. Admin can remain client-only. Dynamic responses remain no-store so publication and unpublication take effect through authoritative D1 reads without stale public caches.
 
 | Path | Responsibility |
 | --- | --- |
 | `src/` | SSR-compatible React reader and browser enhancements; no server secrets |
-| `worker/` | Request handler and health boundary |
-| `shared/` | Portable reader contracts, safe Markdown renderer and closed language model |
+| `worker/` | HTTP, publication reads and transactional content/revision services |
+| `shared/` | Portable reader/content contracts, safe Markdown and full-text query normalization |
 | `public/` | Assets, static headers, test robots policy |
-| `tests/` | Workerd HTTP tests and deployment-policy tests |
+| `tests/` | Workerd D1 transaction/HTTP tests and deployment-policy tests |
+| `migrations/` | Ordered immutable D1 schema and initial content migrations |
 | `scripts/` | Guarded deployment and local/remote smoke checks |
 | `.github/workflows/` | CI and deployment |
 | `.github/rulesets/` | Reviewable main protection policy |
 
 Every request runs the Worker first. `/assets/*`, favicon and robots use Cloudflare asset serving; documents, health, search and sitemap use explicit Worker handlers. Unknown API routes return JSON 404 and unknown documents return HTML 404, never successful SPA HTML. Health is uncached **liveness**, not a promise of future database readiness. It exposes only service metadata and build revision.
 
-Future modules: lazy admin UI; page/translation domain services; persistent publication and revision repositories; file lifecycle; navigation management; redirects; persistent search; settings; authentication and deliberate caching. Keep storage in Worker-side repositories with portable domain contracts. The current in-memory catalog and substring ranking serve the small starter set; persistent search must be bounded, index-backed and tested with Chinese and English content.
+Implemented domain: `worker/content/service.ts` creates translations, saves drafts, publishes the explicit current draft, unpublishes, moves paths, soft-deletes, restores deleted pages unpublished, and restores historical snapshots as new drafts. Stable page IDs link the two languages. Every change to an existing translation takes an expected write version; all side effects and the final version increment share a guarded D1 batch. Losing writers leave no orphan revision, event, route or search change. Revisions and audit events are database-immutable. Composite foreign keys keep draft/publication/restoration pointers inside their translation. Old paths resolve directly to the current path only while its page is published.
 
-D1 likely fits articles, translations, revisions, navigation, redirects and settings; R2 likely fits files with D1 metadata. KV is optional for explicitly eventually consistent cases, not the authoritative database by default. Cache API may serve published content with language/version keys and deliberate invalidation. Queues, Workflows, Durable Objects, Images, Access, Workers AI, Vectorize, Browser Rendering and Containers are allowed only with concrete need. Provision none speculatively. Remote migrations must be reviewed/repeatable and run in Actions, with recovery planning before destructive changes.
+D1 FTS5 indexes title, tags, description, path and readable body text only for published snapshots. Search projection, FTS row and publication pointer update atomically. NFKC normalization plus spaced Han tokens supports exact adjacent Chinese phrases; English words use Unicode tokenization. The query compiler quotes every token and combines terms with AND, never raw user FTS expressions. Queries are bounded to 200 characters and 30 results, language-filtered and weighted. Display text remains original. No replica routing or eventually consistent cache is used.
+
+Future modules: lazy admin UI, file lifecycle, visual navigation management, redirect management, settings, authentication and deliberate caching. Keep storage in Worker-side repositories with portable domain contracts. ContentService is internal and must receive authenticated administrator requests before any HTTP exposure.
+
+D1 stores articles, translations, revisions, route aliases, audit events and publication search; it will also hold navigation, redirects and settings. R2 is planned for files with D1 metadata. KV is optional for explicitly eventually consistent cases, not the authoritative database by default. Cache API may serve published content with language/version keys and deliberate invalidation. Queues, Workflows, Durable Objects, Images, Access, Workers AI, Vectorize, Browser Rendering and Containers are allowed only with concrete need. Provision none speculatively. Remote migrations must be reviewed/repeatable and run in Actions, with recovery planning before destructive changes.
 
 Forbidden infrastructure: VPS, persistent production Node servers, always-on Docker servers, external PostgreSQL/MySQL/Redis and traditional independently maintained backend servers.
 
@@ -67,7 +72,7 @@ Local Codex uses Cloudflare read-only credentials for authorized inspection of W
 
 All writes use `secrets.CLOUDFLARE_API_TOKEN` in Actions only. Never retrieve its value or place it in local files, docs, browser variables, artifacts or logs. Actions Variables: actual `CLOUDFLARE_ACCOUNT_ID`, actual `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_WORKER_NAME=cloudflare-wiki`, `TEST_DOMAIN=cf.emby.wiki`. Missing values are reported by name, never fabricated.
 
-Preflight verifies zone/account, existing Worker ownership and domain associations and rejects conflicting DNS/routes. The ownership marker is a consistency check, not authentication. Wrangler creates/updates the fixed Worker and test Custom Domain; repeated runs reuse them. No D1/R2/KV or migrations exist. Stop for payment, permission expansion, resource deletion, production changes or weaker security. Incompatible existing resources need an owner decision, not silent replacement.
+Preflight verifies zone/account, existing Worker ownership and domain associations and rejects conflicting DNS/routes. The ownership marker is a consistency check, not authentication. Wrangler creates/updates the fixed Worker and test Custom Domain; repeated runs reuse them. Actions owns the fixed D1 database `cloudflare-wiki-test` and DB binding. `0001_project.sql` establishes the ownership marker, `0002_content.sql` establishes the content schema and `0003_starter_content.sql` publishes the original seed. The source UUID is a local-only placeholder. The deployment script resolves the actual UUID, requires matching ownership and a known migration-ledger prefix on existing databases, applies pending migrations once, and verifies the full ledger plus deployed Worker binding. Both Wrangler automatic provisioning flags are disabled. An unmarked existing database stops the workflow; a failed first initialization needs explicit recovery authorization, never implicit adoption or deletion. No R2/KV exists yet. Stop for payment, permission expansion, resource deletion, production changes or weaker security. Incompatible existing resources need an owner decision, not silent replacement.
 
 ## Git, CI and deployment
 
@@ -75,7 +80,7 @@ Sync main, create an allowed task branch, develop, validate, commit, push, PR, p
 
 `CI` runs on PRs and main pushes: locked dependency install, lint, format check, generated Worker types, separate frontend/Worker/tooling typechecks, tests, build and smoke against built output in workerd. It has no deployment credential.
 
-`Deploy Test` runs on main pushes and manual main dispatch only. It validates the exact commit again, preflights settings/resources, deploys, confirms the `cf.emby.wiki` Custom Domain binding through Cloudflare API readback, and smoke-checks the stable Workers.dev address for server-rendered articles, search, metadata, sitemap, genuine 404s, JS asset, health JSON, exact revision and robots policy. Main deployment concurrency prevents overlapping writes. PRs never deploy. Only the deploy step receives the token. Read failed run/job/step/log evidence and fix through PRs; do not disable gates. A passing build alone does not complete initialization.
+`Deploy Test` runs on main pushes and manual main dispatch only. It validates the exact commit again, preflights settings/resources, provisions or validates owned D1 and applies reviewed migrations, deploys, confirms the `cf.emby.wiki` Custom Domain binding through Cloudflare API readback, and smoke-checks the stable Workers.dev address for server-rendered articles, search, metadata, sitemap, genuine 404s, JS asset, health JSON, exact revision and robots policy. Main deployment concurrency prevents overlapping writes. PRs never deploy. Only the deploy step receives the token. Read failed run/job/step/log evidence and fix through PRs; do not disable gates. A passing build alone does not complete initialization.
 
 ## Security and Codex configuration
 
@@ -98,3 +103,7 @@ Static responses use CSP, frame denial, no-sniff, referrer policy and noindex. A
 - [GitHub Rulesets API](https://docs.github.com/en/rest/repos/rules)
 
 These describe supported mechanisms. Live deployment/settings are evidenced by Actions and API readback, not this design document.
+
+## Database recovery
+
+Migrations are additive and applied remotely only by the main Actions workflow. Existing revisions and audit events are retained, including after soft deletion. Do not edit or remove applied migration files, reset the ledger, drop tables or delete the database to fix a deployment. Application rollbacks use normal PRs that retain the DB binding and migration history; schema repairs use forward migrations. If an initial database exists without a committed project marker, stop for an explicit recovery decision.

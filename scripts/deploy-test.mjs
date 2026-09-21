@@ -1,11 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { appendFile, readFile, writeFile } from "node:fs/promises";
+import { appendFile, readdir, readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { verifyWorkerD1Binding } from "./d1-policy.mjs";
+import { provisionD1 } from "./d1-provision.mjs";
 import { buildDeploymentConfig, validateDeployment } from "./deploy-policy.mjs";
 import { workersDevBaseUrl } from "./smoke-policy.mjs";
 
 const env = process.env;
 validateDeployment(env);
+if (!env.GITHUB_OUTPUT) throw new Error("Missing GitHub Actions output file.");
 
 async function cf(path, allowNotFound = false) {
   const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
@@ -91,31 +95,62 @@ if (records.length && !ownedDomain) {
   );
 }
 
-const path = "dist/cloudflare_wiki/wrangler.json";
+const path = resolve("dist/cloudflare_wiki/wrangler.json");
 const config = buildDeploymentConfig(
   JSON.parse(await readFile(path, "utf8")),
   env,
 );
-await writeFile(path, `${JSON.stringify(config, null, 2)}\n`);
-// The lockfile pins Wrangler. No deployment credential is passed on the command line.
-const result = spawnSync(
-  "node_modules/.bin/wrangler",
-  ["deploy", "--config", path],
-  {
+function runWrangler(args) {
+  // The lockfile pins Wrangler. No credential is passed on the command line.
+  const result = spawnSync("node_modules/.bin/wrangler", args, {
     stdio: "inherit",
     env: { ...env, WRANGLER_SEND_METRICS: "false" },
+  });
+  if (result.error || result.status !== 0)
+    throw new Error(
+      `Wrangler failed with exit status ${result.status ?? "unavailable"}; no automatic retry was attempted.`,
+    );
+}
+const migrationsDirectory = resolve("migrations");
+const migrationNames = (
+  await readdir(migrationsDirectory, { withFileTypes: true })
+)
+  .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
+  .map((entry) => entry.name);
+const { databaseId } = await provisionD1(
+  {
+    env,
+    config,
+    configPath: path,
+    migrationsDirectory,
+    migrationNames,
+    workerSettings: settings,
+  },
+  {
+    fetch,
+    writeConfig: (resolved) =>
+      writeFile(path, `${JSON.stringify(resolved, null, 2)}\n`),
+    runWrangler,
   },
 );
-if (result.error) throw result.error;
-if (result.status !== 0) process.exit(result.status ?? 1);
+runWrangler([
+  "deploy",
+  "--config",
+  path,
+  "--experimental-provision=false",
+  "--experimental-auto-create=false",
+]);
 
 async function verifyDeploymentReadback() {
-  const [deployedDomains, scriptSubdomain] = await Promise.all([
-    cf(`${account}/workers/domains`),
-    cf(
-      `${account}/workers/scripts/${encodeURIComponent(env.CLOUDFLARE_WORKER_NAME)}/subdomain`,
-    ),
-  ]);
+  const [deployedDomains, scriptSubdomain, deployedSettings] =
+    await Promise.all([
+      cf(`${account}/workers/domains`),
+      cf(
+        `${account}/workers/scripts/${encodeURIComponent(env.CLOUDFLARE_WORKER_NAME)}/subdomain`,
+      ),
+      cf(`${account}/workers/scripts/${env.CLOUDFLARE_WORKER_NAME}/settings`),
+    ]);
+  verifyWorkerD1Binding(deployedSettings, databaseId);
   if (
     !deployedDomains.some(
       (domain) =>
@@ -155,7 +190,6 @@ for (let attempt = 1; attempt <= 12; attempt++) {
 }
 if (readbackFailure) throw readbackFailure;
 
-if (!env.GITHUB_OUTPUT) throw new Error("Missing GitHub Actions output file.");
 await appendFile(
   env.GITHUB_OUTPUT,
   `workers_dev_url=${workersDevUrl}\nworkers_dev_subdomain=${workersSubdomain.subdomain}\n`,
