@@ -1,14 +1,9 @@
 import assert from "node:assert/strict";
 import { setTimeout } from "node:timers/promises";
+import { validateSmokeBaseUrl } from "./smoke-policy.mjs";
 
 const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:4173";
-const url = new URL(base);
-if (
-  url.origin !== base ||
-  !["http://127.0.0.1:4173", "https://cf.emby.wiki"].includes(base)
-) {
-  throw new Error("Smoke tests are restricted to localhost or cf.emby.wiki.");
-}
+const url = validateSmokeBaseUrl(base, process.env.SMOKE_WORKERS_DEV_SUBDOMAIN);
 const expectedRevision = process.env.EXPECTED_SHA ?? "local";
 async function get(path, options) {
   return fetch(new URL(path, base), {

@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
-import { validateDeployment } from "./deploy-policy.mjs";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
+import { setTimeout as delay } from "node:timers/promises";
+import { buildDeploymentConfig, validateDeployment } from "./deploy-policy.mjs";
+import { workersDevBaseUrl } from "./smoke-policy.mjs";
 
 const env = process.env;
 validateDeployment(env);
@@ -33,6 +35,8 @@ if (
   );
 }
 const domains = await cf(`${account}/workers/domains`);
+const workersSubdomain = await cf(`${account}/workers/subdomain`);
+const workersDevUrl = workersDevBaseUrl(workersSubdomain.subdomain);
 for (const domain of domains) {
   if (
     domain.hostname === env.TEST_DOMAIN &&
@@ -88,20 +92,10 @@ if (records.length && !ownedDomain) {
 }
 
 const path = "dist/cloudflare_wiki/wrangler.json";
-const config = JSON.parse(await readFile(path, "utf8"));
-if (config.name !== "cloudflare-wiki")
-  throw new Error("Unexpected build output Worker.");
-config.account_id = env.CLOUDFLARE_ACCOUNT_ID;
-config.routes = [
-  {
-    pattern: env.TEST_DOMAIN,
-    custom_domain: true,
-    zone_id: env.CLOUDFLARE_ZONE_ID,
-  },
-];
-config.workers_dev = false;
-config.preview_urls = false;
-config.vars = { ...config.vars, BUILD_SHA: env.GITHUB_SHA };
+const config = buildDeploymentConfig(
+  JSON.parse(await readFile(path, "utf8")),
+  env,
+);
 await writeFile(path, `${JSON.stringify(config, null, 2)}\n`);
 // The lockfile pins Wrangler. No deployment credential is passed on the command line.
 const result = spawnSync(
@@ -114,3 +108,59 @@ const result = spawnSync(
 );
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
+
+async function verifyDeploymentReadback() {
+  const [deployedDomains, scriptSubdomain] = await Promise.all([
+    cf(`${account}/workers/domains`),
+    cf(
+      `${account}/workers/scripts/${encodeURIComponent(env.CLOUDFLARE_WORKER_NAME)}/subdomain`,
+    ),
+  ]);
+  if (
+    !deployedDomains.some(
+      (domain) =>
+        domain.hostname === env.TEST_DOMAIN &&
+        domain.service === env.CLOUDFLARE_WORKER_NAME,
+    )
+  ) {
+    throw new Error(
+      "Cloudflare API readback did not confirm cf.emby.wiki is bound to cloudflare-wiki.",
+    );
+  }
+  if (scriptSubdomain.enabled !== true) {
+    throw new Error(
+      "Cloudflare API readback did not confirm workers.dev is enabled for cloudflare-wiki.",
+    );
+  }
+  if (scriptSubdomain.previews_enabled !== false) {
+    throw new Error(
+      "Cloudflare API readback did not confirm Preview URLs are disabled for cloudflare-wiki.",
+    );
+  }
+}
+
+let readbackFailure;
+for (let attempt = 1; attempt <= 12; attempt++) {
+  try {
+    await verifyDeploymentReadback();
+    readbackFailure = undefined;
+    break;
+  } catch (error) {
+    readbackFailure = error;
+    console.log(
+      `Cloudflare deployment readback attempt ${attempt}/12 failed: ${error.message}`,
+    );
+    if (attempt < 12) await delay(5_000);
+  }
+}
+if (readbackFailure) throw readbackFailure;
+
+if (!env.GITHUB_OUTPUT) throw new Error("Missing GitHub Actions output file.");
+await appendFile(
+  env.GITHUB_OUTPUT,
+  `workers_dev_url=${workersDevUrl}\nworkers_dev_subdomain=${workersSubdomain.subdomain}\n`,
+  "utf8",
+);
+console.log(
+  "Cloudflare API readback confirmed custom-domain and workers.dev bindings.",
+);

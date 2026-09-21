@@ -61,7 +61,7 @@ Forbidden infrastructure: VPS, persistent production Node servers, always-on Doc
 
 ## Environments and permissions
 
-Current test: `https://cf.emby.wiki`, Worker `cloudflare-wiki`. Future production: `https://emby.wiki`; no current workflow/config may deploy it. No production environment, route, wildcard route or migration command exists.
+Current test Custom Domain: `https://cf.emby.wiki`, Worker `cloudflare-wiki`. The stable `cloudflare-wiki.<account-subdomain>.workers.dev` address is enabled only for GitHub Actions automated smoke testing; the deployment script reads the account subdomain through Cloudflare's API rather than hardcoding it. Preview URLs remain disabled. Future production: `https://emby.wiki`; no current workflow/config may deploy it. No production environment, route, wildcard route or migration command exists.
 
 Local Codex uses Cloudflare read-only credentials for authorized inspection of Workers/D1/R2/KV, routes/domains, configurations/state and readable logs. Never deploy, create/delete/modify resources, migrate remotely, change DNS/routes, upload R2 or write KV locally. Do not use write-capable OAuth locally. Actual token permissions enforce this boundary; scripts and written rules add guardrails but cannot replace IAM.
 
@@ -75,7 +75,7 @@ Sync main, create an allowed task branch, develop, validate, commit, push, PR, p
 
 `CI` runs on PRs and main pushes: locked dependency install, lint, format check, generated Worker types, separate frontend/Worker/tooling typechecks, tests, build and smoke against built output in workerd. It has no deployment credential.
 
-`Deploy Test` runs on main pushes and manual main dispatch only. It validates the exact commit again, preflights settings/resources, deploys and checks homepage, JS asset, health JSON, exact revision, API 404 and robots policy. Main deployment concurrency prevents overlapping writes. PRs never deploy. Only the deploy step receives the token. Read failed run/job/step/log evidence and fix through PRs; do not disable gates. A passing build alone does not complete initialization.
+`Deploy Test` runs on main pushes and manual main dispatch only. It validates the exact commit again, preflights settings/resources, deploys, confirms the `cf.emby.wiki` Custom Domain binding through Cloudflare API readback, and smoke-checks the stable Workers.dev address for homepage, JS asset, health JSON, exact revision, API 404 and robots policy. Main deployment concurrency prevents overlapping writes. PRs never deploy. Only the deploy step receives the token. Read failed run/job/step/log evidence and fix through PRs; do not disable gates. A passing build alone does not complete initialization.
 
 ## Security and Codex configuration
 
