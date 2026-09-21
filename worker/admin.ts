@@ -6,9 +6,11 @@ import type { AuthGrant } from "../shared/auth";
 import type { Language } from "../shared/contracts";
 import { adminContent } from "./admin-content";
 import { adminHeaders, csrf, json, readJson, sameOrigin } from "./admin-http";
+import { adminNavigation } from "./admin-navigation";
 import { AuthError, AuthService } from "./auth/service";
 import { ContentError } from "./content/service";
 import { editorPolicy } from "./editor-policy";
+import { NavigationError } from "./navigation/service";
 
 const cookieName = "__Host-wiki_session";
 const encoder = new TextEncoder();
@@ -179,9 +181,20 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       });
     }
     const contentResponse = await adminContent(request, env, session, rawToken);
-    return contentResponse ?? json({ error: "Not found" }, 404);
+    if (contentResponse) return contentResponse;
+    const navigationResponse = await adminNavigation(
+      request,
+      env,
+      session,
+      rawToken,
+    );
+    return navigationResponse ?? json({ error: "Not found" }, 404);
   } catch (error) {
-    if (error instanceof AuthError || error instanceof ContentError)
+    if (
+      error instanceof AuthError ||
+      error instanceof ContentError ||
+      error instanceof NavigationError
+    )
       return json(
         { error: error.message },
         error.status,

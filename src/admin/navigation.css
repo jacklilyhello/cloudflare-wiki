@@ -1,0 +1,749 @@
+.admin-root .navigation-workspace {
+  min-width: 0;
+}
+.admin-root .navigation-workspace .admin-page-heading {
+  flex-wrap: wrap;
+}
+.admin-root .navigation-workspace .admin-page-heading > .admin-button {
+  display: inline-flex;
+}
+.admin-root .navigation-workspace :where(.navigation-topbar) {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 24px;
+  margin-bottom: 18px;
+}
+.admin-root .navigation-workspace :where(.navigation-content-language) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-root .navigation-workspace :where(.navigation-workspace select) {
+  min-width: 0;
+  padding: 9px 30px 9px 12px;
+  border: 1px solid #dbe4dc;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--admin-ink);
+  font: inherit;
+}
+.admin-root .navigation-workspace :where(.navigation-save-state) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--admin-muted);
+}
+.admin-root .navigation-workspace :where(.navigation-save-state small) {
+  flex-basis: 100%;
+  margin-left: 15px;
+  color: #89948b;
+  font-size: 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-dirty-dot) {
+  background: #c69842;
+  box-shadow: 0 0 0 3px #f8f1df;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-topbar > .navigation-text-button) {
+  margin-left: auto;
+}
+.admin-root .navigation-workspace :where(.navigation-text-button) {
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--admin-accent);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+}
+.admin-root .navigation-workspace :where(.navigation-mode) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 24px;
+  margin-bottom: 20px;
+}
+.admin-root .navigation-workspace :where(.navigation-workspace h2) {
+  font-size: 14px;
+  font-weight: 650;
+}
+.admin-root .navigation-workspace :where(.navigation-mode p),
+.admin-root .navigation-workspace :where(.navigation-preview header p) {
+  max-width: 630px;
+  margin-top: 6px;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+.admin-root .navigation-workspace :where(.navigation-mode-switch) {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 4px;
+  background: #f1f5f0;
+  border-radius: 8px;
+}
+.admin-root .navigation-workspace :where(.navigation-mode-switch button) {
+  border: 0;
+  border-radius: 5px;
+  padding: 9px 16px;
+  color: #758778;
+  background: transparent;
+  font-size: 11px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-mode-switch button[aria-pressed="true"]) {
+  background: white;
+  box-shadow: 0 1px 5px #213b2212;
+  color: var(--admin-accent);
+  font-weight: 650;
+}
+.admin-root .navigation-workspace :where(.navigation-automatic) {
+  padding: 36px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.admin-root .navigation-workspace :where(.navigation-automatic h2) {
+  font-size: 19px;
+  margin-bottom: 12px;
+}
+.admin-root .navigation-workspace :where(.navigation-automatic p) {
+  max-width: 570px;
+  margin: 0 auto 22px;
+  font-size: 12px;
+  color: var(--admin-muted);
+  line-height: 1.9;
+}
+.admin-root .navigation-workspace :where(.navigation-automatic-illustration) {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  height: 66px;
+  margin-bottom: 14px;
+  color: #739a7a;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-automatic-illustration .navigation-icon) {
+  width: 32px;
+  height: 32px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-automatic-illustration span) {
+  width: 40px;
+  height: 1px;
+  background: #bfd4c1;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-automatic .navigation-limit-note) {
+  margin-top: 16px;
+  margin-bottom: 0;
+  font-size: 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-editor-grid) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(270px, 1fr);
+  align-items: start;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.admin-root .navigation-workspace :where(.navigation-tree-panel) {
+  min-width: 0;
+  overflow: hidden;
+}
+.admin-root .navigation-workspace :where(.navigation-tree-panel > header),
+.admin-root .navigation-workspace :where(.navigation-properties > header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 21px 22px;
+  border-bottom: 1px solid var(--admin-line);
+}
+.admin-root .navigation-workspace :where(.navigation-tree-panel header small),
+.admin-root .navigation-workspace :where(.navigation-properties header small) {
+  color: #879589;
+  font-size: 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-add-actions) {
+  display: flex;
+  gap: 9px;
+  padding: 18px 20px 12px;
+}
+.admin-root .navigation-workspace :where(.navigation-add-actions button) {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 37px;
+  padding: 7px 10px;
+  border: 1px solid #dfe8dd;
+  border-radius: 6px;
+  color: #587b5b;
+  background: #f8faf7;
+  font-size: 11px;
+}
+.admin-root .navigation-workspace :where(.navigation-add-actions button:hover) {
+  background: #edf5ed;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-add-actions button > span) {
+  margin-left: auto;
+  color: #91a793;
+  font-size: 17px;
+  line-height: 1;
+}
+.admin-root .navigation-workspace :where(.navigation-icon) {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: #7b997e;
+}
+.admin-root .navigation-workspace :where(.navigation-icon.group) {
+  color: #a39064;
+}
+.admin-root .navigation-workspace :where(.navigation-icon.link) {
+  color: #6c8da1;
+}
+.admin-root .navigation-workspace :where(.navigation-tree-hint) {
+  padding: 0 21px 13px;
+  font-size: 10px;
+  color: #92a093;
+}
+.admin-root .navigation-workspace :where(.navigation-tree-scroll) {
+  min-height: 330px;
+  max-height: 680px;
+  padding: 7px 12px 24px;
+  overflow: auto;
+}
+.admin-root .navigation-workspace :where(.navigation-tree-level) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-tree-level .navigation-tree-level) {
+  margin-left: 16px;
+  padding-left: 8px;
+  border-left: 1px solid #e7eee5;
+}
+.admin-root .navigation-workspace :where(.navigation-node) {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 3px;
+  min-width: 220px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.admin-root .navigation-workspace :where(.navigation-node:hover) {
+  background: #f7faf5;
+}
+.admin-root .navigation-workspace :where(.navigation-node.selected) {
+  border-color: #d7e8d7;
+  background: #edf5e9;
+}
+.admin-root .navigation-workspace :where(.navigation-expand),
+.admin-root .navigation-workspace :where(.navigation-expand-spacer) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  flex: 0 0 22px;
+}
+.admin-root .navigation-workspace :where(.navigation-expand) {
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: #7b8c78;
+  font-size: 19px;
+}
+.admin-root .navigation-workspace :where(.navigation-node-select) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 9px 8px 0;
+  border: 0;
+  background: transparent;
+  color: #53684e;
+  text-align: left;
+  font-size: 12px;
+}
+.admin-root .navigation-workspace :where(.navigation-node-select > span) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-node-select .navigation-badge) {
+  margin-left: auto;
+}
+.admin-root .navigation-workspace :where(.navigation-badge) {
+  flex: 0 0 auto;
+  border: 1px solid #e0e9dc;
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: #f3f7ef;
+  color: #718367;
+  font-size: 9px;
+  font-weight: 400;
+  line-height: 1.8;
+}
+.admin-root .navigation-workspace :where(.navigation-badge.warning) {
+  color: #9b793d;
+  background: #fcf7e9;
+  border-color: #eee3c7;
+}
+.admin-root .navigation-workspace :where(.navigation-empty) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 285px;
+  padding: 30px;
+  text-align: center;
+  color: #91a18e;
+}
+.admin-root .navigation-workspace :where(.navigation-empty > .navigation-icon) {
+  width: 38px;
+  height: 38px;
+  color: #b5c4ae;
+}
+.admin-root .navigation-workspace :where(.navigation-empty h3) {
+  color: #647b5f;
+  font-size: 14px;
+}
+.admin-root .navigation-workspace :where(.navigation-empty p) {
+  max-width: 320px;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.admin-root .navigation-workspace :where(.navigation-properties) {
+  min-width: 0;
+}
+.admin-root .navigation-workspace :where(.navigation-properties-form) {
+  padding: 22px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-properties-form .admin-field) {
+  margin-bottom: 21px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-properties-form .admin-field > span) {
+  font-size: 11px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-properties-form .admin-field > span small) {
+  font-weight: 400;
+  color: #8a9886;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-properties-form .admin-field small) {
+  font-size: 10px;
+  line-height: 1.8;
+  color: #85927e;
+}
+.admin-root .navigation-workspace :where(.navigation-properties-form input) {
+  font-size: 12px;
+}
+.admin-root .navigation-workspace :where(.navigation-properties-form select) {
+  width: 100%;
+  font-size: 11px;
+}
+.admin-root .navigation-workspace :where(.navigation-reference) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  margin-bottom: 22px;
+  border: 1px solid #e2eade;
+  border-radius: 7px;
+  padding: 14px;
+  background: #f9fbf6;
+  overflow-wrap: anywhere;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-reference > span:first-child) {
+  font-size: 10px;
+  color: #94a08f;
+}
+.admin-root .navigation-workspace :where(.navigation-reference strong) {
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-root .navigation-workspace :where(.navigation-reference code) {
+  max-width: 100%;
+  font:
+    10px / 1.7 ui-monospace,
+    monospace;
+  color: #85977c;
+}
+.admin-root .navigation-workspace :where(.navigation-reference .admin-button) {
+  min-height: 30px;
+  margin-top: 6px;
+  padding: 5px 11px;
+  font-size: 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-order-controls) {
+  border-top: 1px solid var(--admin-line);
+  border-bottom: 1px solid var(--admin-line);
+  padding: 18px 0;
+}
+.admin-root .navigation-workspace :where(.navigation-order-controls > span) {
+  font-size: 11px;
+  font-weight: 600;
+}
+.admin-root .navigation-workspace :where(.navigation-order-controls > div) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-order-controls button) {
+  min-height: 36px;
+  border: 1px solid #dce5d8;
+  border-radius: 5px;
+  background: #fff;
+  color: #738269;
+  font-size: 10px;
+  padding: 6px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-order-controls button:hover:not(:disabled)) {
+  background: #f0f6ed;
+  border-color: #b6ceb0;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-order-controls button:disabled) {
+  cursor: default;
+  opacity: 0.4;
+}
+.admin-root .navigation-workspace :where(.navigation-order-controls small) {
+  color: #8c9a85;
+  font-size: 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-delete-button) {
+  margin-top: 19px;
+  padding: 5px 0;
+  border: 0;
+  color: #ad6660;
+  background: transparent;
+  font-size: 11px;
+}
+.admin-root .navigation-workspace :where(.navigation-delete-note) {
+  display: block;
+  margin-top: 5px;
+  color: #929c8e;
+  font-size: 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-preview) {
+  overflow: hidden;
+}
+.admin-root .navigation-workspace :where(.navigation-preview > header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 22px 24px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-preview header .admin-button) {
+  min-height: 35px;
+  font-size: 10px;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-body) {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.4fr);
+  border-top: 1px solid var(--admin-line);
+}
+.admin-root .navigation-workspace :where(.navigation-preview-sidebar) {
+  padding: 30px 25px;
+  background: #fafcf7;
+  border-right: 1px solid #e5ecdf;
+  min-width: 0;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-brand) {
+  color: #29432d;
+  font-size: 21px;
+  margin-bottom: 23px;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-brand strong) {
+  font-weight: 650;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-brand small) {
+  display: block;
+  margin-top: 6px;
+  color: #91a486;
+  letter-spacing: 1.3px;
+  font-size: 8px;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-sidebar ul) {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-sidebar ul ul) {
+  padding: 6px 0 0 13px;
+  margin: 0 0 8px 3px;
+  border-left: 1px solid #dae7d2;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-sidebar li) {
+  padding: 7px 0;
+  font-size: 11px;
+  color: #6e8761;
+  overflow-wrap: anywhere;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-preview-sidebar li > strong) {
+  font-weight: 600;
+  color: #536c47;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-sidebar a:hover) {
+  color: var(--admin-accent);
+  text-decoration: underline;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-sidebar > p) {
+  font-size: 11px;
+  color: var(--admin-muted);
+}
+.admin-root .navigation-workspace :where(.navigation-preview-note) {
+  align-self: center;
+  padding: 38px;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-note h3) {
+  margin-top: 15px;
+  font-size: 20px;
+  font-weight: 500;
+  color: #62795b;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-note p) {
+  max-width: 410px;
+  margin-top: 17px;
+  color: #8a9a80;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.admin-root .navigation-workspace :where(.navigation-preview-note a) {
+  margin-top: 20px;
+}
+.admin-root .navigation-workspace :where(.navigation-dialog) {
+  width: min(580px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  padding: 28px;
+  border: 1px solid #dce5d8;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--admin-ink);
+  box-shadow: 0 24px 100px #10281126;
+  overflow-y: auto;
+}
+.admin-root .navigation-workspace .navigation-dialog::backdrop {
+  background: #14241ac4;
+  backdrop-filter: blur(3px);
+}
+.admin-root .navigation-workspace :where(.navigation-dialog h2) {
+  margin: 0 0 12px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.admin-root .navigation-workspace :where(.navigation-dialog p) {
+  margin: 0 0 20px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+.admin-root .navigation-workspace :where(.navigation-dialog-actions) {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-dialog-actions .admin-button) {
+  white-space: normal;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-dialog .navigation-danger) {
+  border-color: #aa655f;
+  background: #aa655f;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-dialog .navigation-danger:hover) {
+  border-color: #92524d;
+  background: #92524d;
+}
+.admin-root .navigation-workspace :where(.navigation-picker-search) {
+  margin-top: 22px;
+}
+.admin-root .navigation-workspace :where(.navigation-picker-list) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  border-block: 1px solid var(--admin-line);
+}
+.admin-root .navigation-workspace :where(.navigation-picker-list li + li) {
+  border-top: 1px solid #eff2ec;
+}
+.admin-root .navigation-workspace :where(.navigation-picker-list button) {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  padding: 14px 8px;
+  border: 0;
+  background: #fff;
+  color: var(--admin-ink);
+  text-align: left;
+}
+.admin-root .navigation-workspace :where(.navigation-picker-list button:hover) {
+  background: #f4f8f0;
+}
+.admin-root
+  .navigation-workspace
+  :where(.navigation-picker-list button > span:first-of-type) {
+  flex: 1;
+  min-width: 0;
+}
+.admin-root .navigation-workspace :where(.navigation-picker-list strong) {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+.admin-root .navigation-workspace :where(.navigation-picker-list small) {
+  display: block;
+  color: #8f9a8a;
+  font:
+    10px / 1.7 ui-monospace,
+    monospace;
+  overflow-wrap: anywhere;
+  margin-top: 4px;
+}
+@media (max-width: 1100px) {
+  .admin-root .navigation-workspace :where(.navigation-editor-grid) {
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, 1fr);
+    gap: 14px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-tree-panel > header),
+  .admin-root .navigation-workspace :where(.navigation-properties > header) {
+    padding: 18px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-tree-panel > header) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-add-actions) {
+    padding-inline: 14px;
+    gap: 6px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-add-actions button) {
+    padding-inline: 7px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-properties-form) {
+    padding: 18px;
+  }
+}
+@media (max-width: 760px) {
+  .admin-root .navigation-workspace :where(.navigation-editor-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-root .navigation-workspace :where(.navigation-topbar) {
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 18px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-save-state) {
+    order: 3;
+    width: 100%;
+  }
+  .admin-root .navigation-workspace :where(.navigation-save-state small) {
+    flex-basis: auto;
+    margin-left: 5px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-mode) {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 18px;
+    gap: 15px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-mode-switch button) {
+    flex: 1;
+  }
+  .admin-root .navigation-workspace :where(.navigation-tree-panel > header) {
+    flex-direction: row;
+    align-items: center;
+  }
+  .admin-root
+    .navigation-workspace
+    :where(.navigation-tree-panel > header .navigation-text-button) {
+    max-width: 110px;
+    text-align: right;
+  }
+  .admin-root .navigation-workspace :where(.navigation-tree-scroll) {
+    min-height: 200px;
+    max-height: 450px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-preview > header) {
+    padding: 18px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .admin-root .navigation-workspace :where(.navigation-preview-body) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-root .navigation-workspace :where(.navigation-preview-sidebar) {
+    border-right: 0;
+    border-bottom: 1px solid #e5ecdf;
+  }
+  .admin-root .navigation-workspace :where(.navigation-preview-note) {
+    padding: 26px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-automatic) {
+    padding: 26px 20px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-automatic h2) {
+    font-size: 17px;
+  }
+  .admin-root .navigation-workspace :where(.navigation-dialog) {
+    padding: 22px 18px;
+  }
+  .admin-root
+    .navigation-workspace
+    :where(.navigation-dialog-actions .admin-button) {
+    flex-grow: 1;
+  }
+}

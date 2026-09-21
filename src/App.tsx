@@ -65,7 +65,7 @@ function Logo() {
 
 function containsPath(entry: NavigationEntry, path: string): boolean {
   return (
-    entry.path === path ||
+    (entry.kind === "page" && entry.path === path) ||
     Boolean(entry.children?.some((child) => containsPath(child, path)))
   );
 }
@@ -80,7 +80,7 @@ function Navigation({
   return (
     <ul className="navigation-list">
       {entries.map((entry) => (
-        <li key={entry.path ?? entry.title}>
+        <li key={entry.id}>
           {entry.children?.length ? (
             <details
               className="navigation-group"
@@ -94,6 +94,8 @@ function Navigation({
                 <a
                   className="navigation-overview"
                   href={entry.path}
+                  target={entry.external ? "_blank" : undefined}
+                  rel={entry.external ? "noopener noreferrer" : undefined}
                   aria-current={entry.path === path ? "page" : undefined}
                 >
                   {entry.title}
@@ -104,10 +106,17 @@ function Navigation({
           ) : (
             <a
               href={entry.path}
-              aria-current={entry.path === path ? "page" : undefined}
+              target={entry.external ? "_blank" : undefined}
+              rel={entry.external ? "noopener noreferrer" : undefined}
+              aria-current={
+                entry.kind === "page" && entry.path === path
+                  ? "page"
+                  : undefined
+              }
             >
               <span className="navigation-dot" aria-hidden="true" />
               {entry.title}
+              {entry.external && <span aria-hidden="true"> ↗</span>}
             </a>
           )}
         </li>
@@ -118,14 +127,14 @@ function Navigation({
 
 function flattenNavigation(entries: NavigationEntry[]): NavigationEntry[] {
   return entries.flatMap((entry) => [
-    ...(entry.path ? [entry] : []),
+    ...(entry.kind === "page" && entry.path ? [entry] : []),
     ...flattenNavigation(entry.children ?? []),
   ]);
 }
 
 function findBreadcrumb(entries: NavigationEntry[], path: string): string[] {
   for (const entry of entries) {
-    if (entry.path === path) return [entry.title];
+    if (entry.kind === "page" && entry.path === path) return [entry.title];
     const childPath = findBreadcrumb(entry.children ?? [], path);
     if (childPath.length) return [entry.title, ...childPath];
   }
@@ -154,8 +163,11 @@ export function App({ data }: { data: ReaderData }) {
         : "Search documentation"
       : (data.page?.title ??
         (zh ? "找不到这个页面" : "This page could not be found"));
-  const breadcrumb = data.page
+  const navigationBreadcrumb = data.page
     ? findBreadcrumb(data.navigation, currentPath)
+    : [title];
+  const breadcrumb = navigationBreadcrumb.length
+    ? navigationBreadcrumb
     : [title];
   const [theme, setTheme] = useState<"light" | "dark" | null>(null);
   const [activeHeading, setActiveHeading] = useState(

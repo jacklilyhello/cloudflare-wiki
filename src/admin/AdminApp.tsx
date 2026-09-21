@@ -29,6 +29,11 @@ const VersionsPage = lazy(() =>
 const EditorPage = lazy(() =>
   import("./EditorPage").then((module) => ({ default: module.EditorPage })),
 );
+const NavigationPage = lazy(() =>
+  import("./NavigationPage").then((module) => ({
+    default: module.NavigationPage,
+  })),
+);
 
 type Overview = {
   pages: { total: number; drafts: number; published: number; deleted: number };
@@ -638,8 +643,8 @@ function SignOutDialog({
         </h2>
         <p id="signout-description">
           {zh
-            ? "当前编辑器中有尚未保存的修改。退出会丢弃这些修改；取消可返回编辑器继续保存。"
-            : "The editor contains unsaved changes. Signing out discards them. Cancel to return to the editor and save your work."}
+            ? "当前工作区有尚未保存的修改。退出会丢弃这些修改；取消可继续编辑并保存。"
+            : "This workspace contains unsaved changes. Signing out discards them. Cancel to keep editing and save your work."}
         </p>
         {error && (
           <div className="admin-notice error" role="alert">
@@ -1201,6 +1206,13 @@ export function AdminApp() {
             <Icon name="book" />
             <span>{zh ? "页面" : "Pages"}</span>
           </a>
+          <a
+            href="/admin/navigation"
+            aria-current={route.page === "navigation" ? "page" : undefined}
+          >
+            <Icon name="page" />
+            <span>{zh ? "导航" : "Navigation"}</span>
+          </a>
           <a href="/admin/account" aria-current={account ? "page" : undefined}>
             <Icon name="user" />
             <span>{zh ? "管理员" : "Administrator"}</span>
@@ -1242,6 +1254,7 @@ export function AdminApp() {
                   dashboard: zh ? "概览" : "Dashboard",
                   account: zh ? "管理员" : "Administrator",
                   pages: zh ? "页面" : "Pages",
+                  navigation: zh ? "导航" : "Navigation",
                   editor: zh ? "编辑页面" : "Page editor",
                   history: zh ? "版本历史" : "Revision history",
                   "not-found": zh ? "找不到页面" : "Page not found",
@@ -1286,6 +1299,12 @@ export function AdminApp() {
                 language={language}
                 session={session}
                 onExpired={onExpired}
+              />
+            ) : route.page === "navigation" ? (
+              <NavigationPage
+                language={language}
+                session={session}
+                onSessionChange={setSession}
               />
             ) : route.page === "editor" ? (
               <EditorPage
