@@ -1114,8 +1114,10 @@
     flex-direction: row;
     gap: 5px;
     margin-top: 19px;
+    overflow-x: auto;
   }
   .admin-sidebar :where(nav) a {
+    flex-shrink: 0;
     padding: 10px 15px;
     border-radius: 5px 5px 0 0;
     font-size: 12px;

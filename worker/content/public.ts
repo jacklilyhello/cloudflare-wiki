@@ -6,6 +6,7 @@ import type {
   WikiPage,
 } from "../../shared/reader";
 import { compileSearchQuery } from "../../shared/search";
+import { getPublicNavigation } from "../navigation/public";
 
 interface PublishedRow {
   id: string;
@@ -109,6 +110,8 @@ export async function getNavigation(
   db: D1Database,
   language: Language,
 ): Promise<NavigationEntry[]> {
+  const configured = await getPublicNavigation(db, language);
+  if (configured !== null) return configured;
   const rows = await db
     .prepare(`
     SELECT t.slug, r.title
@@ -130,11 +133,17 @@ export async function getNavigation(
       const leaf = depth === segments.length - 1;
       let entry = entries.get(path);
       if (!entry) {
-        entry = { title: folderLabel(segments[depth] ?? "", language) };
+        entry = {
+          id: `auto:${language}:${path}`,
+          kind: leaf ? "page" : "group",
+          external: false,
+          title: folderLabel(segments[depth] ?? "", language),
+        };
         entries.set(path, entry);
         children.push(entry);
       }
       if (leaf) {
+        entry.kind = "page";
         entry.title = row.title;
         entry.path = publicPath(language, row.slug);
       } else {

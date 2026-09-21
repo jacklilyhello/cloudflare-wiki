@@ -24,6 +24,9 @@ export interface RenderedMarkdown {
 }
 
 export interface NavigationEntry {
+  id: string;
+  kind: "group" | "page" | "link";
+  external: boolean;
   title: string;
   path?: string;
   children?: NavigationEntry[];

@@ -1,6 +1,6 @@
 # Cloudflare Wiki / Emby Wiki
 
-A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls and revision history. D1 stores published content, drafts, immutable revisions, a bilingual full-text index and authentication state. Navigation management, assets and site settings remain future work. No code/data is inherited from Cloudflare-Native-Wiki.
+A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls, revision history and visual navigation management. D1 stores published content, drafts, immutable revisions, a bilingual full-text index, navigation and authentication state. Assets, standalone redirect management and site settings remain future work. No code/data is inherited from Cloudflare-Native-Wiki.
 
 - Test: <https://cf.emby.wiki>
 - Future production: `emby.wiki` — not configured or deployed here.
@@ -51,7 +51,17 @@ The content APIs under `/api/admin/pages` provide bounded page lists, draft deta
 
 Monaco and its diff editor load only for the editor/history workspace. These documents require a valid administrator session before the Worker returns the shell; anonymous requests return to sign-in. Navigation into them loads a new document with a fresh style nonce. Monaco's dynamic style elements use that nonce, while only these authenticated documents permit inline style attributes for editor layout. Scripts remain same-origin, `unsafe-eval` is disallowed and editor workers are bundled on the same origin. The reader and other admin documents keep their stricter style policy.
 
-`scripts/monaco-csp.ts` adapts the pinned Monaco sources using exact source hashes and single-constructor checks; changes to a matched source fail the build until reviewed. It also replaces Monaco's embedded sanitizer with the pinned DOMPurify dependency in an isolated instance, so hooks are not shared with Mermaid. The Markdown sanitizer still strips author styles and unsafe HTML. Visual navigation management, R2/file management, standalone redirect management and site settings are not implemented yet.
+`scripts/monaco-csp.ts` adapts the pinned Monaco sources using exact source hashes and single-constructor checks; changes to a matched source fail the build until reviewed. It also replaces Monaco's embedded sanitizer with the pinned DOMPurify dependency in an isolated instance, so hooks are not shared with Mermaid. The Markdown sanitizer still strips author styles and unsafe HTML. R2/file management, standalone redirect management and site settings are not implemented yet.
+
+## Visual navigation
+
+`/admin/navigation` manages Chinese and English trees independently through a visual editor, without writing JSON. Trees contain groups, internal pages and external links. Only groups contain children; mixed sibling items can be ordered freely. Internal pages are selected by stable translation identity, so moving an article does not break its navigation entry. External links accept HTTP/HTTPS URLs without embedded credentials and open with `noopener noreferrer`; the server never fetches them.
+
+Each language starts in automatic mode, which derives its public navigation from published article paths. Custom mode uses the saved tree exactly: an empty custom tree produces an empty navigation. Switching back to automatic mode preserves the saved custom nodes for later use. Saving applies the selected mode and entire tree atomically; unsaved edits do not change the reader. Each save requires the loaded version, and a competing save returns 412 instead of overwriting it.
+
+Internal entries appear publicly only while their target is published and not deleted. A blank custom label uses the current published title, never the draft title. Unpublishing hides the entry; republishing makes it available again. Empty groups are pruned. Removing a navigation entry does not delete or unpublish its article, and published articles omitted from navigation remain accessible through direct links, search and the sitemap. External links do not participate in article breadcrumbs or previous/next links.
+
+`GET/PUT /api/admin/navigation/{language}` requires an administrator session. PUT also requires exact same-origin and CSRF checks and accepts at most 500 KiB of streamed JSON. Trees are limited to 300 nodes and eight levels, with bounded labels and URLs. Validation rejects cycles, missing parents, children of non-groups, repeated internal targets and cross-language targets. Every write statement checks the live session and tree version inside the same D1 batch; stale or revoked sessions cannot leave a partial tree. Navigation uses the reader's existing strict CSP and introduces no Cloudflare resource or permission.
 
 ## Administrator
 
@@ -122,7 +132,7 @@ Only Worker `cloudflare-wiki`, Custom Domain `cf.emby.wiki` and D1 database `clo
 { "status": "ok", "service": "cloudflare-wiki", "environment": "test", "revision": "<commit SHA or local>" }
 ```
 
-HEAD is supported; writes are rejected. Unknown `/api/*` outside the protected admin namespace returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Anonymous GET checks also verify the admin shell, protected session/overview endpoints and setup-status shape in any initialization state. Smoke never submits setup credentials, logs in or consumes a setup token. Test responses are noindex.
+HEAD is supported; writes are rejected. Unknown `/api/*` outside the protected admin namespace returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Anonymous GET checks also verify the admin shell, protected session/overview/content/navigation endpoints and setup-status shape in any initialization state. Smoke never submits setup credentials, logs in or consumes a setup token. Test responses are noindex.
 
 ```sh
 SMOKE_BASE_URL=https://cf.emby.wiki EXPECTED_SHA=<main-commit-sha> npm run smoke
