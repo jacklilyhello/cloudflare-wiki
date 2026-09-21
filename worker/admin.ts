@@ -4,9 +4,11 @@ import {
 } from "../shared/admin-routes";
 import type { AuthGrant } from "../shared/auth";
 import type { Language } from "../shared/contracts";
+import { adminAudit } from "./admin-audit";
 import { adminContent } from "./admin-content";
 import { adminHeaders, csrf, json, readJson, sameOrigin } from "./admin-http";
 import { adminNavigation } from "./admin-navigation";
+import { AuditError } from "./audit/service";
 import { AuthError, AuthService } from "./auth/service";
 import { ContentError } from "./content/service";
 import { editorPolicy } from "./editor-policy";
@@ -188,10 +190,13 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       session,
       rawToken,
     );
-    return navigationResponse ?? json({ error: "Not found" }, 404);
+    if (navigationResponse) return navigationResponse;
+    const auditResponse = await adminAudit(request, env, session, rawToken);
+    return auditResponse ?? json({ error: "Not found" }, 404);
   } catch (error) {
     if (
       error instanceof AuthError ||
+      error instanceof AuditError ||
       error instanceof ContentError ||
       error instanceof NavigationError
     )

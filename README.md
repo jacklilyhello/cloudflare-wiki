@@ -1,6 +1,6 @@
 # Cloudflare Wiki / Emby Wiki
 
-A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls, revision history and visual navigation management. D1 stores published content, drafts, immutable revisions, a bilingual full-text index, navigation and authentication state. Assets, standalone redirect management and site settings remain future work. No code/data is inherited from Cloudflare-Native-Wiki.
+A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls, revision history, visual navigation management and an administrator audit trail. D1 stores published content, drafts, immutable revisions, a bilingual full-text index, navigation and authentication state. Assets, standalone redirect management and site settings remain future work. No code/data is inherited from Cloudflare-Native-Wiki.
 
 - Test: <https://cf.emby.wiki>
 - Future production: `emby.wiki` — not configured or deployed here.
@@ -63,6 +63,14 @@ Internal entries appear publicly only while their target is published and not de
 
 `GET/PUT /api/admin/navigation/{language}` requires an administrator session. PUT also requires exact same-origin and CSRF checks and accepts at most 500 KiB of streamed JSON. Trees are limited to 300 nodes and eight levels, with bounded labels and URLs. Validation rejects cycles, missing parents, children of non-groups, repeated internal targets and cross-language targets. Every write statement checks the live session and tree version inside the same D1 batch; stale or revoked sessions cannot leave a partial tree. Navigation uses the reader's existing strict CSP and introduces no Cloudflare resource or permission.
 
+## Audit trail
+
+`/admin/audit` provides a read-only history of successful page operations, navigation saves and administrator initialization or credential changes. Filter by category, action, content language or site-wide events, subject ID and time range. Results use descending sequence cursors, with 25 entries by default and at most 50 per page. `GET /api/admin/audit` requires a valid administrator session in both HTTP and SQL; unknown or repeated query parameters are rejected. API timestamps must use UTC `YYYY-MM-DDTHH:mm:ss.sssZ`; `from` is inclusive and `to` exclusive. Cursors are tied to the selected filters.
+
+`migrations/0007_audit.sql` copies existing page events with their original timestamps and marks them `legacy`; their actor provenance is unknown. It does not invent earlier navigation or account history. New records are appended by database triggers in the same transaction as the successful operation, so a failed or stale write leaves no successful audit event. `current` identifies records captured after this migration, not a separate actor identity. Audit rows reject updates and deletion, and there is no log-writing or deletion API.
+
+Audit details contain only a closed set of metadata: revision IDs and old/new paths for page events, mode changes and node counts for navigation, and boolean change flags for administrator credentials. Page titles come from the referenced revision where available. Markdown, change notes, navigation labels/URLs, usernames, password hashes, session tokens, setup tokens and request details are not copied into the trail. Existing event/revision history is retained. Login/logout, failed attempts and historical account events are not part of this audit view.
+
 ## Administrator
 
 Open `/admin` to initialize the sole administrator or sign in. The interface selects the form from the server's initialization state; it has no registration or ordinary user accounts. The dashboard shows content counts and recent changes. `/admin/account` changes the username or password after verifying the current password. The admin module and CSS load only on admin routes, with Chinese and English interface controls.
@@ -76,6 +84,8 @@ Repeated deployments with the **same token do not extend or reopen** its window,
 Passwords contain 12–128 Unicode characters, at most 512 UTF-8 bytes, and are stored as salted scrypt hashes with fixed parameters (`N=16384`, `r=8`, `p=5`). Session bearers contain 32 random bytes and are sent only in a `Secure`, `HttpOnly`, `SameSite=Strict`, host-only cookie; D1 stores their SHA-256 hashes. Sessions expire after eight hours or 30 minutes without activity. Logout revokes the current session; changing either username or password atomically advances the credential version and revokes all sessions, requiring sign-in again.
 
 Authentication requests use bounded JSON bodies and shared D1 attempt limits before password hashing. Setup and login require a same-origin request; authenticated changes also require the session's CSRF token. Anonymous `/api/admin/session` and `/api/admin/overview` requests return 401. Public setup status exposes only `initialized` and `setupAvailable` booleans. Authentication responses are uncached, and the admin shell contains no account or draft data.
+
+Setup confirms its writes from `RETURNING id` rows so that audit-trigger writes cannot change its success result. This compatible setup code must be deployed before `0007_audit.sql` is applied, and retained in any application rollback while those triggers remain installed.
 
 ## Local development
 
@@ -132,7 +142,7 @@ Only Worker `cloudflare-wiki`, Custom Domain `cf.emby.wiki` and D1 database `clo
 { "status": "ok", "service": "cloudflare-wiki", "environment": "test", "revision": "<commit SHA or local>" }
 ```
 
-HEAD is supported; writes are rejected. Unknown `/api/*` outside the protected admin namespace returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Anonymous GET checks also verify the admin shell, protected session/overview/content/navigation endpoints and setup-status shape in any initialization state. Smoke never submits setup credentials, logs in or consumes a setup token. Test responses are noindex.
+HEAD is supported; writes are rejected. Unknown `/api/*` outside the protected admin namespace returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Anonymous GET checks also verify the admin shell, protected session/overview/content/navigation/audit endpoints and setup-status shape in any initialization state. Smoke never submits setup credentials, logs in or consumes a setup token. Test responses are noindex.
 
 ```sh
 SMOKE_BASE_URL=https://cf.emby.wiki EXPECTED_SHA=<main-commit-sha> npm run smoke

@@ -35,6 +35,10 @@ const NavigationPage = lazy(() =>
   })),
 );
 
+const AuditPage = lazy(() =>
+  import("./AuditPage").then((module) => ({ default: module.AuditPage })),
+);
+
 type Overview = {
   pages: { total: number; drafts: number; published: number; deleted: number };
   revisions: number;
@@ -1213,6 +1217,13 @@ export function AdminApp() {
             <Icon name="page" />
             <span>{zh ? "导航" : "Navigation"}</span>
           </a>
+          <a
+            href="/admin/audit"
+            aria-current={route.page === "audit" ? "page" : undefined}
+          >
+            <Icon name="clock" />
+            <span>{zh ? "审计日志" : "Audit logs"}</span>
+          </a>
           <a href="/admin/account" aria-current={account ? "page" : undefined}>
             <Icon name="user" />
             <span>{zh ? "管理员" : "Administrator"}</span>
@@ -1255,6 +1266,7 @@ export function AdminApp() {
                   account: zh ? "管理员" : "Administrator",
                   pages: zh ? "页面" : "Pages",
                   navigation: zh ? "导航" : "Navigation",
+                  audit: zh ? "审计日志" : "Audit logs",
                   editor: zh ? "编辑页面" : "Page editor",
                   history: zh ? "版本历史" : "Revision history",
                   "not-found": zh ? "找不到页面" : "Page not found",
@@ -1306,6 +1318,8 @@ export function AdminApp() {
                 session={session}
                 onSessionChange={setSession}
               />
+            ) : route.page === "audit" ? (
+              <AuditPage language={language} onSessionChange={setSession} />
             ) : route.page === "editor" ? (
               <EditorPage
                 language={language}

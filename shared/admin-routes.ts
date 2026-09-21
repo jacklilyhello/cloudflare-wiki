@@ -1,5 +1,13 @@
 export type AdminRoute =
-  | { page: "dashboard" | "account" | "pages" | "navigation" | "not-found" }
+  | {
+      page:
+        | "dashboard"
+        | "account"
+        | "pages"
+        | "navigation"
+        | "audit"
+        | "not-found";
+    }
   | { page: "editor"; translationId?: string }
   | { page: "history"; translationId: string };
 
@@ -11,6 +19,7 @@ export function parseAdminRoute(pathname: string): AdminRoute {
   if (path === "/admin/account") return { page: "account" };
   if (path === "/admin/pages") return { page: "pages" };
   if (path === "/admin/navigation") return { page: "navigation" };
+  if (path === "/admin/audit") return { page: "audit" };
   if (path === "/admin/pages/new") return { page: "editor" };
   const match = /^\/admin\/pages\/([^/]+)\/(edit|history)$/.exec(path);
   if (!match?.[1]) return { page: "not-found" };
