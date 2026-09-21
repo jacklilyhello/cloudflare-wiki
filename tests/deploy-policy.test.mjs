@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import { validateDeployment } from "../scripts/deploy-policy.mjs";
+import {
+  buildDeploymentConfig,
+  TEST_DOMAIN,
+  validateDeployment,
+  WORKER_NAME,
+} from "../scripts/deploy-policy.mjs";
 
 const valid = {
   GITHUB_ACTIONS: "true",
@@ -18,6 +24,38 @@ test("allows only main push or manual main deployment", () => {
   assert.doesNotThrow(() => validateDeployment(valid));
   assert.doesNotThrow(() =>
     validateDeployment({ ...valid, GITHUB_EVENT_NAME: "workflow_dispatch" }),
+  );
+});
+test("keeps workers.dev enabled and Preview URLs disabled in source and deployment config", async () => {
+  const sourceConfig = JSON.parse(
+    await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
+  );
+  assert.equal(sourceConfig.workers_dev, true);
+  assert.equal(sourceConfig.preview_urls, false);
+
+  const config = buildDeploymentConfig(
+    {
+      name: WORKER_NAME,
+      workers_dev: false,
+      preview_urls: true,
+      vars: { APP_ENV: "test" },
+    },
+    valid,
+  );
+  assert.equal(config.workers_dev, true);
+  assert.equal(config.preview_urls, false);
+  assert.deepEqual(config.routes, [
+    {
+      pattern: TEST_DOMAIN,
+      custom_domain: true,
+      zone_id: valid.CLOUDFLARE_ZONE_ID,
+    },
+  ]);
+  assert.equal(config.vars.BUILD_SHA, valid.GITHUB_SHA);
+});
+test("rejects an unexpected built Worker before deployment", () => {
+  assert.throws(() =>
+    buildDeploymentConfig({ name: "other-worker", vars: {} }, valid),
   );
 });
 for (const [key, value] of Object.entries({

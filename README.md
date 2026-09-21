@@ -53,7 +53,7 @@ After CI exists, import `.github/rulesets/main.json` through **Settings → Rule
 
 ## Deployment and health
 
-Only Worker `cloudflare-wiki` and Custom Domain `cf.emby.wiki` are provisioned and reused. No D1/R2/KV or migrations are needed. workers.dev and preview URLs are disabled.
+Only Worker `cloudflare-wiki` and Custom Domain `cf.emby.wiki` are provisioned and reused. No D1/R2/KV or migrations are needed. Its stable `cloudflare-wiki.<account-subdomain>.workers.dev` address is enabled only for GitHub Actions post-deploy smoke tests; the deployment script reads the account subdomain through Cloudflare's API and publishes the exact URL as a step output. `cf.emby.wiki` remains the actual test Custom Domain. Versioned and aliased Preview URLs remain disabled.
 
 `GET /health` returns uncached public liveness metadata:
 

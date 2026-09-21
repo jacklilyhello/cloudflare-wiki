@@ -12,7 +12,7 @@
     "check": "biome check .",
     "fix": "biome check --write .",
     "typecheck": "npm run cf:types && tsc -p tsconfig.app.json && tsc -p tsconfig.worker.json && tsc -p tsconfig.tools.json",
-    "test": "vitest run && node --test tests/deploy-policy.test.mjs",
+    "test": "vitest run && node --test tests/*.test.mjs",
     "build": "vite build",
     "smoke": "node scripts/smoke-test.mjs",
     "test:preview": "node scripts/preview-smoke.mjs",

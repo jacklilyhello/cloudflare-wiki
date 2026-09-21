@@ -41,6 +41,7 @@ jobs:
           git fetch --no-tags origin main
           test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
       - name: Preflight and deploy test only
+        id: deploy
         run: npm run deploy:test
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -48,8 +49,9 @@ jobs:
           CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
           CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
           TEST_DOMAIN: ${{ vars.TEST_DOMAIN }}
-      - name: Smoke test deployed revision
+      - name: Smoke test deployed workers.dev revision
         run: npm run smoke
         env:
-          SMOKE_BASE_URL: https://cf.emby.wiki
+          SMOKE_BASE_URL: ${{ steps.deploy.outputs.workers_dev_url }}
+          SMOKE_WORKERS_DEV_SUBDOMAIN: ${{ steps.deploy.outputs.workers_dev_subdomain }}
           EXPECTED_SHA: ${{ github.sha }}
