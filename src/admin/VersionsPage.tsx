@@ -74,16 +74,19 @@ function RestoreDialog({
   session,
   onClose,
   onDone,
+  onSessionChange,
 }: {
   revision: ContentRevision;
   detail: ContentDetail;
   language: Language;
   session: AuthSession;
+  onSessionChange: (session: AuthSession) => void;
   onClose: () => void;
   onDone: () => void;
 }) {
   const zh = language === "zh";
   const dialog = useRef<HTMLDialogElement>(null);
+  const reconnectController = useRef<AbortController | null>(null);
   const [current, setCurrent] = useState(detail.translation);
   const [activeSession, setActiveSession] = useState(session);
   const [note, setNote] = useState("");
@@ -93,6 +96,7 @@ function RestoreDialog({
   const [reconnected, setReconnected] = useState(false);
   useEffect(() => {
     dialog.current?.showModal();
+    return () => reconnectController.current?.abort();
   }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -131,17 +135,27 @@ function RestoreDialog({
     }
   }
   async function reconnect() {
+    if (busy || reconnectController.current) return;
+    const controller = new AbortController();
+    reconnectController.current = controller;
     setBusy(true);
     setReconnected(false);
     try {
-      const result = await request<{ session: AuthSession }>("session");
+      const result = await request<{ session: AuthSession }>("session", {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
       setActiveSession(result.session);
+      onSessionChange(result.session);
       setFailure(null);
       setReconnected(true);
     } catch (error) {
+      if (controller.signal.aborted) return;
       setFailure(error);
     } finally {
-      setBusy(false);
+      if (reconnectController.current === controller)
+        reconnectController.current = null;
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
   const needsReconnect =
@@ -332,11 +346,13 @@ export function VersionsPage({
   session,
   translationId,
   onExpired,
+  onSessionChange,
 }: {
   language: Language;
   session: AuthSession;
   translationId: string;
   onExpired: () => void;
+  onSessionChange: (session: AuthSession) => void;
 }) {
   const zh = language === "zh";
   const base = `pages/${encodeURIComponent(translationId)}`;
@@ -909,6 +925,7 @@ export function VersionsPage({
           detail={detail}
           language={language}
           session={session}
+          onSessionChange={onSessionChange}
           onClose={() => setRestore(false)}
           onDone={() => {
             setRestore(false);

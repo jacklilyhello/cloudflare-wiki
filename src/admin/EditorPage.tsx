@@ -33,11 +33,13 @@ export function EditorPage({
   session,
   translationId,
   onExpired,
+  onSessionChange,
 }: {
   language: Language;
   session: AuthSession;
   translationId?: string;
   onExpired: () => void;
+  onSessionChange: (session: AuthSession) => void;
 }) {
   const zh = language === "zh";
   const query = new URLSearchParams(window.location.search);
@@ -59,6 +61,7 @@ export function EditorPage({
   const [view, setView] = useState<"split" | "write" | "preview">("split");
   const [detailsOpen, setDetailsOpen] = useState(true);
   const editor = useRef<EditorHandle | null>(null);
+  const reconnectController = useRef<AbortController | null>(null);
   const loadedId = useRef<string | undefined>(undefined);
   const dirty =
     JSON.stringify(fields) !== baseline || (!translation && Boolean(path));
@@ -89,6 +92,7 @@ export function EditorPage({
     window.addEventListener("keydown", saveKey);
     window.addEventListener("wiki:before-signout", beforeSignout);
     return () => {
+      reconnectController.current?.abort();
       window.removeEventListener("beforeunload", beforeUnload);
       window.removeEventListener("keydown", saveKey);
       window.removeEventListener("wiki:before-signout", beforeSignout);
@@ -341,10 +345,17 @@ export function EditorPage({
   }
 
   async function reconnect() {
+    if (busy || reconnectController.current) return;
+    const controller = new AbortController();
+    reconnectController.current = controller;
     setBusy(true);
     try {
-      const result = await request<{ session: AuthSession }>("session");
+      const result = await request<{ session: AuthSession }>("session", {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
       setAuth(result.session);
+      onSessionChange(result.session);
       setAuthExpired(false);
       setError(null);
       setNotice(
@@ -353,13 +364,16 @@ export function EditorPage({
           : "Session restored. Your unsaved text is unchanged.",
       );
     } catch {
+      if (controller.signal.aborted) return;
       setError(
         zh
           ? "请先在新标签页完成登录，再重新连接。"
           : "Sign in in a new tab before reconnecting.",
       );
     } finally {
-      setBusy(false);
+      if (reconnectController.current === controller)
+        reconnectController.current = null;
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
 
