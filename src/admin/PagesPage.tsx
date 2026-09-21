@@ -80,15 +80,18 @@ function PageDialog({
   language,
   onClose,
   onDone,
+  onSessionChange,
 }: {
   selection: Selection;
   session: AuthSession;
   language: Language;
+  onSessionChange: (session: AuthSession) => void;
   onClose: () => void;
   onDone: (kind: PageAction) => void;
 }) {
   const zh = language === "zh";
   const dialog = useRef<HTMLDialogElement>(null);
+  const reconnectController = useRef<AbortController | null>(null);
   const [page, setPage] = useState(selection.page);
   const [activeSession, setActiveSession] = useState(session);
   const [path, setPath] = useState(page.path);
@@ -98,6 +101,7 @@ function PageDialog({
   const [reconnected, setReconnected] = useState(false);
   useEffect(() => {
     dialog.current?.showModal();
+    return () => reconnectController.current?.abort();
   }, []);
   const labels: Record<PageAction, string> = {
     move: zh ? "移动页面" : "Move page",
@@ -165,17 +169,27 @@ function PageDialog({
     }
   }
   async function reconnect() {
+    if (busy || reconnectController.current) return;
+    const controller = new AbortController();
+    reconnectController.current = controller;
     setBusy(true);
     setReconnected(false);
     try {
-      const result = await request<{ session: AuthSession }>("session");
+      const result = await request<{ session: AuthSession }>("session", {
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
       setActiveSession(result.session);
+      onSessionChange(result.session);
       setFailure(null);
       setReconnected(true);
     } catch (error) {
+      if (controller.signal.aborted) return;
       setFailure(error);
     } finally {
-      setBusy(false);
+      if (reconnectController.current === controller)
+        reconnectController.current = null;
+      if (!controller.signal.aborted) setBusy(false);
     }
   }
   const needsReconnect =
@@ -327,10 +341,12 @@ export function PagesPage({
   language,
   session,
   onExpired,
+  onSessionChange,
 }: {
   language: Language;
   session: AuthSession;
   onExpired: () => void;
+  onSessionChange: (session: AuthSession) => void;
 }) {
   const zh = language === "zh";
   const [filters, setFilters] = useState<Filters>({
@@ -739,6 +755,7 @@ export function PagesPage({
           key={`${selection.page.id}-${selection.kind}`}
           selection={selection}
           session={session}
+          onSessionChange={onSessionChange}
           language={language}
           onClose={() => setSelection(null)}
           onDone={(kind) => {

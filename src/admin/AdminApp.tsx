@@ -1311,6 +1311,7 @@ export function AdminApp() {
                 language={language}
                 session={session}
                 onExpired={onExpired}
+                onSessionChange={setSession}
               />
             ) : route.page === "navigation" ? (
               <NavigationPage
@@ -1326,6 +1327,7 @@ export function AdminApp() {
                 session={session}
                 translationId={route.translationId}
                 onExpired={onExpired}
+                onSessionChange={setSession}
               />
             ) : route.page === "history" ? (
               <VersionsPage
@@ -1333,6 +1335,7 @@ export function AdminApp() {
                 session={session}
                 translationId={route.translationId}
                 onExpired={onExpired}
+                onSessionChange={setSession}
               />
             ) : route.page === "dashboard" ? (
               <Dashboard session={session} zh={zh} onExpired={onExpired} />
