@@ -6,7 +6,7 @@ Repository: `jacklilyhello/cloudflare-wiki`. This is an independent greenfield i
 
 The product combines **emby.wiki's documentation organization**, **Wiki.js 3's visual and interaction direction**, and **Cloudflare Native architecture**. Wiki.js is a product reference, not a source-code port: do not copy its Node.js server, PostgreSQL or GraphQL backend. Ground later UI development in then-current product references; initialization does not attempt the full UI.
 
-Initialization provides only a reproducible engineering foundation, minimal public test page and health endpoint. No CMS, editor, navigation manager, authentication or persistence is implemented. Stop after validation/reporting without establishing a long-running goal. Future local Codex may use goal mode for separately requested work.
+Initialization is complete. A separate product-development task authorizes the Git/PR/CI/squash/test-deployment loop and goal mode. The current implementation adds a public reader and shared Markdown renderer. CMS, editor, navigation manager, authentication and persistence remain subsequent work; do not report them as implemented.
 
 ## Product contract
 
@@ -26,34 +26,34 @@ The closed language union is `zh | en` in `shared/contracts.ts`. Future articles
 
 Future administrator editor: Monaco + live preview, lazy-loaded only in the admin bundle. No visual, AsciiDoc or blog editor. Rendering must cover CommonMark, GFM, tables, task lists, footnotes, callouts, tabs, heading anchors, TOC, code blocks, syntax highlighting, copying, Mermaid, KaTeX, internal wiki links and a reviewed safe HTML subset.
 
-Use a shared parser/AST pipeline for preview and published output. Evaluate unified/remark/rehype and dedicated plugins during implementation; do not install unused packages now. Sanitize after transformations with explicit element/attribute/protocol allowlists. Disallow scripts, event handlers and unsafe URLs. Use Mermaid strict security and resource limits; constrain diagram/math rendering. Test stored XSS, malformed content and size limits. Store Markdown source and immutable revision metadata. A single editor does not make stored HTML trusted.
+`shared/markdown.ts` implements a portable unified/remark/rehype AST pipeline for the reader and future preview. GFM, footnotes, internal wiki links, callouts, directive groups, highlighting and KaTeX MathML are transformed before final explicit sanitization. Per-render provenance prevents raw HTML from forging enhancement properties. The browser lazily renders Mermaid with strict settings, displays sanitized SVG as an image and retains the source. Sanitize after transformations with explicit element/attribute/protocol allowlists. Disallow scripts, event handlers and unsafe URLs. Use Mermaid strict security and resource limits; constrain diagram/math rendering. Test stored XSS, malformed content and size limits. Store Markdown source and immutable revision metadata. A single editor does not make stored HTML trusted.
 
 ### Public experience
 
-Target desktop: header, left navigation, main article, right TOC. Later requirements: responsive layout, mobile drawer, dark mode, breadcrumb, current-page highlighting, auto-expanded navigation, search, language switching, last updated, SEO, OpenGraph, sitemap, robots.txt, friendly 404 and code copy. These are future requirements, not initialization features. Test is deliberately noindex and blocked in robots.txt.
+The reader provides a header, nested left navigation, main article and right TOC; responsive navigation, dark mode, breadcrumbs, current-page highlighting, search, language switching, last updated, code copy and friendly 404. The Worker renders article HTML plus canonical, alternate-language and OpenGraph metadata and a fixed-origin sitemap. Original starter articles live in `content/`, behind the published catalog in `worker/content/catalog.ts`. There is no persistence or administrative publishing yet. Test is deliberately noindex and blocked in robots.txt.
 
 ## Architecture decision
 
 Selected: **React 19 + TypeScript + Vite 8 + official Cloudflare Vite plugin + one module Worker with Workers Static Assets**. Versions are pinned in the lockfile. Node 24 is local/CI tooling, never a persistent production server.
 
-React supports the reader SPA and future lazy admin SPA, with Monaco and document components. Vite gives a familiar, small build surface and fast local updates. Cloudflare's official plugin runs backend code in workerd locally and builds the Worker and assets together. A Web-standard Worker keeps the initial backend small; evaluate Hono only when routing complexity warrants it. SSR meta-frameworks were considered, but impose extra conventions before article requirements exist. This choice does not inherit Astro.
+React supports the server-rendered reader and future lazy admin UI, with Monaco and document components. Vite gives a familiar, small build surface and fast local updates. Cloudflare's official plugin runs backend code in workerd locally and builds the Worker and assets together. A Web-standard Worker keeps the initial backend small; evaluate Hono only when routing complexity warrants it. SSR meta-frameworks were considered, but impose extra conventions before article requirements exist. This choice does not inherit Astro.
 
-Trade-off: an SPA alone does not solve dynamic article SEO. Before public article publishing, add Worker-rendered/prerendered article HTML and per-page metadata, or adopt an officially supported SSR integration behind these boundaries. Do not rely only on client JavaScript for published article SEO. Admin can remain client-only. Revisit this before production.
+`worker/reader.tsx` renders the same React reader used by browser hydration into the Vite HTML shell using HTMLRewriter. Inert JSON hydration data escapes HTML delimiters, and dynamic responses receive explicit security headers. Article content and metadata do not rely on client JavaScript. Admin can remain client-only. The current no-store policy avoids publication/cache consistency problems before persistent publishing exists.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/` | React initialization page; no server secrets |
+| `src/` | SSR-compatible React reader and browser enhancements; no server secrets |
 | `worker/` | Request handler and health boundary |
-| `shared/` | Portable contracts and closed language model |
+| `shared/` | Portable reader contracts, safe Markdown renderer and closed language model |
 | `public/` | Assets, static headers, test robots policy |
 | `tests/` | Workerd HTTP tests and deployment-policy tests |
 | `scripts/` | Guarded deployment and local/remote smoke checks |
 | `.github/workflows/` | CI and deployment |
 | `.github/rulesets/` | Reviewable main protection policy |
 
-Static assets use Cloudflare asset serving. `/health`, `/api` and `/api/*` explicitly run the Worker first, including browser navigation requests: API errors cannot become successful SPA HTML. Health is uncached **liveness**, not a promise of future database readiness. It exposes only service metadata and build revision.
+Every request runs the Worker first. `/assets/*`, favicon and robots use Cloudflare asset serving; documents, health, search and sitemap use explicit Worker handlers. Unknown API routes return JSON 404 and unknown documents return HTML 404, never successful SPA HTML. Health is uncached **liveness**, not a promise of future database readiness. It exposes only service metadata and build revision.
 
-Future modules, created only when needed: reader routes/components; lazy admin UI; Markdown renderer; page/translation domain services; publication and revision repositories; file lifecycle; per-language navigation; redirects; search; settings; authentication; cache and SEO rendering. Keep storage in Worker-side repositories with portable domain contracts.
+Future modules: lazy admin UI; page/translation domain services; persistent publication and revision repositories; file lifecycle; navigation management; redirects; persistent search; settings; authentication and deliberate caching. Keep storage in Worker-side repositories with portable domain contracts. The current in-memory catalog and substring ranking serve the small starter set; persistent search must be bounded, index-backed and tested with Chinese and English content.
 
 D1 likely fits articles, translations, revisions, navigation, redirects and settings; R2 likely fits files with D1 metadata. KV is optional for explicitly eventually consistent cases, not the authoritative database by default. Cache API may serve published content with language/version keys and deliberate invalidation. Queues, Workflows, Durable Objects, Images, Access, Workers AI, Vectorize, Browser Rendering and Containers are allowed only with concrete need. Provision none speculatively. Remote migrations must be reviewed/repeatable and run in Actions, with recovery planning before destructive changes.
 
@@ -75,7 +75,7 @@ Sync main, create an allowed task branch, develop, validate, commit, push, PR, p
 
 `CI` runs on PRs and main pushes: locked dependency install, lint, format check, generated Worker types, separate frontend/Worker/tooling typechecks, tests, build and smoke against built output in workerd. It has no deployment credential.
 
-`Deploy Test` runs on main pushes and manual main dispatch only. It validates the exact commit again, preflights settings/resources, deploys, confirms the `cf.emby.wiki` Custom Domain binding through Cloudflare API readback, and smoke-checks the stable Workers.dev address for homepage, JS asset, health JSON, exact revision, API 404 and robots policy. Main deployment concurrency prevents overlapping writes. PRs never deploy. Only the deploy step receives the token. Read failed run/job/step/log evidence and fix through PRs; do not disable gates. A passing build alone does not complete initialization.
+`Deploy Test` runs on main pushes and manual main dispatch only. It validates the exact commit again, preflights settings/resources, deploys, confirms the `cf.emby.wiki` Custom Domain binding through Cloudflare API readback, and smoke-checks the stable Workers.dev address for server-rendered articles, search, metadata, sitemap, genuine 404s, JS asset, health JSON, exact revision and robots policy. Main deployment concurrency prevents overlapping writes. PRs never deploy. Only the deploy step receives the token. Read failed run/job/step/log evidence and fix through PRs; do not disable gates. A passing build alone does not complete initialization.
 
 ## Security and Codex configuration
 
@@ -85,6 +85,11 @@ Static responses use CSP, frame denial, no-sniff, referrer policy and noindex. A
 
 ## Official references
 
+- [Wiki.js 3 Markdown editor interaction preview](https://beta.js.wiki/blog/2023-wiki-js-3-feature-preview-markdown-editor/)
+- [Wiki.js 3 navigation and search interaction preview](https://beta.js.wiki/blog/2023-wiki-js-3-feature-preview-navigation-search/)
+- [Wiki.js 3 file manager interaction preview](https://beta.js.wiki/blog/2023-wiki-js-3-feature-preview-file-manager/)
+- [rehype sanitization and transformation order](https://github.com/rehypejs/rehype-sanitize)
+- [KaTeX security and expansion options](https://katex.org/docs/options.html)
 - [Cloudflare Vite plugin](https://developers.cloudflare.com/workers/vite-plugin/)
 - [React SPA with API](https://developers.cloudflare.com/workers/vite-plugin/tutorial/)
 - [Workers Vitest integration](https://developers.cloudflare.com/workers/testing/vitest-integration/write-your-first-test/)

@@ -1,10 +1,6 @@
 import type { HealthResponse } from "../shared/contracts";
-
-const headers = {
-  "Cache-Control": "no-store",
-  "X-Content-Type-Options": "nosniff",
-  "X-Robots-Tag": "noindex, nofollow",
-};
+import { publicSearch, renderReader, sitemap } from "./reader";
+import { securityHeaders as headers } from "./security";
 
 export default {
   async fetch(request, env): Promise<Response> {
@@ -32,9 +28,20 @@ export default {
         },
       );
     }
+    if (pathname === "/api/public/search") return publicSearch(request);
     if (pathname === "/api" || pathname.startsWith("/api/")) {
       return Response.json({ error: "Not found" }, { status: 404, headers });
     }
-    return env.ASSETS.fetch(request);
+    if (pathname === "/sitemap.xml") return sitemap(request);
+    // Asset paths stay on the asset service. Unknown document paths reach the
+    // Worker for a real 404, never the old successful SPA fallback.
+    if (
+      pathname.startsWith("/assets/") ||
+      pathname === "/robots.txt" ||
+      pathname === "/favicon.svg"
+    ) {
+      return env.ASSETS.fetch(request);
+    }
+    return renderReader(request, env);
   },
 } satisfies ExportedHandler<Env>;
