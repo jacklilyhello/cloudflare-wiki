@@ -191,7 +191,10 @@ describe("administrator HTTP security boundary", () => {
 
   it("never exposes dashboard draft metadata without a unique valid session cookie", async () => {
     const auth = await initialize();
-    const service = new ContentService(env.DB);
+    const service = new ContentService(env.DB, {
+      tokenHash: await sha256(auth.cookie.split("=")[1] ?? ""),
+      authVersion: auth.session.user.version,
+    });
     await service.createTranslation({
       language: "en",
       path: "private-overview-canary",

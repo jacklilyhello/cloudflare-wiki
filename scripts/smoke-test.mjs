@@ -22,6 +22,16 @@ function checkSecurityHeaders(response) {
     response.headers.get("content-security-policy") ?? "",
     /script-src 'self'/,
   );
+  assert.match(
+    response.headers.get("content-security-policy") ?? "",
+    /(?:^|;)\s*style-src 'self'(?:;|$)/,
+  );
+  assert.ok(
+    !/'unsafe-(?:inline|eval)'/.test(
+      response.headers.get("content-security-policy") ?? "",
+    ),
+    "Anonymous responses must retain strict script and style policies",
+  );
 }
 function checkReaderHeaders(response) {
   assert.match(response.headers.get("content-type") ?? "", /text\/html/);
@@ -45,7 +55,14 @@ export async function checkAdmin(getResponse) {
     "Administrator entry asset",
   );
 
-  for (const path of ["/api/admin/session", "/api/admin/overview"]) {
+  for (const path of [
+    "/api/admin/session",
+    "/api/admin/overview",
+    "/api/admin/pages",
+    "/api/admin/pages/starter-home-en",
+    "/api/admin/pages/starter-home-en/revisions",
+    "/api/admin/pages/starter-home-en/events",
+  ]) {
     const response = await getResponse(path);
     assert.equal(response.status, 401, `${path} rejects anonymous access`);
     assert.match(
@@ -60,6 +77,32 @@ export async function checkAdmin(getResponse) {
         Object.keys(body).length === 1 &&
         body.error === "Sign in required",
       "Anonymous administrator response must contain only the sign-in error",
+    );
+  }
+
+  for (const path of [
+    "/admin/pages/new",
+    "/admin/pages/starter-home-en/history",
+  ]) {
+    const response = await getResponse(path, { redirect: "manual" });
+    assert.equal(
+      response.status,
+      303,
+      "Anonymous editor documents require sign-in",
+    );
+    checkSecurityHeaders(response);
+    assert.ok(
+      response.headers.get("Location") ===
+        `/admin?returnTo=${encodeURIComponent(path)}`,
+      "Editor login redirect must preserve only the requested internal document",
+    );
+    assert.ok(
+      response.headers.get("Set-Cookie") === null,
+      "Anonymous editor redirect must not issue a session",
+    );
+    assert.ok(
+      (await response.text()).length === 0,
+      "Anonymous editor redirect must not include document data",
     );
   }
 
@@ -194,7 +237,7 @@ async function check() {
     );
   }
   console.log(
-    `Smoke passed: ${base} SSR articles and search zh/en; metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API and reader 404; admin shell and anonymous auth boundaries; noindex.`,
+    `Smoke passed: ${base} SSR articles and search zh/en; metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API and reader 404; admin shell; anonymous content/revision/event APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
   );
 }
 if (

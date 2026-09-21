@@ -1,23 +1,17 @@
-import { timingSafeEqual } from "node:crypto";
-import type { AuthGrant, AuthSession } from "../shared/auth";
+import {
+  normalizeAdminReturnTo,
+  parseAdminRoute,
+} from "../shared/admin-routes";
+import type { AuthGrant } from "../shared/auth";
 import type { Language } from "../shared/contracts";
+import { adminContent } from "./admin-content";
+import { adminHeaders, csrf, json, readJson, sameOrigin } from "./admin-http";
 import { AuthError, AuthService } from "./auth/service";
-import { securityHeaders } from "./security";
+import { ContentError } from "./content/service";
+import { editorPolicy } from "./editor-policy";
 
 const cookieName = "__Host-wiki_session";
-const adminHeaders = { ...securityHeaders, Vary: "Cookie, Origin" };
 const encoder = new TextEncoder();
-
-function json(
-  value: unknown,
-  status = 200,
-  headers: Record<string, string> = {},
-) {
-  return Response.json(value, {
-    status,
-    headers: { ...adminHeaders, ...headers },
-  });
-}
 
 function cookie(token: string, expiresAt: string) {
   return `${cookieName}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Expires=${new Date(expiresAt).toUTCString()}`;
@@ -36,68 +30,6 @@ function sessionToken(request: Request): string {
   return values.length === 1 && /^[A-Za-z0-9_-]{43}$/.test(values[0] ?? "")
     ? (values[0] ?? "")
     : "";
-}
-
-function sameOrigin(request: Request) {
-  const site = request.headers.get("Sec-Fetch-Site");
-  if (
-    request.headers.get("Origin") !== new URL(request.url).origin ||
-    (site !== null && site !== "same-origin" && site !== "none")
-  )
-    throw new AuthError(403, "This request must come from this site.");
-}
-
-function csrf(request: Request, session: AuthSession) {
-  const supplied = encoder.encode(request.headers.get("X-CSRF-Token") ?? "");
-  const expected = encoder.encode(session.csrfToken);
-  if (
-    supplied.length !== expected.length ||
-    !timingSafeEqual(supplied, expected)
-  )
-    throw new AuthError(403, "Invalid request token. Reload and try again.");
-}
-
-async function readJson(request: Request): Promise<Record<string, unknown>> {
-  if (
-    request.headers.get("Content-Type")?.split(";")[0]?.trim() !==
-    "application/json"
-  )
-    throw new AuthError(400, "A JSON request is required.");
-  if (Number(request.headers.get("Content-Length") ?? 0) > 4096)
-    throw new AuthError(400, "The request is too large.");
-  const reader = request.body?.getReader();
-  if (!reader) throw new AuthError(400, "A request body is required.");
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      length += value.byteLength;
-      if (length > 4096) {
-        await reader.cancel();
-        throw new AuthError(400, "The request is too large.");
-      }
-      chunks.push(value);
-    }
-    const bytes = new Uint8Array(length);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.length;
-    }
-    const body: unknown = JSON.parse(
-      new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-    );
-    if (!body || typeof body !== "object" || Array.isArray(body))
-      throw new Error("Invalid JSON object");
-    return body as Record<string, unknown>;
-  } catch (error) {
-    if (error instanceof AuthError) throw error;
-    throw new AuthError(400, "Invalid JSON request.");
-  } finally {
-    reader.releaseLock();
-  }
 }
 
 function text(body: Record<string, unknown>, key: string): string {
@@ -246,9 +178,10 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
         headers: { ...adminHeaders, "Set-Cookie": clearCookie },
       });
     }
-    return json({ error: "Not found" }, 404);
+    const contentResponse = await adminContent(request, env, session, rawToken);
+    return contentResponse ?? json({ error: "Not found" }, 404);
   } catch (error) {
-    if (error instanceof AuthError)
+    if (error instanceof AuthError || error instanceof ContentError)
       return json(
         { error: error.message },
         error.status,
@@ -267,19 +200,52 @@ export async function adminShell(
       status: 405,
       headers: { ...adminHeaders, Allow: "GET, HEAD" },
     });
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  const route = parseAdminRoute(pathname);
+  if (route.page === "editor" || route.page === "history") {
+    const returnTo = normalizeAdminReturnTo(`${pathname}${url.search}`);
+    try {
+      if (!(await new AuthService(env.DB).getSession(sessionToken(request))))
+        return new Response(null, {
+          status: 303,
+          headers: {
+            ...adminHeaders,
+            Location: returnTo
+              ? `/admin?returnTo=${encodeURIComponent(returnTo)}`
+              : "/admin",
+          },
+        });
+    } catch {
+      return json({ error: "Administration temporarily unavailable" }, 503);
+    }
+  }
   const template = await env.ASSETS.fetch(
     new Request(new URL("/index.html", request.url)),
   );
   if (!template.ok)
     return json({ error: "Administration temporarily unavailable" }, 503);
-  const transformed = new HTMLRewriter()
-    .on("title", {
+  const policy = editorPolicy(pathname);
+  const rewriter = new HTMLRewriter().on("title", {
+    element(element) {
+      element.setInnerContent("Administration · Emby Wiki");
+    },
+  });
+  if (policy)
+    rewriter.on("head", {
       element(element) {
-        element.setInnerContent("Administration · Emby Wiki");
+        element.append(`<meta property="csp-nonce" nonce="${policy.nonce}">`, {
+          html: true,
+        });
       },
-    })
-    .transform(template);
+    });
+  const transformed = rewriter.transform(template);
   return new Response(request.method === "HEAD" ? null : transformed.body, {
-    headers: { ...adminHeaders, "Content-Type": "text/html; charset=utf-8" },
+    status: route.page === "not-found" ? 404 : 200,
+    headers: {
+      ...adminHeaders,
+      "Content-Type": "text/html; charset=utf-8",
+      ...(policy ? { "Content-Security-Policy": policy.csp } : {}),
+    },
   });
 }

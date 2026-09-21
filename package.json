@@ -33,6 +33,7 @@
     "dompurify": "3.4.15",
     "hast-util-to-text": "4.0.2",
     "mermaid": "11.17.2",
+    "monaco-editor": "0.56.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "rehype-highlight": "7.0.2",
@@ -62,6 +63,11 @@
     "vite": "8.3.0",
     "vitest": "4.1.11",
     "wrangler": "4.135.0"
+  },
+  "overrides": {
+    "monaco-editor": {
+      "dompurify": "$dompurify"
+    }
   },
   "private": true,
   "engines": {

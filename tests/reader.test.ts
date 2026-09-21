@@ -1,15 +1,19 @@
 import { env, exports } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type {
   AdminTranslation,
   CreateTranslationInput,
 } from "../shared/content";
 import { publicPath } from "../shared/paths";
 import type { ReaderData, SearchResult } from "../shared/reader";
-import { ContentService } from "../worker/content/service";
+import type { ContentService } from "../worker/content/service";
 import { publicSearch, renderReader, sitemap } from "../worker/reader";
+import { contentFixture } from "./content-fixture";
 
-const service = new ContentService(env.DB);
+let service: ContentService;
+beforeEach(async () => {
+  ({ service } = await contentFixture(env.DB));
+});
 
 function uniqueWord(prefix: string) {
   return prefix + crypto.randomUUID().replace(/-/g, "");

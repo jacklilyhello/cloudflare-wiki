@@ -1,6 +1,6 @@
 # Cloudflare Wiki / Emby Wiki
 
-A new Cloudflare-native bilingual Markdown wiki. The current implementation provides a **server-rendered public reader**, original starter documentation and a single-administrator sign-in, dashboard and account interface. D1 stores published content, drafts, immutable revisions, a bilingual full-text index and authentication state. The content editor and management interfaces remain under development. No code/data is inherited from Cloudflare-Native-Wiki.
+A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls and revision history. D1 stores published content, drafts, immutable revisions, a bilingual full-text index and authentication state. Navigation management, assets and site settings remain future work. No code/data is inherited from Cloudflare-Native-Wiki.
 
 - Test: <https://cf.emby.wiki>
 - Future production: `emby.wiki` — not configured or deployed here.
@@ -17,7 +17,7 @@ A new Cloudflare-native bilingual Markdown wiki. The current implementation prov
 
 The Worker renders the article before JavaScript runs. React hydrates reading controls; ordinary links, search, content and disclosure blocks work without JavaScript. `migrations/0003_starter_content.sql` publishes six original starter articles once when the database is initialized. `content/` keeps their original Markdown as reference; changing those files does not overwrite persisted articles. `worker/content/public.ts` reads only the current published revision from D1. Drafts, deleted pages and unpublished translations are excluded from articles, navigation, metadata, search and sitemap.
 
-`shared/markdown.ts` is the shared Markdown renderer intended for both reader and editor preview. It supports CommonMark/GFM, tables, tasks, footnotes, syntax highlighting, heading anchors, `[[guide/reading|internal links]]`, GitHub-style callouts, safe semantic HTML, KaTeX MathML and Mermaid source blocks. Diagram enhancement loads only when needed, uses strict Mermaid settings, and displays sanitized SVG as an image with the source preserved. Raw HTML cannot opt into trusted enhancements. Source size, tree complexity, code, diagram and math workloads are bounded.
+`shared/markdown.ts` renders both the reader and authenticated editor preview. It supports CommonMark/GFM, tables, tasks, footnotes, syntax highlighting, heading anchors, `[[guide/reading|internal links]]`, GitHub-style callouts, safe semantic HTML, KaTeX MathML and Mermaid source blocks. Diagram enhancement loads only when needed, uses strict Mermaid settings, and displays sanitized SVG as an image with the source preserved. Raw HTML cannot opt into trusted enhancements. Source size, tree complexity, code, diagram and math workloads are bounded.
 
 Grouped examples use directive syntax with a native disclosure fallback:
 
@@ -37,11 +37,21 @@ In GFM table cells, escape the Wiki link label separator as `[[guide/reading\|Re
 
 `worker/content/service.ts` provides the server-side content domain. Each bilingual page has a stable identity; each language has its own path, draft and publication pointer. Saves create immutable snapshots with change notes. A restore copies an old snapshot into a **new draft** and leaves the publication unchanged. Moves preserve direct redirects from old paths; unpublishing or soft deletion also hides its routes and removes search results. Restoring a deleted page leaves it unpublished.
 
-Every change to an existing translation requires the caller's current write version. A D1 batch guards all revision, route, search and audit changes before advancing that version; stale writers receive a conflict and leave no partial records. Publication selects the explicit current draft. The publication index and pointer change in the same transaction. Revisions and audit events reject updates and deletion at the database level.
+Every change to an existing translation requires the caller's current write version. A D1 batch guards all revision, route, search and audit changes before advancing that version; stale writers receive HTTP 412 and leave no partial records. An occupied path or translation returns 409. Content SQL also checks the live session hash, credential version and expiry, including every statement that creates a new page. Logout or credential revocation during Markdown validation cannot leave a partial write. Publication selects the explicit current draft. The publication index and pointer change in the same transaction. Revisions and audit events reject updates and deletion at the database level.
 
 Search uses D1 FTS5 with title, tag, description, path and body weights. Normalized English words and adjacent Chinese-character phrases are queried as literal text; punctuation separates words, and FTS/SQL operators are never passed through. Results remain in the selected language and are limited to 30. Raw Markdown delimiters and hidden HTML are omitted from excerpts.
 
-These services are tested in workerd but are **not exposed through HTTP mutation endpoints**. The editor, page/version management UI, visual navigation management, R2/file management, redirects management and site settings are not implemented yet.
+The content APIs under `/api/admin/pages` provide bounded page lists, draft detail, revision/event history and explicit mutation routes. They require an authenticated administrator; all mutations require same-origin and CSRF checks. Lists filter by language, title/path text and active/draft/published/deleted state, with cursor pagination of at most 50 items. Content JSON bodies are streamed with a 1 MiB limit, while Markdown remains limited to 128,000 UTF-8 bytes. Authentication JSON retains its separate 4 KiB limit. `/api/admin/preview` uses the same authenticated protections and shared Markdown renderer, without saving content. Public endpoints remain read-only.
+
+## Content workspace
+
+- `/admin/pages` lists pages, filters/searches them and offers confirmed move, unpublish, soft-delete and restore actions.
+- `/admin/pages/new` creates a language-specific draft; `/admin/pages/{id}/edit` edits its title, description, tags, change note and Markdown. The editor offers write, split and preview views, formatting helpers, save/publish controls and a linked translation action. Saving a draft leaves the published revision unchanged. Unsaved editor text stays in the tab's memory, with a navigation warning, Markdown download and session-reconnect controls.
+- `/admin/pages/{id}/history` shows immutable revisions, source/preview, a two-version Markdown diff, metadata differences and a paginated activity timeline. Restoring a revision creates a new draft; it does not publish it or restore an old path. Restoring a deleted page also leaves it unpublished.
+
+Monaco and its diff editor load only for the editor/history workspace. These documents require a valid administrator session before the Worker returns the shell; anonymous requests return to sign-in. Navigation into them loads a new document with a fresh style nonce. Monaco's dynamic style elements use that nonce, while only these authenticated documents permit inline style attributes for editor layout. Scripts remain same-origin, `unsafe-eval` is disallowed and editor workers are bundled on the same origin. The reader and other admin documents keep their stricter style policy.
+
+`scripts/monaco-csp.ts` adapts the pinned Monaco sources using exact source hashes and single-constructor checks; changes to a matched source fail the build until reviewed. It also replaces Monaco's embedded sanitizer with the pinned DOMPurify dependency in an isolated instance, so hooks are not shared with Mermaid. The Markdown sanitizer still strips author styles and unsafe HTML. Visual navigation management, R2/file management, standalone redirect management and site settings are not implemented yet.
 
 ## Administrator
 

@@ -1,4 +1,15 @@
-import { type FormEvent, useEffect, useState } from "react";
+import {
+  type FormEvent,
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  normalizeAdminReturnTo,
+  parseAdminRoute,
+} from "../../shared/admin-routes";
 import {
   AUTH_LIMITS,
   type AuthSession,
@@ -6,7 +17,18 @@ import {
 } from "../../shared/auth";
 import type { Language } from "../../shared/contracts";
 import { publicPath } from "../../shared/paths";
+import { ApiError, mutation, request } from "./api";
 import "./admin.css";
+
+const PagesPage = lazy(() =>
+  import("./PagesPage").then((module) => ({ default: module.PagesPage })),
+);
+const VersionsPage = lazy(() =>
+  import("./VersionsPage").then((module) => ({ default: module.VersionsPage })),
+);
+const EditorPage = lazy(() =>
+  import("./EditorPage").then((module) => ({ default: module.EditorPage })),
+);
 
 type Overview = {
   pages: { total: number; drafts: number; published: number; deleted: number };
@@ -72,40 +94,6 @@ function Brand({ zh }: { zh: boolean }) {
       </span>
     </a>
   );
-}
-
-class ApiError extends Error {
-  constructor(readonly status: number) {
-    super("Admin request failed");
-  }
-}
-
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/api/admin/${path}`, {
-    ...options,
-    credentials: "same-origin",
-    cache: "no-store",
-    redirect: "error",
-  });
-  if (!response.ok) throw new ApiError(response.status);
-  return response.status === 204
-    ? (undefined as T)
-    : ((await response.json()) as T);
-}
-
-function mutation(
-  method: string,
-  body: unknown,
-  csrfToken?: string,
-): RequestInit {
-  return {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
-    },
-    body: JSON.stringify(body),
-  };
 }
 
 function errorMessage(
@@ -596,6 +584,92 @@ function Account({
   );
 }
 
+function SignOutDialog({
+  zh,
+  busy,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  zh: boolean;
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!previousFocus.current && document.activeElement instanceof HTMLElement)
+      previousFocus.current = document.activeElement;
+    if (dialog.current && !dialog.current.open) dialog.current.showModal();
+    cancel.current?.focus();
+    return () => {
+      if (previousFocus.current?.isConnected)
+        previousFocus.current.focus({ preventScroll: true });
+    };
+  }, []);
+  return (
+    <dialog
+      ref={dialog}
+      className="admin-signout-dialog"
+      aria-labelledby="signout-title"
+      aria-describedby="signout-description"
+      onCancel={(event) => {
+        if (busy) event.preventDefault();
+        else onCancel();
+      }}
+      onClose={onCancel}
+    >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!busy) onConfirm();
+        }}
+      >
+        <span className="admin-signout-icon">
+          <Icon name="logout" />
+        </span>
+        <h2 id="signout-title">
+          {zh
+            ? "丢弃未保存的修改并退出？"
+            : "Discard unsaved changes and sign out?"}
+        </h2>
+        <p id="signout-description">
+          {zh
+            ? "当前编辑器中有尚未保存的修改。退出会丢弃这些修改；取消可返回编辑器继续保存。"
+            : "The editor contains unsaved changes. Signing out discards them. Cancel to return to the editor and save your work."}
+        </p>
+        {error && (
+          <div className="admin-notice error" role="alert">
+            {error}
+          </div>
+        )}
+        <fieldset disabled={busy} className="admin-signout-actions">
+          <button
+            ref={cancel}
+            className="admin-button secondary"
+            type="button"
+            onClick={onCancel}
+          >
+            {zh ? "取消，继续编辑" : "Cancel, keep editing"}
+          </button>
+          <button className="admin-button admin-signout-confirm" type="submit">
+            {busy
+              ? zh
+                ? "正在退出…"
+                : "Signing out…"
+              : zh
+                ? "丢弃并退出"
+                : "Discard and sign out"}
+          </button>
+        </fieldset>
+      </form>
+    </dialog>
+  );
+}
+
 export function AdminApp() {
   const [language, setLanguage] = useState<Language>(() => {
     try {
@@ -611,14 +685,16 @@ export function AdminApp() {
   const [setup, setSetup] = useState<BootstrapStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [initialError, setInitialError] = useState<unknown>(null);
   const [notice, setNotice] = useState<
     "expired" | "password" | "profile" | "logout" | null
   >(null);
   const [attempt, setAttempt] = useState(0);
-  const account =
-    window.location.pathname.replace(/\/$/, "") === "/admin/account";
+  const route = parseAdminRoute(window.location.pathname);
+  const account = route.page === "account";
+  const contentRoute = ["pages", "editor", "history"].includes(route.page);
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -664,6 +740,7 @@ export function AdminApp() {
   }, [attempt]);
 
   function signedOut(reason: typeof notice) {
+    setConfirmSignOut(false);
     setSession(null);
     setSetup({ initialized: true, setupAvailable: false });
     setNotice(reason);
@@ -671,6 +748,7 @@ export function AdminApp() {
   }
 
   const [onExpired] = useState(() => () => {
+    setConfirmSignOut(false);
     setSession(null);
     setSetup({ initialized: true, setupAvailable: false });
     setNotice("expired");
@@ -704,6 +782,21 @@ export function AdminApp() {
         }),
       );
       form.reset();
+      const returnTargets = new URLSearchParams(window.location.search).getAll(
+        "returnTo",
+      );
+      const returnTo =
+        returnTargets.length === 1
+          ? normalizeAdminReturnTo(returnTargets[0])
+          : null;
+      if (returnTo) {
+        window.location.assign(returnTo);
+        return;
+      }
+      if (route.page === "editor" || route.page === "history") {
+        window.location.reload();
+        return;
+      }
       setSession(result.session);
       setNotice(null);
     } catch (failure) {
@@ -801,8 +894,18 @@ export function AdminApp() {
     }
   }
 
-  async function logout() {
+  async function logout(force = false) {
     if (busy || !session) return;
+    if (
+      !force &&
+      !window.dispatchEvent(
+        new Event("wiki:before-signout", { cancelable: true }),
+      )
+    ) {
+      setError(null);
+      setConfirmSignOut(true);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -1084,9 +1187,19 @@ export function AdminApp() {
         <Brand zh={zh} />
         <p className="admin-nav-label">{zh ? "工作空间" : "WORKSPACE"}</p>
         <nav aria-label={zh ? "管理导航" : "Administration"}>
-          <a href="/admin" aria-current={!account ? "page" : undefined}>
+          <a
+            href="/admin"
+            aria-current={route.page === "dashboard" ? "page" : undefined}
+          >
             <Icon name="grid" />
             <span>{zh ? "概览" : "Dashboard"}</span>
+          </a>
+          <a
+            href="/admin/pages"
+            aria-current={contentRoute ? "page" : undefined}
+          >
+            <Icon name="book" />
+            <span>{zh ? "页面" : "Pages"}</span>
           </a>
           <a href="/admin/account" aria-current={account ? "page" : undefined}>
             <Icon name="user" />
@@ -1124,13 +1237,16 @@ export function AdminApp() {
             <span>Emby Wiki</span>
             <span aria-hidden="true">/</span>
             <strong>
-              {account
-                ? zh
-                  ? "管理员"
-                  : "Administrator"
-                : zh
-                  ? "概览"
-                  : "Dashboard"}
+              {
+                {
+                  dashboard: zh ? "概览" : "Dashboard",
+                  account: zh ? "管理员" : "Administrator",
+                  pages: zh ? "页面" : "Pages",
+                  editor: zh ? "编辑页面" : "Page editor",
+                  history: zh ? "版本历史" : "Revision history",
+                  "not-found": zh ? "找不到页面" : "Page not found",
+                }[route.page]
+              }
             </strong>
           </div>
           <div>
@@ -1141,22 +1257,70 @@ export function AdminApp() {
             </a>
           </div>
         </header>
-        <main id="admin-content" className="admin-content">
+        <main
+          id="admin-content"
+          className={`admin-content${route.page === "editor" ? " admin-editor-content" : ""}`}
+        >
           {error && (
             <div className="admin-notice error" role="alert">
               {error}
             </div>
           )}
-          {account ? (
-            <Account
-              session={session}
-              zh={zh}
-              busy={busy}
-              onSave={saveAccount}
-            />
-          ) : (
-            <Dashboard session={session} zh={zh} onExpired={onExpired} />
-          )}
+          <Suspense
+            fallback={
+              <div className="admin-panel admin-loading" role="status">
+                <span className="admin-spinner" />
+                {zh ? "正在加载工作空间…" : "Loading workspace…"}
+              </div>
+            }
+          >
+            {route.page === "account" ? (
+              <Account
+                session={session}
+                zh={zh}
+                busy={busy}
+                onSave={saveAccount}
+              />
+            ) : route.page === "pages" ? (
+              <PagesPage
+                language={language}
+                session={session}
+                onExpired={onExpired}
+              />
+            ) : route.page === "editor" ? (
+              <EditorPage
+                language={language}
+                session={session}
+                translationId={route.translationId}
+                onExpired={onExpired}
+              />
+            ) : route.page === "history" ? (
+              <VersionsPage
+                language={language}
+                session={session}
+                translationId={route.translationId}
+                onExpired={onExpired}
+              />
+            ) : route.page === "dashboard" ? (
+              <Dashboard session={session} zh={zh} onExpired={onExpired} />
+            ) : (
+              <section className="admin-panel admin-empty">
+                <h1>
+                  {zh
+                    ? "找不到这个管理页面"
+                    : "This admin page could not be found"}
+                </h1>
+                <p>
+                  {zh
+                    ? "请通过侧栏访问工作空间。"
+                    : "Use the sidebar to return to your workspace."}
+                </p>
+                <a className="admin-button secondary" href="/admin/pages">
+                  {zh ? "查看所有页面" : "Browse pages"}
+                </a>
+              </section>
+            )}
+          </Suspense>
           <footer className="admin-content-footer">
             <span>Emby Wiki</span>
             <span>
@@ -1165,6 +1329,15 @@ export function AdminApp() {
           </footer>
         </main>
       </div>
+      {confirmSignOut && (
+        <SignOutDialog
+          zh={zh}
+          busy={busy}
+          error={error}
+          onCancel={() => setConfirmSignOut(false)}
+          onConfirm={() => void logout(true)}
+        />
+      )}
     </div>
   );
 }

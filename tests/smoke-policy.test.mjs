@@ -64,8 +64,22 @@ const adminHeaders = {
   "X-Robots-Tag": "noindex, nofollow",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
-  "Content-Security-Policy": "default-src 'self'; script-src 'self'",
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'",
 };
+
+const adminApiPaths = [
+  "/api/admin/session",
+  "/api/admin/overview",
+  "/api/admin/pages",
+  "/api/admin/pages/starter-home-en",
+  "/api/admin/pages/starter-home-en/revisions",
+  "/api/admin/pages/starter-home-en/events",
+];
+const editorPaths = [
+  "/admin/pages/new",
+  "/admin/pages/starter-home-en/history",
+];
 
 function adminResponses(
   status = { initialized: false, setupAvailable: false },
@@ -78,12 +92,22 @@ function adminResponses(
         { headers: { ...adminHeaders, "Content-Type": "text/html" } },
       ),
     ],
-    ...["/api/admin/session", "/api/admin/overview"].map((path) => [
+    ...adminApiPaths.map((path) => [
       path,
       Response.json(
         { error: "Sign in required" },
         { status: 401, headers: adminHeaders },
       ),
+    ]),
+    ...editorPaths.map((path) => [
+      path,
+      new Response(null, {
+        status: 303,
+        headers: {
+          ...adminHeaders,
+          Location: `/admin?returnTo=${encodeURIComponent(path)}`,
+        },
+      }),
     ]),
     ["/api/admin/setup", Response.json(status, { headers: adminHeaders })],
   ]);
@@ -92,7 +116,10 @@ function adminResponses(
 function getFixture(responses, calls = []) {
   return async (path, options) => {
     // The smoke helper cannot carry credentials or select a mutation method.
-    assert.equal(options, undefined);
+    assert.deepEqual(
+      options,
+      editorPaths.includes(path) ? { redirect: "manual" } : undefined,
+    );
     calls.push(path);
     assert.ok(responses.has(path), `Unexpected smoke request: ${path}`);
     return responses.get(path);
@@ -111,13 +138,19 @@ test("admin smoke accepts all lifecycle states using only anonymous reads", asyn
       "/admin",
       "/api/admin/session",
       "/api/admin/overview",
+      "/api/admin/pages",
+      "/api/admin/pages/starter-home-en",
+      "/api/admin/pages/starter-home-en/revisions",
+      "/api/admin/pages/starter-home-en/events",
+      "/admin/pages/new",
+      "/admin/pages/starter-home-en/history",
       "/api/admin/setup",
     ]);
   }
 });
 
 test("admin smoke rejects an anonymous API success or leaked response fields", async () => {
-  for (const path of ["/api/admin/session", "/api/admin/overview"]) {
+  for (const path of adminApiPaths) {
     for (const response of [
       Response.json({ error: "Sign in required" }, { headers: adminHeaders }),
       Response.json(
@@ -160,8 +193,8 @@ test("admin smoke rejects reader fallback and missing security headers", async (
   await assert.rejects(checkAdmin(getFixture(fallback)));
   for (const path of [
     "/admin",
-    "/api/admin/session",
-    "/api/admin/overview",
+    ...adminApiPaths,
+    ...editorPaths,
     "/api/admin/setup",
   ]) {
     for (const header of [
@@ -171,6 +204,56 @@ test("admin smoke rejects reader fallback and missing security headers", async (
     ]) {
       const responses = adminResponses();
       responses.get(path).headers.delete(header);
+      await assert.rejects(checkAdmin(getFixture(responses)));
+    }
+  }
+});
+
+test("admin smoke rejects editor data, session issuance, unsafe redirects, and relaxed anonymous CSP", async () => {
+  for (const path of editorPaths) {
+    const redirect = `/admin?returnTo=${encodeURIComponent(path)}`;
+    for (const response of [
+      new Response("editor source", { headers: adminHeaders }),
+      new Response("private document", {
+        status: 303,
+        headers: { ...adminHeaders, Location: redirect },
+      }),
+      new Response(null, {
+        status: 303,
+        headers: { ...adminHeaders, Location: "https://attacker.invalid" },
+      }),
+      new Response(null, {
+        status: 303,
+        headers: {
+          ...adminHeaders,
+          Location: redirect,
+          "Set-Cookie": "unexpected=fixture-only",
+        },
+      }),
+    ]) {
+      const responses = adminResponses();
+      responses.set(path, response);
+      await assert.rejects(checkAdmin(getFixture(responses)));
+    }
+  }
+  for (const path of [
+    "/admin",
+    ...adminApiPaths,
+    ...editorPaths,
+    "/api/admin/setup",
+  ]) {
+    for (const directive of [
+      "style-src-attr 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-eval'",
+    ]) {
+      const responses = adminResponses();
+      responses
+        .get(path)
+        .headers.set(
+          "Content-Security-Policy",
+          `${adminHeaders["Content-Security-Policy"]}; ${directive}`,
+        );
       await assert.rejects(checkAdmin(getFixture(responses)));
     }
   }
