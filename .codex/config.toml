@@ -1,0 +1,4 @@
+# Official project-level configuration; effective after the user trusts this repo.
+# No model override, persisted goal, or automatic product-development task.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"

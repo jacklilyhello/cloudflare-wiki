@@ -1,0 +1,3 @@
+# No runtime secrets are needed for the initialization page.
+# Local Cloudflare API credentials, if used for inspection, must be READ ONLY.
+# The deployment credential exists only in GitHub Actions Secrets.
