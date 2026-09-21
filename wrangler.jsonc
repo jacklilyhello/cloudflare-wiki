@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloudflare-wiki",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-21",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/health", "/api", "/api/*"]
+  },
+  "vars": {
+    "APP_ID": "jacklilyhello/cloudflare-wiki",
+    "APP_ENV": "test",
+    "BUILD_SHA": "local"
+  }
+}
