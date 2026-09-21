@@ -1,4 +1,5 @@
 import type { HealthResponse } from "../shared/contracts";
+import { adminApi, adminShell } from "./admin";
 import { publicSearch, renderReader, sitemap } from "./reader";
 import { securityHeaders as headers } from "./security";
 
@@ -29,10 +30,14 @@ export default {
       );
     }
     if (pathname === "/api/public/search") return publicSearch(request, env);
+    if (pathname === "/api/admin" || pathname.startsWith("/api/admin/"))
+      return adminApi(request, env);
     if (pathname === "/api" || pathname.startsWith("/api/")) {
       return Response.json({ error: "Not found" }, { status: 404, headers });
     }
     if (pathname === "/sitemap.xml") return sitemap(request, env);
+    if (pathname === "/admin" || pathname.startsWith("/admin/"))
+      return adminShell(request, env);
     // Asset paths stay on the asset service. Unknown document paths reach the
     // Worker for a real 404, never the old successful SPA fallback.
     if (

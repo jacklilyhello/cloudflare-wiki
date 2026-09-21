@@ -47,7 +47,7 @@ describe("Worker HTTP boundary", () => {
     expect(response.status).toBe(405);
     expect(response.headers.get("Allow")).toBe("GET, HEAD");
   });
-  it.each(["/api", "/api/missing", "/api/admin/pages"])(
+  it.each(["/api", "/api/missing"])(
     "returns JSON 404 for unimplemented %s",
     async (path) => {
       const response = await exports.default.fetch(

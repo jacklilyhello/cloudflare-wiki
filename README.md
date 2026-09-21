@@ -1,6 +1,6 @@
 # Cloudflare Wiki / Emby Wiki
 
-A new Cloudflare-native bilingual Markdown wiki. The current implementation provides a **server-rendered public reader** with original starter documentation. D1 stores published content, drafts, immutable revisions and a bilingual full-text index. The administrator interface and authentication are under development. No code/data is inherited from Cloudflare-Native-Wiki.
+A new Cloudflare-native bilingual Markdown wiki. The current implementation provides a **server-rendered public reader**, original starter documentation and a single-administrator sign-in, dashboard and account interface. D1 stores published content, drafts, immutable revisions, a bilingual full-text index and authentication state. The content editor and management interfaces remain under development. No code/data is inherited from Cloudflare-Native-Wiki.
 
 - Test: <https://cf.emby.wiki>
 - Future production: `emby.wiki` — not configured or deployed here.
@@ -41,7 +41,21 @@ Every change to an existing translation requires the caller's current write vers
 
 Search uses D1 FTS5 with title, tag, description, path and body weights. Normalized English words and adjacent Chinese-character phrases are queried as literal text; punctuation separates words, and FTS/SQL operators are never passed through. Results remain in the selected language and are limited to 30. Raw Markdown delimiters and hidden HTML are omitted from excerpts.
 
-These services are tested in workerd but are **not exposed through public mutation endpoints**. Administrator login, editor UI, visual navigation management, R2/file management and settings are not implemented yet.
+These services are tested in workerd but are **not exposed through HTTP mutation endpoints**. The editor, page/version management UI, visual navigation management, R2/file management, redirects management and site settings are not implemented yet.
+
+## Administrator
+
+Open `/admin` to initialize the sole administrator or sign in. The interface selects the form from the server's initialization state; it has no registration or ordinary user accounts. The dashboard shows content counts and recent changes. `/admin/account` changes the username or password after verifying the current password. The admin module and CSS load only on admin routes, with Chinese and English interface controls.
+
+The owner enables one-time setup by adding **`ADMIN_SETUP_TOKEN` as a GitHub Actions Secret**: an unpadded base64url encoding of at least 32 cryptographically random bytes, 43–256 characters. A password manager's cryptographically generated 64-character token using only letters and digits is a valid option. Keep this token in the owner's password manager and enter it only in the setup form over HTTPS. Do not put it in URLs, repository files, local environment files, Worker secrets, build variables, logs or task messages.
+
+The next authorized main deployment hashes the optional secret with SHA-256 in Actions, after deployment guards pass. After D1 ownership and migrations are verified, a single guarded statement stores only the hash and a 24-hour expiry in `admin_bootstrap`. The raw token is removed from the deployment process environment before Wrangler runs; it is never a Worker binding. Without the secret, deployment skips bootstrap and public reading continues. Removing a configured Actions secret does not invalidate an already active setup window.
+
+Repeated deployments with the **same token do not extend or reopen** its window, even after expiry. Before initialization, changing the Actions secret to a new random token and deploying main replaces the unconsumed hash and starts a new 24-hour window. Once an administrator exists or setup has been consumed, deployments cannot reopen setup or overwrite the administrator. Clear the optional Actions secret after successful initialization. There is no password-reset or administrator-recovery interface yet; do not delete authentication records or clear the consumed marker to regain access.
+
+Passwords contain 12–128 Unicode characters, at most 512 UTF-8 bytes, and are stored as salted scrypt hashes with fixed parameters (`N=16384`, `r=8`, `p=5`). Session bearers contain 32 random bytes and are sent only in a `Secure`, `HttpOnly`, `SameSite=Strict`, host-only cookie; D1 stores their SHA-256 hashes. Sessions expire after eight hours or 30 minutes without activity. Logout revokes the current session; changing either username or password atomically advances the credential version and revokes all sessions, requiring sign-in again.
+
+Authentication requests use bounded JSON bodies and shared D1 attempt limits before password hashing. Setup and login require a same-origin request; authenticated changes also require the session's CSRF token. Anonymous `/api/admin/session` and `/api/admin/overview` requests return 401. Public setup status exposes only `initialized` and `setupAvailable` booleans. Authentication responses are uncached, and the admin shell contains no account or draft data.
 
 ## Local development
 
@@ -60,7 +74,7 @@ npm run verify
 
 This runs lint, formatting, TypeScript, Workers-runtime/deployment-policy tests, build and local smoke. `npm run cf:types` generates ignored runtime types. `npm run format` formats supported source/config files. `npm run build` builds; `npm run preview` previews it. `npm run test:preview` applies local migrations and starts/stops its own preview on port 4173. Unit tests apply the same SQL migrations in isolated local D1 storage. Node is tooling, not the production server.
 
-No environment values are required locally. See `.env.example` and `.dev.vars.example`. Never put secrets in `VITE_*`; any local Cloudflare credential must be read-only.
+No environment values are required locally. See `.env.example` and `.dev.vars.example`. Local migrations do not open administrator setup; isolated authentication tests supply their own fixtures. Never copy the live setup token locally or put secrets in `VITE_*`; any local Cloudflare credential must be read-only.
 
 ## GitHub configuration
 
@@ -69,6 +83,7 @@ Settings → Secrets and variables → Actions:
 | Type | Name | Value |
 | --- | --- | --- |
 | Secret | `CLOUDFLARE_API_TOKEN` | Owner-provided deployment token; never reveal/copy locally |
+| Secret | `ADMIN_SETUP_TOKEN` | Optional owner-generated one-time setup token; Actions hashes it before writing D1 |
 | Variable | `CLOUDFLARE_ACCOUNT_ID` | Actual account ID |
 | Variable | `CLOUDFLARE_ZONE_ID` | Actual active emby.wiki zone ID |
 | Variable | `CLOUDFLARE_WORKER_NAME` | `cloudflare-wiki` |
@@ -97,7 +112,7 @@ Only Worker `cloudflare-wiki`, Custom Domain `cf.emby.wiki` and D1 database `clo
 { "status": "ok", "service": "cloudflare-wiki", "environment": "test", "revision": "<commit SHA or local>" }
 ```
 
-HEAD is supported; writes are rejected. Unknown `/api/*` returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Test responses are noindex.
+HEAD is supported; writes are rejected. Unknown `/api/*` outside the protected admin namespace returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Anonymous GET checks also verify the admin shell, protected session/overview endpoints and setup-status shape in any initialization state. Smoke never submits setup credentials, logs in or consumes a setup token. Test responses are noindex.
 
 ```sh
 SMOKE_BASE_URL=https://cf.emby.wiki EXPECTED_SHA=<main-commit-sha> npm run smoke
