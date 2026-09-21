@@ -1,3 +1,4 @@
-# No runtime secrets are needed for the initialization page.
+# No runtime secrets are required for local development or tests.
+# ADMIN_SETUP_TOKEN belongs only in GitHub Actions Secrets, never Worker vars.
 # Local Cloudflare API credentials, if used for inspection, must be READ ONLY.
 # The deployment credential exists only in GitHub Actions Secrets.

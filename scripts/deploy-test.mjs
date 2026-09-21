@@ -2,14 +2,18 @@ import { spawnSync } from "node:child_process";
 import { appendFile, readdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
+import { bootstrapAdmin, prepareAdminBootstrap } from "./admin-bootstrap.mjs";
 import { verifyWorkerD1Binding } from "./d1-policy.mjs";
 import { provisionD1 } from "./d1-provision.mjs";
 import { buildDeploymentConfig, validateDeployment } from "./deploy-policy.mjs";
 import { workersDevBaseUrl } from "./smoke-policy.mjs";
 
-const env = process.env;
+const env = { ...process.env };
 validateDeployment(env);
 if (!env.GITHUB_OUTPUT) throw new Error("Missing GitHub Actions output file.");
+const setupTokenHash = prepareAdminBootstrap(env);
+delete env.ADMIN_SETUP_TOKEN;
+delete process.env.ADMIN_SETUP_TOKEN;
 
 async function cf(path, allowNotFound = false) {
   const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
@@ -133,6 +137,11 @@ const { databaseId } = await provisionD1(
     runWrangler,
   },
 );
+const bootstrapStatus = await bootstrapAdmin(
+  { env, databaseId, tokenHash: setupTokenHash },
+  { fetch },
+);
+console.log(`Administrator bootstrap: ${bootstrapStatus}.`);
 runWrangler([
   "deploy",
   "--config",

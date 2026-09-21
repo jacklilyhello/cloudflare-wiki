@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { setTimeout } from "node:timers/promises";
+import { pathToFileURL } from "node:url";
 import { validateSmokeBaseUrl } from "./smoke-policy.mjs";
 
 const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:4173";
@@ -12,8 +13,7 @@ async function get(path, options) {
     ...options,
   });
 }
-function checkReaderHeaders(response) {
-  assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+function checkSecurityHeaders(response) {
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.match(response.headers.get("x-robots-tag") ?? "", /noindex/);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
@@ -22,6 +22,63 @@ function checkReaderHeaders(response) {
     response.headers.get("content-security-policy") ?? "",
     /script-src 'self'/,
   );
+}
+function checkReaderHeaders(response) {
+  assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+  checkSecurityHeaders(response);
+}
+
+// Anonymous GETs only: deployment smoke must never initialize an account,
+// consume a setup token, create a session or change authentication state.
+export async function checkAdmin(getResponse) {
+  const page = await getResponse("/admin");
+  assert.equal(page.status, 200, "Administrator shell HTTP status");
+  checkReaderHeaders(page);
+  const html = await page.text();
+  assert.ok(
+    /<title>Administration · Emby Wiki<\/title>/.test(html),
+    "Administrator shell title",
+  );
+  assert.ok(/<div\b[^>]*id="root"/.test(html), "Administrator mount point");
+  assert.ok(
+    /src="\/assets\/[^"]+\.js"/.test(html),
+    "Administrator entry asset",
+  );
+
+  for (const path of ["/api/admin/session", "/api/admin/overview"]) {
+    const response = await getResponse(path);
+    assert.equal(response.status, 401, `${path} rejects anonymous access`);
+    assert.match(
+      response.headers.get("content-type") ?? "",
+      /application\/json/,
+    );
+    checkSecurityHeaders(response);
+    const body = await response.json();
+    // Assertion output must not echo an unexpectedly leaked account payload.
+    assert.ok(
+      body &&
+        Object.keys(body).length === 1 &&
+        body.error === "Sign in required",
+      "Anonymous administrator response must contain only the sign-in error",
+    );
+  }
+
+  const setup = await getResponse("/api/admin/setup");
+  assert.equal(setup.status, 200, "Setup status HTTP status");
+  assert.match(setup.headers.get("content-type") ?? "", /application\/json/);
+  checkSecurityHeaders(setup);
+  assert.ok(
+    setup.headers.get("set-cookie") === null,
+    "Setup status must not issue a cookie",
+  );
+  const status = await setup.json();
+  assert.deepEqual(Object.keys(status).sort(), [
+    "initialized",
+    "setupAvailable",
+  ]);
+  assert.equal(typeof status.initialized, "boolean");
+  assert.equal(typeof status.setupAvailable, "boolean");
+  assert.ok(!status.initialized || !status.setupAvailable);
 }
 
 async function check() {
@@ -128,6 +185,7 @@ async function check() {
   const robots = await get("/robots.txt");
   assert.equal(robots.status, 200);
   assert.match(await robots.text(), /Disallow: \//);
+  await checkAdmin(get);
   if (url.protocol === "https:") {
     assert.equal(page.headers.get("x-content-type-options"), "nosniff");
     assert.match(
@@ -136,19 +194,24 @@ async function check() {
     );
   }
   console.log(
-    `Smoke passed: ${base} SSR articles and search zh/en; metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API and reader 404; noindex.`,
+    `Smoke passed: ${base} SSR articles and search zh/en; metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API and reader 404; admin shell and anonymous auth boundaries; noindex.`,
   );
 }
-let failure;
-for (let attempt = 1; attempt <= 12; attempt++) {
-  try {
-    await check();
-    failure = undefined;
-    break;
-  } catch (error) {
-    failure = error;
-    console.log(`Smoke attempt ${attempt}/12 failed: ${error.message}`);
-    if (attempt < 12) await setTimeout(10_000);
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  let failure;
+  for (let attempt = 1; attempt <= 12; attempt++) {
+    try {
+      await check();
+      failure = undefined;
+      break;
+    } catch (error) {
+      failure = error;
+      console.log(`Smoke attempt ${attempt}/12 failed: ${error.message}`);
+      if (attempt < 12) await setTimeout(10_000);
+    }
   }
+  if (failure) throw failure;
 }
-if (failure) throw failure;
