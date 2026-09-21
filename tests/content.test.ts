@@ -1,11 +1,15 @@
 import { env } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { DraftInput } from "../shared/content";
 import { MARKDOWN_LIMITS } from "../shared/markdown";
 import { compileSearchQuery } from "../shared/search";
-import { ContentError, ContentService } from "../worker/content/service";
+import { ContentError, type ContentService } from "../worker/content/service";
+import { contentFixture } from "./content-fixture";
 
-const service = new ContentService(env.DB);
+let service: ContentService;
+beforeEach(async () => {
+  ({ service } = await contentFixture(env.DB));
+});
 function draft(overrides: Partial<DraftInput> = {}): DraftInput {
   return {
     title: "Test article",

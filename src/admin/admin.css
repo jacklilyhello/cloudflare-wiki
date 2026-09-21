@@ -1235,3 +1235,69 @@
     animation-duration: 1.5s;
   }
 }
+
+.content-session-notice {
+  align-items: stretch;
+  flex-direction: column;
+}
+.content-session-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.content-session-actions a {
+  color: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.admin-signout-dialog {
+  width: min(485px, calc(100vw - 32px));
+  padding: 28px;
+  border: 1px solid #e1e6dc;
+  border-radius: 11px;
+  background: #fff;
+  color: #30412e;
+  box-shadow: 0 24px 80px #1d301d30;
+}
+.admin-signout-dialog::backdrop {
+  background: #142c2199;
+  backdrop-filter: blur(3px);
+}
+.admin-signout-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 20px;
+  border-radius: 11px;
+  background: #faf0eb;
+  color: #a46d54;
+}
+.admin-signout-dialog h2 {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.admin-signout-dialog form > p {
+  margin: 13px 0 23px;
+  color: #7c8975;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.admin-signout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.admin-signout-confirm {
+  background: #a3634d;
+  border-color: #a3634d;
+}
+.admin-signout-confirm:hover:not(:disabled) {
+  background: #8c523e;
+  border-color: #8c523e;
+}

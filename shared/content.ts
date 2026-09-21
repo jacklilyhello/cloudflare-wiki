@@ -8,6 +8,7 @@ export const CONTENT_LIMITS = {
   tag: 64,
   changeNote: 500,
   revisionPage: 50,
+  query: 200,
 } as const;
 
 export interface DraftInput {
@@ -53,6 +54,41 @@ export interface ContentRevision {
 }
 
 export type RevisionSummary = Omit<ContentRevision, "markdown">;
+export interface PageSummary extends AdminTranslation {
+  title: string;
+  description: string;
+  tags: string[];
+}
+export interface ContentPage<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+export interface ContentPagination {
+  cursor?: string;
+  limit?: number;
+}
+export interface PageListOptions extends ContentPagination {
+  language?: Language;
+  status?: "active" | "draft" | "published" | "deleted";
+  q?: string;
+}
+export interface ContentDetail {
+  translation: AdminTranslation;
+  draft: ContentRevision;
+  published: ContentRevision | null;
+  translations: AdminTranslation[];
+}
+export interface ContentEvent {
+  id: string;
+  translationId: string;
+  type: ContentEventType;
+  version: number;
+  revisionId: string | null;
+  fromPath: string | null;
+  toPath: string | null;
+  changeNote: string;
+  createdAt: string;
+}
 export type ContentEventType =
   | "create"
   | "save_draft"
