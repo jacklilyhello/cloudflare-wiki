@@ -76,6 +76,7 @@ const adminApiPaths = [
   "/api/admin/pages/starter-home-en/revisions",
   "/api/admin/pages/starter-home-en/events",
   "/api/admin/navigation/zh",
+  "/api/admin/audit",
 ];
 const editorPaths = [
   "/admin/pages/new",
@@ -144,6 +145,7 @@ test("admin smoke accepts all lifecycle states using only anonymous reads", asyn
       "/api/admin/pages/starter-home-en/revisions",
       "/api/admin/pages/starter-home-en/events",
       "/api/admin/navigation/zh",
+      "/api/admin/audit",
       "/admin/pages/new",
       "/admin/pages/starter-home-en/history",
       "/api/admin/setup",
