@@ -1,11 +1,39 @@
 # Cloudflare Wiki / Emby Wiki
 
-A new Cloudflare-native bilingual Markdown wiki foundation. Current scope: **test page and health endpoint**, not a complete CMS. No code/data is inherited from Cloudflare-Native-Wiki.
+A new Cloudflare-native bilingual Markdown wiki. The current implementation provides a **server-rendered public reader** with original starter documentation. The administrator CMS and persistent content storage are under development. No code/data is inherited from Cloudflare-Native-Wiki.
 
 - Test: <https://cf.emby.wiki>
 - Future production: `emby.wiki` — not configured or deployed here.
 - Stack: React, TypeScript, Vite, Workers Static Assets, official Cloudflare Vite plugin.
 - Read `AGENTS.md`, then `codex.md` before development.
+
+## Public reader
+
+- `/zh/home` and `/en/home`: translated articles, nested navigation, breadcrumbs, contents, heading links, theme selection, code copying, image viewing and responsive layout.
+- `/{language}/search?q=...`: server-rendered search over titles, descriptions, body, tags and paths; matches stay in the selected language. Queries are limited to 200 characters.
+- `/api/public/search?lang=zh&q=...`: read-only JSON search; only `zh` and `en` are accepted.
+- `/sitemap.xml`: current published catalog, with a fixed test origin. Article responses include canonical, translated-language and OpenGraph metadata. The test environment remains noindex and robots-blocked.
+- Unknown document routes return a genuine 404; public article and API writes are rejected.
+
+The Worker renders the article before JavaScript runs. React hydrates reading controls; ordinary links, search, content and disclosure blocks work without JavaScript. `content/` contains original starter articles, isolated behind `worker/content/catalog.ts`; it is not yet a persistent CMS. Only this published catalog reaches anonymous visitors.
+
+`shared/markdown.ts` is the shared Markdown renderer intended for both reader and editor preview. It supports CommonMark/GFM, tables, tasks, footnotes, syntax highlighting, heading anchors, `[[guide/reading|internal links]]`, GitHub-style callouts, safe semantic HTML, KaTeX MathML and Mermaid source blocks. Diagram enhancement loads only when needed, uses strict Mermaid settings, and displays sanitized SVG as an image with the source preserved. Raw HTML cannot opt into trusted enhancements. Source size, tree complexity, code, diagram and math workloads are bounded.
+
+Grouped examples use directive syntax with a native disclosure fallback:
+
+```markdown
+:::tabs
+::tab[Configuration]
+Configuration explanation.
+
+::tab[Verification]
+Verification explanation.
+:::
+```
+
+In GFM table cells, escape the Wiki link label separator as `[[guide/reading\|Reading guide]]`. Mermaid enhancement allows up to eight diagrams, 8,000 source characters, 200 statements and 150 edges per diagram; generated SVG is capped at 240 KB. Author configuration, image/icon resources, navigation, CSS and property objects are intentionally unsupported and stay visible as source. Math uses native MathML; HTML is a conservative semantic subset with no scripts, styles, author IDs or event handlers.
+
+No administrator login, saved drafts, publication workflow, D1/R2 storage, file manager or revision restoration is available yet. These belong to the ongoing product work; the reader does not pretend to provide them.
 
 ## Local development
 
@@ -61,7 +89,7 @@ Only Worker `cloudflare-wiki` and Custom Domain `cf.emby.wiki` are provisioned a
 { "status": "ok", "service": "cloudflare-wiki", "environment": "test", "revision": "<commit SHA or local>" }
 ```
 
-HEAD is supported; writes are rejected. Unknown `/api/*` returns JSON 404 even for browser navigation. Smoke checks verify exact revision, homepage, JS asset, robots policy and API behavior. Test responses are noindex.
+HEAD is supported; writes are rejected. Unknown `/api/*` returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Test responses are noindex.
 
 ```sh
 SMOKE_BASE_URL=https://cf.emby.wiki EXPECTED_SHA=<main-commit-sha> npm run smoke
@@ -69,4 +97,4 @@ SMOKE_BASE_URL=https://cf.emby.wiki EXPECTED_SHA=<main-commit-sha> npm run smoke
 
 Inspect failed workflow jobs/steps/logs and repair through PR. Never bypass tests or deploy with a local write token. Rollbacks use normal revert PRs and main deployment, not history rewrites or arbitrary old-branch deployment.
 
-`codex.md` contains future product constraints and module/storage plans. Initialization does not begin that feature work. Production needs a separate explicit task.
+`codex.md` records product constraints, implemented boundaries and remaining module/storage plans. Production needs a separate explicit task.

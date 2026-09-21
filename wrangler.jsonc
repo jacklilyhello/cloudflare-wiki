@@ -7,8 +7,9 @@
   "preview_urls": false,
   "assets": {
     "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/health", "/api", "/api/*"]
+    "html_handling": "none",
+    "not_found_handling": "none",
+    "run_worker_first": true
   },
   "vars": {
     "APP_ID": "jacklilyhello/cloudflare-wiki",
