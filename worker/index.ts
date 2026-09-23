@@ -1,5 +1,6 @@
 import type { HealthResponse } from "../shared/contracts";
 import { adminApi, adminShell } from "./admin";
+import { publicFile } from "./files-http";
 import { publicSearch, renderReader, sitemap } from "./reader";
 import { securityHeaders as headers } from "./security";
 
@@ -30,6 +31,8 @@ export default {
       );
     }
     if (pathname === "/api/public/search") return publicSearch(request, env);
+    if (pathname === "/files" || pathname.startsWith("/files/"))
+      return publicFile(request, env);
     if (pathname === "/api/admin" || pathname.startsWith("/api/admin/"))
       return adminApi(request, env);
     if (pathname === "/api" || pathname.startsWith("/api/")) {

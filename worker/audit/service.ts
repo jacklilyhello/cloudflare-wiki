@@ -10,6 +10,12 @@ import {
   type AuditRecord,
 } from "../../shared/audit";
 import type { Language } from "../../shared/contracts";
+import {
+  FILE_ACTIONS,
+  FILE_FIELDS,
+  type FileAction,
+  type FileField,
+} from "../../shared/files";
 import { SETTINGS_FIELDS, type SettingsField } from "../../shared/settings";
 import { type ContentWriteAccess, sessionGuard } from "../auth/access";
 
@@ -41,6 +47,7 @@ type Row = {
   created_at: string;
   details_json: string;
   page_title: string | null;
+  source_page_event_id: string | null;
 };
 function invalid(message = "Invalid audit filters."): never {
   throw new AuditError(400, message);
@@ -233,6 +240,40 @@ function record(row: Row): AuditRecord {
       action: "settings.update",
       language: null,
       details: { changedFields: details.changedFields as SettingsField[] },
+      pageTitle: null,
+    };
+  }
+  if (row.category === "file") {
+    if (
+      !FILE_ACTIONS.includes(row.action as FileAction) ||
+      row.language !== null ||
+      row.origin !== "current" ||
+      row.source_page_event_id !== null ||
+      row.page_title !== null ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+        row.subject_id,
+      ) ||
+      !Number.isSafeInteger(row.seq) ||
+      row.seq < 1 ||
+      !Number.isSafeInteger(row.subject_version) ||
+      row.subject_version < 1 ||
+      !exactObject(details, ["changedFields"]) ||
+      !Array.isArray(details.changedFields) ||
+      details.changedFields.length < 1 ||
+      details.changedFields.length > FILE_FIELDS.length ||
+      new Set(details.changedFields).size !== details.changedFields.length ||
+      !details.changedFields.every(
+        (field) =>
+          typeof field === "string" && FILE_FIELDS.includes(field as FileField),
+      )
+    )
+      storageFailure();
+    return {
+      ...base,
+      category: "file",
+      action: row.action as FileAction,
+      language: null,
+      details: { changedFields: details.changedFields as FileField[] },
       pageTitle: null,
     };
   }
