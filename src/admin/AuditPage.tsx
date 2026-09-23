@@ -11,9 +11,12 @@ import {
 } from "../../shared/audit";
 import type { AuthSession } from "../../shared/auth";
 import type { Language } from "../../shared/contracts";
-import { publicPath } from "../../shared/paths";
 import { ApiError, request } from "./api";
 import "./audit.css";
+
+function pathLabel(language: Language, path: string) {
+  return `/${language}/${path}`;
+}
 
 type Filters = {
   category: "" | AuditCategory;
@@ -41,6 +44,9 @@ const ACTION_LABELS: Record<AuditAction, [string, string]> = {
   "page.restore_revision": ["恢复历史版本", "Revision restored"],
   "page.restore_deleted": ["恢复已删除页面", "Page restored"],
   "navigation.save": ["保存导航", "Navigation saved"],
+  "redirect.create": ["创建重定向", "Redirect created"],
+  "redirect.update": ["更新重定向", "Redirect updated"],
+  "redirect.delete": ["删除重定向", "Redirect deleted"],
   "administrator.initialize": ["初始化管理员", "Administrator initialized"],
   "administrator.credentials": ["更新管理员凭据", "Credentials updated"],
 };
@@ -49,6 +55,7 @@ function categoryLabel(category: AuditCategory, zh: boolean) {
     {
       page: ["页面", "Pages"],
       navigation: ["导航", "Navigation"],
+      redirect: ["重定向", "Redirects"],
       administrator: ["管理员", "Administrator"],
     } as const
   )[category][zh ? 0 : 1];
@@ -129,9 +136,11 @@ function AuditIcon({ category }: { category?: AuditCategory }) {
             ? "M14 3H5v18h14V8l-5-5v5h5M9 12h6M9 16h6"
             : category === "navigation"
               ? "M10 3h4v4h-4zM3 17h4v4H3zM10 17h4v4h-4zM17 17h4v4h-4zM12 7v10M5 17v-5h14v5"
-              : category === "administrator"
-                ? "M20 21v-2a7 7 0 0 0-14 0v2M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0"
-                : "M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0"
+              : category === "redirect"
+                ? "M4 18v-5a6 6 0 0 1 6-6h10m-5-5 5 5-5 5"
+                : category === "administrator"
+                  ? "M20 21v-2a7 7 0 0 0-14 0v2M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0"
+                  : "M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0"
         }
       />
     </svg>
@@ -193,7 +202,7 @@ function RecordDetails({
                 <dt>{zh ? "原路径" : "Previous path"}</dt>
                 <dd>
                   <code>
-                    {publicPath(record.language, record.details.fromPath)}
+                    {pathLabel(record.language, record.details.fromPath)}
                   </code>
                 </dd>
               </div>
@@ -203,7 +212,7 @@ function RecordDetails({
                 <dt>{zh ? "记录中的路径" : "Recorded path"}</dt>
                 <dd>
                   <code>
-                    {publicPath(record.language, record.details.toPath)}
+                    {pathLabel(record.language, record.details.toPath)}
                   </code>
                 </dd>
               </div>
@@ -213,6 +222,46 @@ function RecordDetails({
                 <dt>{zh ? "关联修订 ID" : "Revision ID"}</dt>
                 <dd>
                   <code>{record.details.revisionId}</code>
+                </dd>
+              </div>
+            )}
+          </>
+        )}
+        {record.category === "redirect" && (
+          <>
+            {record.details.previousPath !== null && (
+              <div>
+                <dt>{zh ? "原重定向路径" : "Previous redirect path"}</dt>
+                <dd>
+                  <code>
+                    {pathLabel(record.language, record.details.previousPath)}
+                  </code>
+                </dd>
+              </div>
+            )}
+            {record.details.sourcePath !== null && (
+              <div>
+                <dt>{zh ? "重定向路径" : "Redirect path"}</dt>
+                <dd>
+                  <code>
+                    {pathLabel(record.language, record.details.sourcePath)}
+                  </code>
+                </dd>
+              </div>
+            )}
+            {record.details.previousTarget !== null && (
+              <div>
+                <dt>{zh ? "原目标页面 ID" : "Previous target page ID"}</dt>
+                <dd>
+                  <code>{record.details.previousTarget}</code>
+                </dd>
+              </div>
+            )}
+            {record.details.targetTranslationId !== null && (
+              <div>
+                <dt>{zh ? "目标页面 ID" : "Target page ID"}</dt>
+                <dd>
+                  <code>{record.details.targetTranslationId}</code>
                 </dd>
               </div>
             )}
@@ -297,6 +346,12 @@ function RecordDetails({
             <span aria-hidden="true">↗</span>
           </a>
         )}
+        {record.category === "redirect" && (
+          <a className="admin-button secondary" href="/admin/redirects">
+            {zh ? "管理重定向" : "Manage redirects"}
+            <span aria-hidden="true">↗</span>
+          </a>
+        )}
       </div>
     </div>
   );
@@ -317,17 +372,21 @@ function AuditEntry({
         (zh ? "Wiki 页面" : "Wiki page")
       : record.category === "navigation"
         ? `${languageLabel(record.language, zh)}${zh ? "导航" : " navigation"}`
-        : record.category === "administrator"
-          ? zh
-            ? "管理员账户"
-            : "Administrator account"
-          : zh
-            ? "其他记录"
-            : "Other activity";
+        : record.category === "redirect"
+          ? `${languageLabel(record.language, zh)}${zh ? "重定向" : " redirects"}`
+          : record.category === "administrator"
+            ? zh
+              ? "管理员账户"
+              : "Administrator account"
+            : zh
+              ? "其他记录"
+              : "Other activity";
   const path =
     record.category === "page"
       ? (record.details.toPath ?? record.details.fromPath)
-      : null;
+      : record.category === "redirect"
+        ? (record.details.sourcePath ?? record.details.previousPath)
+        : null;
   return (
     <li className="audit-entry">
       <details>
@@ -353,7 +412,7 @@ function AuditEntry({
             <div className="audit-entry-target">
               <span>{title}</span>
               {path && (
-                <code>{publicPath(record.language as Language, path)}</code>
+                <code>{pathLabel(record.language as Language, path)}</code>
               )}
             </div>
           </div>
@@ -556,8 +615,8 @@ export function AuditPage({
           </h1>
           <p>
             {zh
-              ? "查看页面、导航和管理员账户的变更，最新记录显示在前。"
-              : "Review changes to pages, navigation and the administrator account, newest first."}
+              ? "查看页面、导航、重定向和管理员账户的变更，最新记录显示在前。"
+              : "Review changes to pages, navigation, redirects and the administrator account, newest first."}
           </p>
         </div>
         <button

@@ -39,6 +39,12 @@ const AuditPage = lazy(() =>
   import("./AuditPage").then((module) => ({ default: module.AuditPage })),
 );
 
+const RedirectsPage = lazy(() =>
+  import("./RedirectsPage").then((module) => ({
+    default: module.RedirectsPage,
+  })),
+);
+
 type Overview = {
   pages: { total: number; drafts: number; published: number; deleted: number };
   revisions: number;
@@ -1218,6 +1224,13 @@ export function AdminApp() {
             <span>{zh ? "导航" : "Navigation"}</span>
           </a>
           <a
+            href="/admin/redirects"
+            aria-current={route.page === "redirects" ? "page" : undefined}
+          >
+            <Icon name="arrow" />
+            <span>{zh ? "重定向" : "Redirects"}</span>
+          </a>
+          <a
             href="/admin/audit"
             aria-current={route.page === "audit" ? "page" : undefined}
           >
@@ -1266,6 +1279,7 @@ export function AdminApp() {
                   account: zh ? "管理员" : "Administrator",
                   pages: zh ? "页面" : "Pages",
                   navigation: zh ? "导航" : "Navigation",
+                  redirects: zh ? "重定向" : "Redirects",
                   audit: zh ? "审计日志" : "Audit logs",
                   editor: zh ? "编辑页面" : "Page editor",
                   history: zh ? "版本历史" : "Revision history",
@@ -1315,6 +1329,12 @@ export function AdminApp() {
               />
             ) : route.page === "navigation" ? (
               <NavigationPage
+                language={language}
+                session={session}
+                onSessionChange={setSession}
+              />
+            ) : route.page === "redirects" ? (
+              <RedirectsPage
                 language={language}
                 session={session}
                 onSessionChange={setSession}
