@@ -6,6 +6,7 @@ import type { AuthGrant } from "../shared/auth";
 import type { Language } from "../shared/contracts";
 import { adminAudit } from "./admin-audit";
 import { adminContent } from "./admin-content";
+import { adminDirectories } from "./admin-directories";
 import { adminFiles } from "./admin-files";
 import { adminHeaders, csrf, json, readJson, sameOrigin } from "./admin-http";
 import { adminNavigation } from "./admin-navigation";
@@ -190,6 +191,13 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
     }
     const contentResponse = await adminContent(request, env, session, rawToken);
     if (contentResponse) return contentResponse;
+    const directoryResponse = await adminDirectories(
+      request,
+      env,
+      session,
+      rawToken,
+    );
+    if (directoryResponse) return directoryResponse;
     const navigationResponse = await adminNavigation(
       request,
       env,

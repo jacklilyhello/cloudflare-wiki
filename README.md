@@ -53,6 +53,16 @@ Monaco and its diff editor load only for the editor/history workspace. These doc
 
 `scripts/monaco-csp.ts` adapts the pinned Monaco sources using exact source hashes and single-constructor checks; changes to a matched source fail the build until reviewed. It also replaces Monaco's embedded sanitizer with the pinned DOMPurify dependency in an isolated instance, so hooks are not shared with Mermaid. The Markdown sanitizer still strips author styles and unsafe HTML. The file service and its visual manager are described below.
 
+## Page directory service
+
+The authenticated directory API derives folders from active canonical page paths independently for `zh` and `en`. A path can be both a page and a parent of other pages; directory entries include its landing-page summary and whether it has children. Empty folders are not stored. `GET /api/admin/directories/{language}` accepts only unique `path`, `cursor` and `limit` parameters. Root uses an empty path, pages default to 25 entries and are limited to 50, and cursors bind the language, directory and route-registry version. Deleted pages remain in the existing flat Trash list.
+
+`POST /api/admin/directories/{language}/preview` accepts `{fromPath,toPath}` and returns every affected active page, including a source landing page. `POST /move` also requires the reviewed `expectedVersion` and exact `expectedMembers` array of `{id,version}`. Both POST endpoints require the administrator session, exact Origin, CSRF and closed JSON of at most 16 KiB. Moves contain at most 25 pages and fail as a whole if larger. Root and overlapping-prefix moves are rejected. The entire destination prefix must be unused, including aliases and paths reserved by unpublished or deleted pages.
+
+One D1 transaction validates the complete membership and versions, adds new routes, updates published search paths, records each page move and changes canonical paths. It checks the completed page, route, search, event and audit records before committing; an incomplete result rolls back the whole move. Draft and published revision pointers, publication times, bilingual identities and navigation targets stay intact. Old paths remain aliases directly to the current page. Deleted pages stay in their original location. Markdown bodies are unchanged, so ordinary relative Markdown links may resolve differently after a path move. There is no automatic write retry.
+
+The directory service is implemented; its visual page-workspace integration remains follow-up work. Migration `0011_page_directories.sql` adds transaction-claim state and invalidates directory cursors on page deletion/restoration. It is compatible with the previous Worker during migration-first deployment. Keep applied migrations on rollback and repair schema issues through forward migrations.
+
 ## File Manager
 
 `/admin/files` provides a folder browser, current-folder search, paginated library and global Trash view, with a properties panel for previews, size, image dimensions, publication state and bilingual alternative text. Create folders, rename/move items, update alt text, publish/unpublish, download, copy public URLs and soft-delete/restore. Files are private after upload and restoration; publication is a separate confirmation. Folders containing active children cannot be deleted.

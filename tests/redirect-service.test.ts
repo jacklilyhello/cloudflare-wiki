@@ -510,7 +510,7 @@ describe("registry CAS and transaction races", () => {
     ).toBe(second.id);
   });
 
-  it("checks target deletion inside the write even though deletion does not change registry membership", async () => {
+  it("rejects a stale redirect write when target deletion advances the directory registry", async () => {
     const target = await page();
     const expectedVersion = await registry();
     const raced = new RedirectService(
@@ -523,8 +523,8 @@ describe("registry CAS and transaction races", () => {
         path: "must-not-exist",
         translationId: target.id,
       }),
-    ).rejects.toMatchObject({ status: 409 });
-    expect(await registry()).toBe(expectedVersion);
+    ).rejects.toMatchObject({ status: 412 });
+    expect(await registry()).toBe(expectedVersion + 1);
     expect(await audit()).toEqual([]);
   });
 
