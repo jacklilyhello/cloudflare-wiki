@@ -104,6 +104,12 @@
 .wiki-markdown-tools button:hover {
   background: var(--admin-soft);
 }
+.wiki-markdown-tools .wiki-file-tool {
+  width: auto;
+  min-width: 48px;
+  padding-inline: 9px;
+  white-space: nowrap;
+}
 .wiki-editor-view {
   padding: 3px;
   border-radius: 6px;

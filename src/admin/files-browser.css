@@ -1,0 +1,315 @@
+.admin-root .files-browser {
+  min-width: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: var(--admin-panel);
+  overflow: hidden;
+}
+.admin-root .files-browser :where(button, input) {
+  font: inherit;
+}
+.admin-root .files-browser :where(button:disabled) {
+  cursor: default;
+}
+.admin-root .files-browser-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--admin-line);
+}
+.admin-root .files-browser-breadcrumbs {
+  min-width: 0;
+}
+.admin-root .files-browser-breadcrumbs ol {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.admin-root .files-browser-breadcrumbs li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+}
+.admin-root .files-browser-breadcrumbs :where(li > span) {
+  color: var(--admin-muted);
+}
+.admin-root .files-browser-breadcrumbs button {
+  display: block;
+  min-width: 0;
+  max-width: 180px;
+  padding: 4px 0;
+  border: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.admin-root .files-browser-breadcrumbs button[aria-current] {
+  color: var(--admin-ink);
+  font-weight: 650;
+}
+.admin-root
+  .files-browser
+  :where(
+    .files-browser-refresh,
+    .files-browser-search button,
+    .files-browser-notice button,
+    .files-browser-more
+  ) {
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  padding: 8px 13px;
+  background: var(--admin-panel);
+  color: var(--admin-ink);
+  font-size: 12px;
+  font-weight: 550;
+}
+.admin-root .files-browser-refresh {
+  flex: 0 0 auto;
+}
+.admin-root .files-browser-location {
+  color: var(--admin-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-root .files-browser-search {
+  padding: 18px 20px 0;
+}
+.admin-root .files-browser-search label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+.admin-root .files-browser-search > div {
+  display: flex;
+  gap: 8px;
+}
+.admin-root .files-browser-search input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  padding: 9px 12px;
+  background: var(--admin-bg);
+  color: var(--admin-ink);
+  font-size: 12px;
+}
+.admin-root .files-browser-search button {
+  flex: 0 0 auto;
+}
+.admin-root .files-browser-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 18px 20px 0;
+  padding: 13px 15px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning-ink);
+  font-size: 12px;
+}
+.admin-root .files-browser-notice button {
+  flex: 0 0 auto;
+}
+.admin-root .files-browser-results {
+  padding: 13px 20px 20px;
+}
+.admin-root .files-browser-count {
+  min-height: 25px;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+.admin-root .files-browser-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 215px), 1fr));
+  gap: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.admin-root .files-browser-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-panel);
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
+}
+.admin-root .files-browser-card:hover {
+  background: var(--admin-bg);
+}
+.admin-root .files-browser-card[data-selected="true"] {
+  border-color: var(--admin-accent);
+  background: var(--admin-soft);
+  box-shadow: 0 0 0 1px var(--admin-accent);
+}
+.admin-root .files-browser-select {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 13px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  border-radius: 7px;
+  padding: 16px 14px 13px;
+  background: transparent;
+  color: var(--admin-ink);
+  text-align: start;
+}
+.admin-root .files-browser-visual {
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 49px;
+  flex: 0 0 45px;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  background: var(--admin-bg);
+  color: var(--admin-muted);
+}
+.admin-root .files-browser-visual.folder {
+  background: var(--admin-soft);
+  color: var(--admin-accent);
+}
+.admin-root .files-browser-visual svg {
+  width: 27px;
+  height: 27px;
+}
+.admin-root .files-browser-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.admin-root .files-browser-entry-text {
+  display: block;
+  min-width: 0;
+}
+.admin-root .files-browser-entry-text strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--admin-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.admin-root .files-browser-entry-text > span {
+  display: block;
+  margin-top: 5px;
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+.admin-root .files-browser-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 14px 9px;
+}
+.admin-root .files-browser-state {
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+.admin-root .files-browser-card-footer button {
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 2px;
+  background: transparent;
+  color: var(--admin-accent);
+  font-size: 11px;
+  font-weight: 600;
+}
+.admin-root .files-browser-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 36px 10px;
+  text-align: center;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.admin-root .files-browser-empty svg {
+  width: 37px;
+  height: 37px;
+  margin-bottom: 5px;
+  opacity: 0.7;
+}
+.admin-root .files-browser-more {
+  display: block;
+  margin: 18px auto 0;
+}
+.admin-root .files-folder-picker {
+  min-width: 0;
+}
+.admin-root .files-folder-picker-choice {
+  display: grid;
+  gap: 10px;
+  margin-top: 15px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.admin-root .files-folder-picker-choice > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.admin-root .files-folder-picker-choice button {
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  padding: 9px 14px;
+  background: var(--admin-panel);
+  color: var(--admin-ink);
+  font-size: 12px;
+}
+.admin-root .files-folder-picker-choice button:last-child {
+  border-color: transparent;
+  background: var(--admin-button-bg);
+  color: white;
+}
+@media (max-width: 580px) {
+  .admin-root .files-browser-toolbar {
+    gap: 9px;
+    padding: 13px;
+  }
+  .admin-root .files-browser-search {
+    padding: 14px 13px 0;
+  }
+  .admin-root .files-browser-results {
+    padding: 13px;
+  }
+  .admin-root .files-browser-breadcrumbs button {
+    max-width: 140px;
+  }
+  .admin-root .files-browser-notice {
+    align-items: flex-start;
+    flex-direction: column;
+    margin: 13px 13px 0;
+  }
+  .admin-root .files-browser-list {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+}

@@ -48,6 +48,10 @@ const RedirectsPage = lazy(() =>
   })),
 );
 
+const FilesPage = lazy(() =>
+  import("./FilesPage").then((module) => ({ default: module.FilesPage })),
+);
+
 const SettingsPage = lazy(() =>
   import("./SettingsPage").then((module) => ({ default: module.SettingsPage })),
 );
@@ -1247,6 +1251,13 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
             <span>{zh ? "导航" : "Navigation"}</span>
           </a>
           <a
+            href="/admin/files"
+            aria-current={route.page === "files" ? "page" : undefined}
+          >
+            <Icon name="book" />
+            <span>{zh ? "文件" : "Files"}</span>
+          </a>
+          <a
             href="/admin/redirects"
             aria-current={route.page === "redirects" ? "page" : undefined}
           >
@@ -1308,6 +1319,7 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
                   dashboard: zh ? "概览" : "Dashboard",
                   account: zh ? "管理员" : "Administrator",
                   pages: zh ? "页面" : "Pages",
+                  files: zh ? "文件资料库" : "Files",
                   navigation: zh ? "导航" : "Navigation",
                   redirects: zh ? "重定向" : "Redirects",
                   audit: zh ? "审计日志" : "Audit logs",
@@ -1366,6 +1378,12 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
               />
             ) : route.page === "redirects" ? (
               <RedirectsPage
+                language={language}
+                session={session}
+                onSessionChange={setSession}
+              />
+            ) : route.page === "files" ? (
+              <FilesPage
                 language={language}
                 session={session}
                 onSessionChange={setSession}

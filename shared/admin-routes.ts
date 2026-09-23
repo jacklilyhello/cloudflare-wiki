@@ -4,6 +4,7 @@ export type AdminRoute =
         | "dashboard"
         | "account"
         | "pages"
+        | "files"
         | "navigation"
         | "redirects"
         | "settings"
@@ -20,6 +21,7 @@ export function parseAdminRoute(pathname: string): AdminRoute {
   if (path === "/admin") return { page: "dashboard" };
   if (path === "/admin/account") return { page: "account" };
   if (path === "/admin/pages") return { page: "pages" };
+  if (path === "/admin/files") return { page: "files" };
   if (path === "/admin/navigation") return { page: "navigation" };
   if (path === "/admin/redirects") return { page: "redirects" };
   if (path === "/admin/settings") return { page: "settings" };

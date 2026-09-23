@@ -1,0 +1,121 @@
+.file-picker-dialog {
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 26px;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: var(--admin-panel);
+  color: var(--admin-ink);
+  box-shadow: 0 24px 80px #0004;
+  overflow: auto;
+}
+.file-picker-dialog::backdrop {
+  background: #101b28a6;
+}
+.file-picker-heading,
+.file-picker-links,
+.file-picker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.file-picker-heading {
+  align-items: flex-start;
+}
+.file-picker-heading h2 {
+  font-size: 22px;
+}
+.file-picker-heading p,
+.file-picker-selection p,
+.file-picker-name small {
+  color: var(--admin-muted);
+}
+.file-picker-links {
+  margin: 20px 0;
+}
+.file-picker-links a,
+.file-picker-recovery a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.file-picker-heading > button,
+.file-picker-links > button,
+.file-picker-recovery > button,
+.file-picker-selection > button,
+.file-picker-actions > button:not(.admin-button) {
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  padding: 7px 12px;
+  color: var(--admin-ink);
+  background: var(--admin-panel);
+}
+.file-picker-error,
+.file-picker-recovery {
+  padding: 14px;
+  margin-bottom: 18px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-soft);
+}
+.file-picker-error {
+  color: var(--admin-danger-ink);
+}
+.file-picker-recovery button {
+  margin-left: 12px;
+}
+.file-picker-browser {
+  min-width: 0;
+}
+.file-picker-selection {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--admin-line);
+  overflow-wrap: anywhere;
+}
+.file-picker-selection .file-picker-name {
+  color: var(--admin-ink);
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.file-picker-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.4fr);
+  gap: 14px;
+}
+.file-picker-options label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.file-picker-options input,
+.file-picker-options select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  padding: 9px 11px;
+  background: var(--admin-panel);
+  color: var(--admin-ink);
+  font: inherit;
+}
+.file-picker-actions {
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+@media (max-width: 600px) {
+  .file-picker-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 18px;
+  }
+  .file-picker-heading,
+  .file-picker-links {
+    gap: 10px;
+  }
+  .file-picker-options {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

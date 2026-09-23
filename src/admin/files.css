@@ -1,0 +1,342 @@
+.admin-root .files-workspace {
+  min-width: 0;
+}
+.admin-root .files-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.admin-root .files-page-heading h1 {
+  margin: 9px 0;
+  font-size: clamp(24px, 2.5vw, 31px);
+  font-weight: 550;
+  letter-spacing: -0.8px;
+}
+.admin-root .files-page-heading p {
+  color: var(--admin-muted);
+  font-size: 13px;
+}
+.admin-root .files-heading-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.admin-root .files-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 22px;
+  align-items: start;
+}
+.admin-root .files-library-panel {
+  min-width: 0;
+  min-height: 540px;
+  overflow: hidden;
+}
+.admin-root .files-library-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 15px 22px 0;
+  border-bottom: 1px solid var(--admin-line);
+}
+.admin-root .files-library-tabs > fieldset {
+  display: flex;
+  gap: 24px;
+}
+.admin-root .files-library-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 12px 0 15px;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.admin-root .files-library-tabs button[aria-pressed="true"] {
+  border-bottom-color: var(--admin-accent);
+  color: var(--admin-accent);
+  font-weight: 650;
+}
+.admin-root .files-properties {
+  position: sticky;
+  top: 24px;
+  overflow: hidden;
+  min-width: 0;
+}
+.admin-root .files-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  min-height: 180px;
+  padding: 22px;
+  background: var(--admin-bg);
+  border-bottom: 1px solid var(--admin-line);
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+.admin-root .files-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+.admin-root .files-mark {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+}
+.admin-root .files-preview .files-mark {
+  width: 48px;
+  height: 48px;
+  color: var(--admin-accent);
+  opacity: 0.7;
+}
+.admin-root .files-properties-body {
+  padding: 21px;
+}
+.admin-root .files-properties-heading h2 {
+  margin-bottom: 10px;
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.admin-root .files-status {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 10px;
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  color: var(--admin-muted);
+  background: var(--admin-bg);
+}
+.admin-root .files-status.public {
+  color: var(--admin-accent);
+  background: var(--admin-soft);
+  border-color: transparent;
+}
+.admin-root .files-properties dl,
+.admin-root .files-comparison dl {
+  margin: 21px 0;
+  display: grid;
+  gap: 10px;
+  font-size: 11px;
+}
+.admin-root .files-properties dl > div,
+.admin-root .files-comparison dl > div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 10px;
+}
+.admin-root .files-properties dt,
+.admin-root .files-comparison dt {
+  color: var(--admin-muted);
+}
+.admin-root .files-properties dd,
+.admin-root .files-comparison dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.admin-root .files-alt-summary {
+  border-top: 1px solid var(--admin-line);
+  padding-top: 15px;
+  font-size: 11px;
+}
+.admin-root .files-alt-summary strong {
+  font-weight: 550;
+}
+.admin-root .files-alt-summary p {
+  margin-top: 9px;
+  overflow-wrap: anywhere;
+}
+.admin-root .files-alt-summary p > :where(span) {
+  display: block;
+  color: var(--admin-muted);
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+.admin-root .files-public-url {
+  margin: 20px 0;
+}
+.admin-root .files-public-url input {
+  font-size: 11px;
+}
+.admin-root .files-public-url button {
+  margin-top: 5px;
+}
+.admin-root .files-help {
+  margin: 15px 0;
+  color: var(--admin-muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+.admin-root .files-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--admin-line);
+  margin-top: 20px;
+  padding-top: 18px;
+}
+.admin-root .files-item-actions :is(button, a) {
+  font-size: 11px;
+  padding: 8px 11px;
+}
+.admin-root .files-danger {
+  color: var(--admin-danger-ink);
+}
+.admin-root .files-properties-empty {
+  padding: 42px 25px 25px;
+  text-align: center;
+}
+.admin-root .files-properties-empty > .files-mark {
+  color: var(--admin-muted);
+  margin-bottom: 16px;
+}
+.admin-root .files-properties-empty h2 {
+  font-size: 15px;
+  font-weight: 550;
+}
+.admin-root .files-properties-empty p {
+  margin-top: 11px;
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+.admin-root .files-storage-note {
+  margin-top: 38px;
+  padding-top: 20px;
+  border-top: 1px solid var(--admin-line);
+}
+.admin-root .files-storage-note span {
+  font-size: 10px;
+  color: var(--admin-accent);
+}
+.admin-root .files-storage-note p {
+  font-size: 11px;
+}
+.admin-root .file-action-dialog {
+  width: min(620px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  padding: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  color: var(--admin-ink);
+  background: var(--admin-panel);
+  box-shadow: 0 24px 100px #0003;
+}
+.admin-root .file-action-dialog::backdrop {
+  background: #0b15297a;
+  backdrop-filter: blur(3px);
+}
+.admin-root .file-action-dialog header {
+  padding: 25px 26px 20px;
+  border-bottom: 1px solid var(--admin-line);
+}
+.admin-root .file-action-dialog h2 {
+  margin: 6px 0 0;
+  font-size: 21px;
+  font-weight: 550;
+}
+.admin-root .files-dialog-name {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--admin-muted);
+  overflow-wrap: anywhere;
+}
+.admin-root .files-dialog-body {
+  padding: 22px 26px;
+  font-size: 13px;
+}
+.admin-root .files-dialog-body > p {
+  margin-bottom: 20px;
+}
+.admin-root .files-dialog-body .admin-field {
+  margin: 15px 0;
+}
+.admin-root .files-dialog-body textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  color: var(--admin-ink);
+  background: var(--admin-bg);
+  padding: 10px;
+  font: inherit;
+}
+.admin-root .file-action-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px 26px;
+  border-top: 1px solid var(--admin-line);
+  background: var(--admin-bg);
+}
+.admin-root .files-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 16px 0;
+}
+.admin-root .files-recovery > p {
+  flex-basis: 100%;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.admin-root .files-comparison {
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-line);
+  padding: 16px;
+  border-radius: 6px;
+  margin-top: 20px;
+}
+.admin-root .files-comparison h3 {
+  font-size: 13px;
+}
+@media (max-width: 1200px) {
+  .admin-root .files-layout {
+    grid-template-columns: minmax(0, 1fr) 270px;
+    gap: 16px;
+  }
+}
+@media (max-width: 1020px) {
+  .admin-root .files-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-root .files-properties {
+    position: static;
+  }
+  .admin-root .files-preview {
+    min-height: 140px;
+  }
+  .admin-root .files-properties-body {
+    padding: 22px;
+  }
+}
+@media (max-width: 640px) {
+  .admin-root .files-page-heading {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+  }
+  .admin-root .files-heading-actions > button {
+    flex: 1;
+  }
+  .admin-root .files-library-tabs {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+  .admin-root .file-action-dialog header,
+  .admin-root .files-dialog-body {
+    padding: 20px;
+  }
+  .admin-root .file-action-dialog footer {
+    padding: 16px 20px;
+    flex-wrap: wrap;
+  }
+}
