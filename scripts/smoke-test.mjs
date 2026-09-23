@@ -199,6 +199,8 @@ export async function checkAdmin(getResponse) {
     "/api/admin/settings",
     "/api/admin/audit",
     "/api/admin/files",
+    "/api/admin/directories/zh",
+    "/api/admin/directories/en",
     "/api/admin/files/00000000-0000-4000-8000-000000000000/download",
   ]) {
     const response = await getResponse(path);
@@ -365,7 +367,7 @@ async function check() {
     );
   }
   console.log(
-    `Smoke passed: ${base} configured homepage and explicit articles/search zh/en; localized metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API, reader and file 404; admin shell; anonymous content/revision/event/navigation/redirect/settings/audit/file APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
+    `Smoke passed: ${base} configured homepage and explicit articles/search zh/en; localized metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API, reader and file 404; admin shell; anonymous content/revision/event/directory/navigation/redirect/settings/audit/file APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
   );
 }
 if (
