@@ -96,14 +96,15 @@ BEGIN
 END;
 CREATE TRIGGER site_settings_version BEFORE UPDATE ON site_settings
 BEGIN
+  -- Remote D1 parsing requires CASE expressions in triggers to be parenthesized.
   SELECT RAISE(ABORT,'settings_version') WHERE NEW.id IS NOT OLD.id OR
-    CASE WHEN (NEW.zh_name IS NOT OLD.zh_name OR NEW.zh_description IS NOT OLD.zh_description
+    (CASE WHEN (NEW.zh_name IS NOT OLD.zh_name OR NEW.zh_description IS NOT OLD.zh_description
     OR NEW.en_name IS NOT OLD.en_name OR NEW.en_description IS NOT OLD.en_description
     OR NEW.default_language IS NOT OLD.default_language OR NEW.theme IS NOT OLD.theme
     OR NEW.accent IS NOT OLD.accent OR NEW.logo IS NOT OLD.logo)
       THEN NEW.version IS NOT OLD.version+1
       ELSE NEW.version IS NOT OLD.version OR NEW.updated_at IS NOT OLD.updated_at
-    END;
+    END);
 END;
 CREATE TRIGGER audit_settings_update AFTER UPDATE ON site_settings
 WHEN NEW.zh_name IS NOT OLD.zh_name OR NEW.zh_description IS NOT OLD.zh_description
