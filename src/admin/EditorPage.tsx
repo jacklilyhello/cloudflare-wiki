@@ -7,6 +7,7 @@ import {
   type DraftInput,
 } from "../../shared/content";
 import type { Language } from "../../shared/contracts";
+import { isContentPath } from "../../shared/page-path";
 import { publicPath } from "../../shared/paths";
 import { ApiError, mutation, request } from "./api";
 import { FilePicker } from "./FilePicker";
@@ -57,7 +58,14 @@ export function EditorPage({
   const [translations, setTranslations] = useState<AdminTranslation[]>([]);
   const [fields, setFields] = useState<Fields>(empty);
   const [baseline, setBaseline] = useState(JSON.stringify(empty));
-  const [path, setPath] = useState("");
+  const [initialPath] = useState(() => {
+    const prefixes = query.getAll("prefix");
+    const prefix = prefixes[0];
+    return !translationId && prefixes.length === 1 && isContentPath(prefix)
+      ? `${prefix}/`
+      : "";
+  });
+  const [path, setPath] = useState(initialPath);
   const [loading, setLoading] = useState(Boolean(translationId));
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -89,7 +97,8 @@ export function EditorPage({
   const reconnectController = useRef<AbortController | null>(null);
   const loadedId = useRef<string | undefined>(undefined);
   const dirty =
-    JSON.stringify(fields) !== baseline || (!translation && Boolean(path));
+    JSON.stringify(fields) !== baseline ||
+    (!translation && path !== initialPath);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   const saveRef = useRef<() => void>(() => {});

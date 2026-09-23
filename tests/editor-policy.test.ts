@@ -21,6 +21,10 @@ describe("safe administrator login return paths", () => {
       "/admin/pages/new?language=en&pageId=seed%3Ahome",
     ],
     ["/admin/pages/new?pageId=page_1", "/admin/pages/new?pageId=page_1"],
+    [
+      "/admin/pages/new?prefix=guide%2Fsetup&pageId=seed%3Ahome&language=en",
+      "/admin/pages/new?language=en&pageId=seed%3Ahome&prefix=guide%2Fsetup",
+    ],
     ["/admin/pages/seed:zh:home/edit/", "/admin/pages/seed%3Azh%3Ahome/edit"],
     [
       "/admin/pages/seed%3Aen%3Ahome/history",
@@ -44,10 +48,27 @@ describe("safe administrator login return paths", () => {
     "/admin/pages/new?language=en&language=zh",
     "/admin/pages/new?language=en&%6canguage=en",
     "/admin/pages/new?pageId=a&pageId=a",
+    "/admin/pages/new?prefix=guide&prefix=guide",
+    "/admin/pages/new?prefix=guide&%70refix=guide",
+    "/admin/pages/new?prefix=",
+    "/admin/pages/new?prefix=Guide",
+    "/admin/pages/new?prefix=guide%2F",
+    "/admin/pages/new?prefix=guide%252Fsetup",
+    "/admin/pages/new?prefix=guide%2F%2E%2E%2Fadmin",
+    "/admin/pages/new?prefix=guide%5Cadmin",
+    "/admin/pages/new?prefix=guide%00admin",
+    "/admin/pages/new?prefix=guide%0A",
+    "/admin/pages/new?prefix=search%2Fguide",
+    "/admin/pages/new?prefix=%EF%BD%87uide",
+    "/admin/pages/new?prefix=%E0%A4%A",
+    `/admin/pages/new?prefix=${"a".repeat(241)}`,
+    `/admin/pages/new?prefix=${"%61".repeat(1400)}`,
     "/admin/pages/new?next=https%3A%2F%2Fattacker.invalid",
     "/admin/pages/new?language=en&unrecognized=1",
     "/admin/pages/id/edit?language=en",
     "/admin/pages/id/history?pageId=a",
+    "/admin/pages/id/edit?prefix=guide",
+    "/admin/pages/id/history?prefix=guide",
     "/admin/pages/new#fragment",
     "/admin/pages/a%2Fb/edit",
     "/admin/pages/new/../new",
@@ -99,6 +120,35 @@ describe("safe administrator login return paths", () => {
       expect(invalid.status).toBe(303);
       expect(invalid.headers.get("Location")).toBe("/admin");
     }
+  });
+
+  it("round-trips a long Chinese directory through the real login redirect", async () => {
+    const prefix = `教程/${"文".repeat(235)}`;
+    const parameters = new URLSearchParams({
+      language: "zh",
+      pageId: "seed:home",
+      prefix,
+    });
+    const target = `/admin/pages/new?${parameters}`;
+    expect(target.length).toBeGreaterThan(1024);
+    expect(normalizeAdminReturnTo(target)).toBe(target);
+    const response = await exports.default.fetch(
+      `https://example.com${target}`,
+      {
+        redirect: "manual",
+      },
+    );
+    expect(response.status).toBe(303);
+    const login = new URL(
+      response.headers.get("Location") ?? "",
+      "https://example.com",
+    );
+    const resumed = normalizeAdminReturnTo(login.searchParams.get("returnTo"));
+    expect(resumed).toBe(target);
+    const query = new URL(resumed ?? "", "https://example.com").searchParams;
+    expect(query.get("prefix")).toBe(prefix);
+    expect(query.get("language")).toBe("zh");
+    expect(query.get("pageId")).toBe("seed:home");
   });
 });
 

@@ -15,6 +15,7 @@ import {
 } from "../../shared/content";
 import type { Language } from "../../shared/contracts";
 import { MarkdownLimitError, renderMarkdown } from "../../shared/markdown";
+import { contentPathIssue, isContentPath } from "../../shared/page-path";
 import { indexSearchText, markdownText } from "../../shared/search";
 import { type ContentWriteAccess, sessionGuard } from "../auth/access";
 
@@ -110,28 +111,14 @@ function identifier(value: unknown) {
   return value;
 }
 export function validateContentPath(value: unknown): string {
-  const path = boundedText(value, CONTENT_LIMITS.path, "page path", true);
-  if (
-    path !== value ||
-    path !== path.normalize("NFKC") ||
-    path !== path.toLowerCase() ||
-    !/^[\p{L}\p{N}_-]+(?:\/[\p{L}\p{N}_-]+)*$/u.test(path)
-  )
-    throw new ContentError(400, "Invalid page path.");
-  // These are application routes, never public article paths.
-  if (
-    [
-      "search",
-      "admin",
-      "api",
-      "assets",
-      "health",
-      "robots.txt",
-      "sitemap.xml",
-    ].includes(path.split("/")[0] ?? "")
-  )
-    throw new ContentError(400, "This page path is reserved.");
-  return path;
+  if (!isContentPath(value))
+    throw new ContentError(
+      400,
+      contentPathIssue(value) === "reserved"
+        ? "This page path is reserved."
+        : "Invalid page path.",
+    );
+  return value;
 }
 function changeNote(value: unknown = "") {
   return boundedText(value, CONTENT_LIMITS.changeNote, "change note");
