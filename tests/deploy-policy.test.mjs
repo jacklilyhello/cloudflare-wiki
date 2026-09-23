@@ -13,6 +13,8 @@ import {
   validateDeployment,
   WORKER_NAME,
 } from "../scripts/deploy-policy.mjs";
+import { R2_BUCKET } from "../scripts/r2-readiness.mjs";
+import { validateR2Config } from "../scripts/r2-provision.mjs";
 
 const valid = {
   GITHUB_ACTIONS: "true",
@@ -39,6 +41,10 @@ test("keeps workers.dev enabled and Preview URLs disabled in source and deployme
   assert.equal(sourceConfig.workers_dev, true);
   assert.equal(sourceConfig.preview_urls, false);
   assert.doesNotThrow(() => validateD1Config(sourceConfig));
+  assert.doesNotThrow(() => validateR2Config(sourceConfig));
+  assert.deepEqual(sourceConfig.r2_buckets, [
+    { binding: "MEDIA", bucket_name: R2_BUCKET, remote: false },
+  ]);
   assert.deepEqual(sourceConfig.d1_databases, [
     {
       binding: D1_BINDING,
@@ -55,6 +61,7 @@ test("keeps workers.dev enabled and Preview URLs disabled in source and deployme
       workers_dev: false,
       preview_urls: true,
       vars: { APP_ENV: "test" },
+      r2_buckets: sourceConfig.r2_buckets,
     },
     valid,
   );
@@ -68,6 +75,8 @@ test("keeps workers.dev enabled and Preview URLs disabled in source and deployme
     },
   ]);
   assert.equal(config.vars.BUILD_SHA, valid.GITHUB_SHA);
+  assert.doesNotThrow(() => validateR2Config(config));
+  assert.deepEqual(config.r2_buckets, sourceConfig.r2_buckets);
 });
 test("rejects an unexpected built Worker before deployment", () => {
   assert.throws(() =>

@@ -11,26 +11,7 @@ import {
 } from "./d1-policy.mjs";
 import { validateDeployment } from "./deploy-policy.mjs";
 
-// Inject transport, config writing and process execution so tests never need a
-// Cloudflare credential or contact the account. No mutation is retried here.
-export async function provisionD1(
-  {
-    env,
-    config,
-    configPath,
-    migrationsDirectory,
-    migrationNames,
-    workerSettings,
-  },
-  { fetch: fetchRequest, writeConfig, runWrangler },
-) {
-  validateDeployment(env);
-  validateD1Config(config);
-  const expectedNames = validateMigrationNames(migrationNames);
-  if (!isAbsolute(migrationsDirectory) || !isAbsolute(configPath))
-    throw new Error(
-      "D1 deployment config and migrations paths must be absolute.",
-    );
+function client(env, fetchRequest) {
   const accountPath = `/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/d1/database`;
 
   async function request(path, operation, body) {
@@ -78,39 +59,7 @@ export async function provisionD1(
     return payload.result;
   }
 
-  // The API's name filter is a search, not an ownership or exact-match check.
-  const candidates = [];
-  let listedAll = false;
-  for (let page = 1; page <= 100; page++) {
-    const rows = await request(
-      `${accountPath}?name=${D1_NAME}&page=${page}&per_page=100`,
-      "lookup",
-    );
-    if (!Array.isArray(rows))
-      throw new Error("D1 lookup returned invalid database records.");
-    candidates.push(...rows.filter((row) => row?.name === D1_NAME));
-    if (rows.length < 100) {
-      listedAll = true;
-      break;
-    }
-  }
-  if (!listedAll || candidates.length > 1)
-    throw new Error(
-      "D1 lookup is ambiguous or incomplete; refusing to provision.",
-    );
-
-  let database = candidates[0];
-  const created = !database;
-  if (created) {
-    // Never replace an existing Worker binding when its database was not found.
-    verifyWorkerD1Binding(workerSettings, undefined, { allowAbsent: true });
-    database = await request(accountPath, "creation", { name: D1_NAME });
-  }
-  const databaseId = validateDatabase(database);
-  verifyWorkerD1Binding(workerSettings, databaseId, { allowAbsent: true });
-  const resolved = resolveD1Config(config, databaseId, migrationsDirectory);
-
-  async function query(sql, params = []) {
+  async function query(databaseId, sql, params = []) {
     const results = await request(
       `${accountPath}/${databaseId}/query`,
       "verification",
@@ -128,8 +77,9 @@ export async function provisionD1(
     return results[0].results;
   }
 
-  async function verifyMarker() {
+  async function verifyMarker(databaseId) {
     const tables = await query(
+      databaseId,
       "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?",
       ["project_metadata"],
     );
@@ -139,24 +89,104 @@ export async function provisionD1(
       );
     validateMarker(
       await query(
+        databaseId,
         "SELECT app_id, environment, database_name FROM project_metadata LIMIT 2",
       ),
     );
   }
 
-  const ledgerSql = `SELECT name FROM d1_migrations ORDER BY name LIMIT ${expectedNames.length + 1}`;
+  return { accountPath, request, query, verifyMarker };
+}
 
-  let applied = 0;
-  if (!created) {
-    await verifyMarker();
-    applied = validateMigrationLedger(await query(ledgerSql), expectedNames);
-    if (applied === 0)
-      throw new Error(
-        "D1 ownership marker has no recorded bootstrap migration; refusing automatic recovery.",
-      );
+function ledgerSql(expectedNames) {
+  return `SELECT name FROM d1_migrations ORDER BY name LIMIT ${expectedNames.length + 1}`;
+}
+
+// This preflight has only an injected transport: no resource creation, config
+// writing or migration execution. Query POSTs contain only fixed SELECTs.
+export async function inspectD1(
+  {
+    env,
+    config,
+    configPath,
+    migrationsDirectory,
+    migrationNames,
+    workerSettings,
+  },
+  { fetch: fetchRequest },
+) {
+  validateDeployment(env);
+  validateD1Config(config);
+  const expectedNames = validateMigrationNames(migrationNames);
+  if (!isAbsolute(migrationsDirectory) || !isAbsolute(configPath))
+    throw new Error(
+      "D1 deployment config and migrations paths must be absolute.",
+    );
+  const api = client(env, fetchRequest);
+
+  // The API's name filter is a search, not an ownership or exact-match check.
+  const candidates = [];
+  let listedAll = false;
+  for (let page = 1; page <= 100; page++) {
+    const rows = await api.request(
+      `${api.accountPath}?name=${D1_NAME}&page=${page}&per_page=100`,
+      "lookup",
+    );
+    if (!Array.isArray(rows))
+      throw new Error("D1 lookup returned invalid database records.");
+    candidates.push(...rows.filter((row) => row?.name === D1_NAME));
+    if (rows.length < 100) {
+      listedAll = true;
+      break;
+    }
   }
+  if (!listedAll || candidates.length > 1)
+    throw new Error(
+      "D1 lookup is ambiguous or incomplete; refusing to provision.",
+    );
+
+  const database = candidates[0];
+  if (!database) {
+    // Never replace an existing Worker binding when its database was not found.
+    verifyWorkerD1Binding(workerSettings, undefined, { allowAbsent: true });
+    return { state: "absent", appliedCount: 0, expectedNames };
+  }
+  const databaseId = validateDatabase(database);
+  verifyWorkerD1Binding(workerSettings, databaseId, { allowAbsent: true });
+  await api.verifyMarker(databaseId);
+  const appliedCount = validateMigrationLedger(
+    await api.query(databaseId, ledgerSql(expectedNames)),
+    expectedNames,
+  );
+  if (appliedCount === 0)
+    throw new Error(
+      "D1 ownership marker has no recorded bootstrap migration; refusing automatic recovery.",
+    );
+  return { state: "owned", databaseId, appliedCount, expectedNames };
+}
+
+// Reinspect immediately before provisioning; an earlier preflight is not
+// authority to create or migrate after another resource has been checked.
+// No mutation is retried, and successful process exit is not final readback.
+export async function provisionD1(
+  input,
+  { fetch: fetchRequest, writeConfig, runWrangler },
+) {
+  const inspected = await inspectD1(input, { fetch: fetchRequest });
+  const { env, config, configPath, migrationsDirectory, workerSettings } =
+    input;
+  const api = client(env, fetchRequest);
+  let databaseId = inspected.databaseId;
+  if (inspected.state === "absent") {
+    databaseId = validateDatabase(
+      await api.request(api.accountPath, "creation", { name: D1_NAME }),
+    );
+    verifyWorkerD1Binding(workerSettings, databaseId, { allowAbsent: true });
+  }
+  const { expectedNames, appliedCount } = inspected;
+  const resolved = resolveD1Config(config, databaseId, migrationsDirectory);
   await writeConfig(resolved);
-  if (applied < expectedNames.length) {
+  if (appliedCount < expectedNames.length) {
     await runWrangler([
       "d1",
       "migrations",
@@ -169,7 +199,11 @@ export async function provisionD1(
       "--experimental-auto-create=false",
     ]);
   }
-  await verifyMarker();
-  validateMigrationLedger(await query(ledgerSql), expectedNames, true);
+  await api.verifyMarker(databaseId);
+  validateMigrationLedger(
+    await api.query(databaseId, ledgerSql(expectedNames)),
+    expectedNames,
+    true,
+  );
   return { config: resolved, databaseId };
 }
