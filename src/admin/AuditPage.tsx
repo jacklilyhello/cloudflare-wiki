@@ -11,6 +11,7 @@ import {
 } from "../../shared/audit";
 import type { AuthSession } from "../../shared/auth";
 import type { Language } from "../../shared/contracts";
+import type { FileField } from "../../shared/files";
 import type { SettingsField } from "../../shared/settings";
 import { ApiError, request } from "./api";
 import "./audit.css";
@@ -49,6 +50,18 @@ const ACTION_LABELS: Record<AuditAction, [string, string]> = {
   "redirect.update": ["更新重定向", "Redirect updated"],
   "redirect.delete": ["删除重定向", "Redirect deleted"],
   "settings.update": ["更新站点设置", "Site settings updated"],
+  "file.create_folder": ["创建文件夹", "Folder created"],
+  "file.prepare": ["准备文件上传", "Upload prepared"],
+  "file.finalize": ["完成文件上传", "Upload completed"],
+  "file.thumbnail": ["更新缩略图", "Thumbnail updated"],
+  "file.rename": ["重命名文件或文件夹", "File or folder renamed"],
+  "file.move": ["移动文件或文件夹", "File or folder moved"],
+  "file.alt": ["更新替代文本", "Alternative text updated"],
+  "file.publish": ["公开文件", "File published"],
+  "file.unpublish": ["取消文件公开", "File unpublished"],
+  "file.delete": ["删除文件或文件夹", "File or folder deleted"],
+  "file.restore": ["恢复文件或文件夹", "File or folder restored"],
+  "file.abandon": ["放弃文件上传", "Upload abandoned"],
   "administrator.initialize": ["初始化管理员", "Administrator initialized"],
   "administrator.credentials": ["更新管理员凭据", "Credentials updated"],
 };
@@ -62,6 +75,16 @@ const SETTINGS_LABELS: Record<SettingsField, [string, string]> = {
   accent: ["强调色", "Accent color"],
   logo: ["站点标志", "Site logo"],
 };
+const FILE_LABELS: Record<FileField, [string, string]> = {
+  name: ["名称", "Name"],
+  parentId: ["所属文件夹", "Parent folder"],
+  "alt.zh": ["中文替代文本", "Chinese alternative text"],
+  "alt.en": ["英文替代文本", "English alternative text"],
+  state: ["上传状态", "Upload state"],
+  thumbnailState: ["缩略图状态", "Thumbnail state"],
+  visibility: ["公开状态", "Visibility"],
+  deletedAt: ["回收站状态", "Trash state"],
+};
 function categoryLabel(category: AuditCategory, zh: boolean) {
   return (
     {
@@ -69,6 +92,7 @@ function categoryLabel(category: AuditCategory, zh: boolean) {
       navigation: ["导航", "Navigation"],
       redirect: ["重定向", "Redirects"],
       settings: ["站点设置", "Site settings"],
+      file: ["文件", "Files"],
       administrator: ["管理员", "Administrator"],
     } as const
   )[category][zh ? 0 : 1];
@@ -153,7 +177,9 @@ function AuditIcon({ category }: { category?: AuditCategory }) {
                 ? "M4 18v-5a6 6 0 0 1 6-6h10m-5-5 5 5-5 5"
                 : category === "administrator"
                   ? "M20 21v-2a7 7 0 0 0-14 0v2M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0"
-                  : "M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0"
+                  : category === "file"
+                    ? "M3 6h6l2 2h10v12H3zM3 6V4h6l2 2h8v2"
+                    : "M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0"
         }
       />
     </svg>
@@ -306,6 +332,16 @@ function RecordDetails({
             </dd>
           </div>
         )}
+        {record.category === "file" && (
+          <div>
+            <dt>{zh ? "更改的文件信息" : "Changed file information"}</dt>
+            <dd>
+              {record.details.changedFields
+                .map((field) => FILE_LABELS[field][zh ? 0 : 1])
+                .join(zh ? "、" : ", ")}
+            </dd>
+          </div>
+        )}
         {record.category === "administrator" && record.details && (
           <>
             <div>
@@ -345,14 +381,18 @@ function RecordDetails({
               ? zh
                 ? "记录仅说明变更类型，不包含账户值或凭据。"
                 : "This record describes the change without account values or credentials."
-              : record.category === "navigation" &&
-                  record.details.mode === "automatic"
+              : record.category === "file"
                 ? zh
-                  ? "自动模式的公开目录随已发布页面生成；条目数指保留的自定义目录。"
-                  : "Automatic navigation follows published pages. The entry count describes the retained custom tree."
-                : zh
-                  ? "已提交的变更记录，只读保留。"
-                  : "A read-only record of a committed change."}
+                  ? "记录仅保留更改的字段名称，不包含文件名、替代文本或文件内容。"
+                  : "This record keeps changed field names without filenames, alternative text or file contents."
+                : record.category === "navigation" &&
+                    record.details.mode === "automatic"
+                  ? zh
+                    ? "自动模式的公开目录随已发布页面生成；条目数指保留的自定义目录。"
+                    : "Automatic navigation follows published pages. The entry count describes the retained custom tree."
+                  : zh
+                    ? "已提交的变更记录，只读保留。"
+                    : "A read-only record of a committed change."}
         </p>
         {record.category === "page" && (
           <a
@@ -407,13 +447,17 @@ function AuditEntry({
             ? zh
               ? "站点设置与外观"
               : "Site settings and appearance"
-            : record.category === "administrator"
+            : record.category === "file"
               ? zh
-                ? "管理员账户"
-                : "Administrator account"
-              : zh
-                ? "其他记录"
-                : "Other activity";
+                ? "文件与文件夹"
+                : "Files and folders"
+              : record.category === "administrator"
+                ? zh
+                  ? "管理员账户"
+                  : "Administrator account"
+                : zh
+                  ? "其他记录"
+                  : "Other activity";
   const path =
     record.category === "page"
       ? (record.details.toPath ?? record.details.fromPath)
@@ -648,8 +692,8 @@ export function AuditPage({
           </h1>
           <p>
             {zh
-              ? "查看内容、站点设置和管理员账户的变更，最新记录显示在前。"
-              : "Review changes to content, site settings and the administrator account, newest first."}
+              ? "查看页面、文件、站点设置和管理员账户的变更，最新记录显示在前。"
+              : "Review changes to pages, files, site settings and the administrator account, newest first."}
           </p>
         </div>
         <button

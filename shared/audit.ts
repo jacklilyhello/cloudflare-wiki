@@ -1,4 +1,5 @@
 import type { Language } from "./contracts";
+import { FILE_ACTIONS, type FileField } from "./files";
 import type { SettingsField } from "./settings";
 
 export const AUDIT_CATEGORIES = [
@@ -6,6 +7,7 @@ export const AUDIT_CATEGORIES = [
   "navigation",
   "redirect",
   "settings",
+  "file",
   "administrator",
 ] as const;
 export const AUDIT_ACTIONS = [
@@ -22,6 +24,7 @@ export const AUDIT_ACTIONS = [
   "redirect.update",
   "redirect.delete",
   "settings.update",
+  ...FILE_ACTIONS,
   "administrator.initialize",
   "administrator.credentials",
 ] as const;
@@ -91,6 +94,13 @@ export type AuditRecord = AuditBase &
         action: "settings.update";
         language: null;
         details: { changedFields: SettingsField[] };
+        pageTitle: null;
+      }
+    | {
+        category: "file";
+        action: Extract<AuditAction, `file.${string}`>;
+        language: null;
+        details: { changedFields: FileField[] };
         pageTitle: null;
       }
     | {

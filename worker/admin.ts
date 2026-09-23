@@ -6,6 +6,7 @@ import type { AuthGrant } from "../shared/auth";
 import type { Language } from "../shared/contracts";
 import { adminAudit } from "./admin-audit";
 import { adminContent } from "./admin-content";
+import { adminFiles } from "./admin-files";
 import { adminHeaders, csrf, json, readJson, sameOrigin } from "./admin-http";
 import { adminNavigation } from "./admin-navigation";
 import { adminRedirects } from "./admin-redirects";
@@ -14,6 +15,7 @@ import { AuditError } from "./audit/service";
 import { AuthError, AuthService } from "./auth/service";
 import { ContentError } from "./content/service";
 import { editorPolicy } from "./editor-policy";
+import { FilesError } from "./files/contracts";
 import { NavigationError } from "./navigation/service";
 import { RedirectError } from "./redirects/service";
 import { getSiteSettings, SettingsError } from "./settings/service";
@@ -209,6 +211,8 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       rawToken,
     );
     if (settingsResponse) return settingsResponse;
+    const filesResponse = await adminFiles(request, env, session, rawToken);
+    if (filesResponse) return filesResponse;
     const auditResponse = await adminAudit(request, env, session, rawToken);
     return auditResponse ?? json({ error: "Not found" }, 404);
   } catch (error) {
@@ -218,6 +222,7 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       error instanceof ContentError ||
       error instanceof NavigationError ||
       error instanceof RedirectError ||
+      error instanceof FilesError ||
       error instanceof SettingsError
     )
       return json(

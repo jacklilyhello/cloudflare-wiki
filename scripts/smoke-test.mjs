@@ -198,6 +198,8 @@ export async function checkAdmin(getResponse) {
     "/api/admin/redirects/en",
     "/api/admin/settings",
     "/api/admin/audit",
+    "/api/admin/files",
+    "/api/admin/files/00000000-0000-4000-8000-000000000000/download",
   ]) {
     const response = await getResponse(path);
     assert.equal(response.status, 401, `${path} rejects anonymous access`);
@@ -347,6 +349,14 @@ async function check() {
   assert.equal(robots.status, 200);
   assert.match(await robots.text(), /Disallow: \//);
   await checkAdmin(get);
+  for (const representation of ["download", "image", "thumbnail"]) {
+    const missingFile = await get(
+      `/files/00000000-0000-4000-8000-000000000000/${representation}`,
+    );
+    assert.equal(missingFile.status, 404, "Unknown public file is unavailable");
+    checkSecurityHeaders(missingFile);
+    assert.deepEqual(await missingFile.json(), { error: "File not found." });
+  }
   if (url.protocol === "https:") {
     assert.equal(page.headers.get("x-content-type-options"), "nosniff");
     assert.match(
@@ -355,7 +365,7 @@ async function check() {
     );
   }
   console.log(
-    `Smoke passed: ${base} configured homepage and explicit articles/search zh/en; localized metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API and reader 404; admin shell; anonymous content/revision/event/navigation/redirect/settings/audit APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
+    `Smoke passed: ${base} configured homepage and explicit articles/search zh/en; localized metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API, reader and file 404; admin shell; anonymous content/revision/event/navigation/redirect/settings/audit/file APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
   );
 }
 if (
