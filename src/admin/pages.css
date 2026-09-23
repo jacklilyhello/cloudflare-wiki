@@ -1,6 +1,78 @@
 .pages-new-button {
   flex: 0 0 auto;
 }
+.pages-pending {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.admin-content-dialog.directory-move-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+}
+.directory-move-dialog > h2 {
+  margin: 0 0 12px;
+}
+.directory-move-explanation {
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.directory-move-dialog fieldset {
+  min-width: 0;
+}
+.directory-preview,
+.directory-recovery {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--admin-line);
+}
+.directory-inspection-list {
+  display: grid;
+  gap: 10px;
+  max-height: 300px;
+  overflow: auto;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+.directory-inspection-list li {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--admin-line);
+  border-radius: 7px;
+  padding: 12px;
+  background: var(--admin-bg);
+  font-size: 12px;
+}
+.directory-inspection-list code {
+  overflow-wrap: anywhere;
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+.directory-move-confirm {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 18px 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.directory-move-confirm input {
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+@media (max-width: 600px) {
+  .pages-pending {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .admin-content-dialog.directory-move-dialog {
+    padding: 20px;
+  }
+}
 .pages-new-button > span {
   font-size: 20px;
   line-height: 1;

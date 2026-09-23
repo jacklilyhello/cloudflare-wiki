@@ -1,18 +1,28 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthSession } from "../../shared/auth";
-import type {
-  ContentDetail,
-  ContentPage,
-  PageSummary,
-} from "../../shared/content";
+import type { ContentPage, PageSummary } from "../../shared/content";
 import type { Language } from "../../shared/contracts";
+import { isContentPath } from "../../shared/page-path";
 import { publicPath } from "../../shared/paths";
-import { ApiError, mutation, request } from "./api";
+import { ApiError, request } from "./api";
+import { DirectoryMoveDialog } from "./DirectoryMoveDialog";
+import type { DirectoryMoveAttempt } from "./directory-move-recovery";
+import { PageActionDialog } from "./PageActionDialog";
+import { PageDirectoryBrowser } from "./PageDirectoryBrowser";
+import {
+  type PageAction,
+  type PageActionAttempt,
+  type PageActionSelection,
+  readPageSession,
+} from "./page-action-recovery";
 import "./pages.css";
 
+type PageNotice =
+  | { type: PageAction }
+  | { type: "directory"; count: number }
+  | { type: "review" };
+
 type PageStatus = "active" | "draft" | "published" | "deleted";
-type PageAction = "move" | "delete" | "restore" | "unpublish";
-type Selection = { kind: PageAction; page: PageSummary };
 type Filters = {
   language: Language;
   status: PageStatus;
@@ -74,278 +84,13 @@ function FileIcon() {
   );
 }
 
-function PageDialog({
-  selection,
-  session,
-  language,
-  onClose,
-  onDone,
-  onSessionChange,
-}: {
-  selection: Selection;
-  session: AuthSession;
-  language: Language;
-  onSessionChange: (session: AuthSession) => void;
-  onClose: () => void;
-  onDone: (kind: PageAction) => void;
-}) {
-  const zh = language === "zh";
-  const dialog = useRef<HTMLDialogElement>(null);
-  const reconnectController = useRef<AbortController | null>(null);
-  const [page, setPage] = useState(selection.page);
-  const [activeSession, setActiveSession] = useState(session);
-  const [path, setPath] = useState(page.path);
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<unknown>(null);
-  const [refreshed, setRefreshed] = useState(false);
-  const [reconnected, setReconnected] = useState(false);
-  useEffect(() => {
-    dialog.current?.showModal();
-    return () => reconnectController.current?.abort();
-  }, []);
-  const labels: Record<PageAction, string> = {
-    move: zh ? "移动页面" : "Move page",
-    delete: zh ? "删除页面" : "Delete page",
-    restore: zh ? "恢复页面" : "Restore page",
-    unpublish: zh ? "取消发布" : "Unpublish page",
-  };
-  const descriptions: Record<PageAction, string> = {
-    move: zh
-      ? "修改页面的路径。页面发布期间，原路径会直接转向新路径。"
-      : "Change the page path. While the page is published, its previous paths redirect to the current path.",
-    delete: zh
-      ? "页面将立即从公开站点移除，草稿与版本历史会保留。你可以在“已删除”中恢复。"
-      : "The page will disappear from the public wiki. Its draft and revision history are retained, and it can be restored from Deleted.",
-    restore: zh
-      ? "恢复此页面及其历史记录。恢复后保持未发布，检查内容后再发布。"
-      : "Restore this page and its history. It remains unpublished until you review and publish it.",
-    unpublish: zh
-      ? "访客将无法阅读此页面。当前草稿与已保存的版本都会保留。"
-      : "Readers will no longer be able to access this page. Its draft and saved revisions are retained.",
-  };
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setFailure(null);
-    try {
-      const base = `pages/${encodeURIComponent(page.id)}`;
-      await request(
-        selection.kind === "delete" ? base : `${base}/${selection.kind}`,
-        mutation(
-          selection.kind === "delete" ? "DELETE" : "POST",
-          {
-            expectedVersion: page.version,
-            ...(selection.kind === "move" ? { path } : {}),
-          },
-          activeSession.csrfToken,
-        ),
-      );
-      onDone(selection.kind);
-    } catch (error) {
-      setFailure(error);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function latest() {
-    setBusy(true);
-    setFailure(null);
-    try {
-      const detail = await request<ContentDetail>(
-        `pages/${encodeURIComponent(page.id)}`,
-      );
-      setPage({
-        ...detail.translation,
-        title: detail.draft.title,
-        description: detail.draft.description,
-        tags: detail.draft.tags,
-      });
-      setRefreshed(true);
-    } catch (error) {
-      setFailure(error);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function reconnect() {
-    if (busy || reconnectController.current) return;
-    const controller = new AbortController();
-    reconnectController.current = controller;
-    setBusy(true);
-    setReconnected(false);
-    try {
-      const result = await request<{ session: AuthSession }>("session", {
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      setActiveSession(result.session);
-      onSessionChange(result.session);
-      setFailure(null);
-      setReconnected(true);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      setFailure(error);
-    } finally {
-      if (reconnectController.current === controller)
-        reconnectController.current = null;
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-  const needsReconnect =
-    failure instanceof ApiError &&
-    (failure.status === 401 || failure.status === 403);
-  const incompatible =
-    selection.kind === "restore" ? !page.deletedAt : Boolean(page.deletedAt);
-  return (
-    <dialog
-      ref={dialog}
-      className="admin-content-dialog"
-      aria-labelledby="page-action-title"
-      aria-describedby="page-action-description"
-      onCancel={(event) => {
-        if (busy) event.preventDefault();
-        else onClose();
-      }}
-      onClose={onClose}
-    >
-      <form onSubmit={(event) => void submit(event)}>
-        <div className="admin-dialog-heading">
-          <span
-            className={`admin-dialog-icon ${selection.kind === "delete" ? "danger" : ""}`}
-          >
-            <FileIcon />
-          </span>
-          <h2 id="page-action-title">{labels[selection.kind]}</h2>
-        </div>
-        <p id="page-action-description">{descriptions[selection.kind]}</p>
-        <div className="admin-dialog-page">
-          <strong>{page.title}</strong>
-          <code>
-            /{page.language}/{page.path}
-          </code>
-        </div>
-        {refreshed && (
-          <p className="admin-notice success" role="status">
-            {zh
-              ? "已读取最新状态，请重新确认页面与操作。"
-              : "Latest state loaded. Review the page and confirm the action."}
-          </p>
-        )}
-        {reconnected && (
-          <p className="admin-notice success" role="status">
-            {zh
-              ? "已重新连接。输入已保留，请确认后再次提交。"
-              : "Reconnected. Your input is preserved; review it and submit again."}
-          </p>
-        )}
-        {failure !== null && (
-          <div
-            className={`admin-notice error${needsReconnect ? " content-session-notice" : ""}`}
-            role="alert"
-          >
-            <span>
-              {needsReconnect
-                ? zh
-                  ? "登录状态已变化。请在新窗口登录，再重新连接；本次输入已保留。"
-                  : "Your session has changed. Sign in in a new tab, then reconnect. Your input is preserved."
-                : failureMessage(failure, zh)}
-            </span>
-            {needsReconnect && (
-              <span className="content-session-actions">
-                <a href="/admin" target="_blank" rel="noopener noreferrer">
-                  {zh ? "新窗口登录" : "Sign in in new tab"}
-                </a>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void reconnect()}
-                >
-                  {zh ? "重新连接" : "Reconnect"}
-                </button>
-              </span>
-            )}
-            {failure instanceof ApiError && failure.status === 412 && (
-              <button
-                type="button"
-                onClick={() => void latest()}
-                disabled={busy}
-              >
-                {zh ? "读取最新状态" : "Load latest"}
-              </button>
-            )}
-          </div>
-        )}
-        {incompatible && (
-          <p className="admin-notice error" role="alert">
-            {zh
-              ? "当前页面状态不支持此操作，请关闭并刷新列表。"
-              : "The page no longer supports this action. Close this dialog and refresh the list."}
-          </p>
-        )}
-        <fieldset disabled={busy || incompatible}>
-          {selection.kind === "move" && (
-            <label className="admin-field" htmlFor="move-path">
-              <span>{zh ? "新路径" : "New path"}</span>
-              <div className="admin-path-input">
-                <span>/{page.language}/</span>
-                <input
-                  id="move-path"
-                  type="text"
-                  value={path}
-                  onChange={(event) => setPath(event.target.value)}
-                  required
-                  maxLength={240}
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-              </div>
-              <small>
-                {zh
-                  ? "例如 guides/开始使用。使用小写字母、数字、中文、下划线、连字符与 /。"
-                  : "For example guides/getting-started. Use lowercase letters, numbers, underscores, hyphens and /; Unicode letters are supported."}
-              </small>
-            </label>
-          )}
-          <div className="admin-dialog-actions">
-            <button
-              className="admin-button secondary"
-              type="button"
-              onClick={onClose}
-            >
-              {zh ? "取消" : "Cancel"}
-            </button>
-            <button
-              className={`admin-button ${selection.kind === "delete" ? "danger" : ""}`}
-              type="submit"
-            >
-              {busy ? (zh ? "处理中…" : "Working…") : labels[selection.kind]}
-            </button>
-          </div>
-        </fieldset>
-        {incompatible && (
-          <button
-            className="admin-button secondary"
-            type="button"
-            onClick={onClose}
-          >
-            {zh ? "关闭" : "Close"}
-          </button>
-        )}
-      </form>
-    </dialog>
-  );
-}
-
 export function PagesPage({
   language,
   session,
-  onExpired,
   onSessionChange,
 }: {
   language: Language;
   session: AuthSession;
-  onExpired: () => void;
   onSessionChange: (session: AuthSession) => void;
 }) {
   const zh = language === "zh";
@@ -361,12 +106,104 @@ export function PagesPage({
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<unknown>(null);
   const [refresh, setRefresh] = useState(0);
-  const [selection, setSelection] = useState<Selection | null>(null);
-  const [notice, setNotice] = useState<PageAction | null>(null);
+  const [selection, setSelection] = useState<PageActionSelection | null>(null);
+  const [notice, setNotice] = useState<PageNotice | null>(null);
+  const [view, setView] = useState<"directories" | "list">("directories");
+  const [paths, setPaths] = useState<Record<Language, string>>({
+    zh: "",
+    en: "",
+  });
+  const [activeSession, setActiveSession] = useState(session);
+  const [sessionBlocked, setSessionBlocked] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [directory, setDirectory] = useState<{
+    language: Language;
+    path: string;
+  } | null>(null);
+  const [directoryAttempt, setDirectoryAttempt] =
+    useState<DirectoryMoveAttempt | null>(null);
+  const [actionAttempt, setActionAttempt] = useState<PageActionAttempt | null>(
+    null,
+  );
+  const pending = Boolean(directoryAttempt || actionAttempt);
+  const guarded = useRef(false);
+  guarded.current = pending || busy || dirty;
+  const reconnectOperation = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const unload = (event: BeforeUnloadEvent) => {
+      if (guarded.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    const signout = (event: Event) => {
+      if (guarded.current) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", unload);
+    window.addEventListener("wiki:before-signout", signout);
+    return () => {
+      reconnectOperation.current?.abort();
+      window.removeEventListener("beforeunload", unload);
+      window.removeEventListener("wiki:before-signout", signout);
+    };
+  }, []);
+  const sessionRequired = useCallback(() => setSessionBlocked(true), []);
+  function refreshBoth() {
+    setPrevious([]);
+    setFilters((value) => ({ ...value, cursor: null }));
+    setRefresh((value) => value + 1);
+  }
+  function updateSession(next: AuthSession) {
+    setActiveSession(next);
+    onSessionChange(next);
+    setSessionBlocked(false);
+    refreshBoth();
+  }
+  async function reconnect() {
+    if (reconnectOperation.current) return;
+    const controller = new AbortController();
+    reconnectOperation.current = controller;
+    setReconnecting(true);
+    setFailure(null);
+    try {
+      const value = readPageSession(
+        await request<unknown>("session", {
+          signal: controller.signal,
+        }),
+      );
+      if (!controller.signal.aborted) updateSession(value);
+    } catch (error) {
+      if (!controller.signal.aborted) setFailure(error);
+    } finally {
+      if (reconnectOperation.current === controller)
+        reconnectOperation.current = null;
+      if (!controller.signal.aborted) setReconnecting(false);
+    }
+  }
+  function pageAction(kind: PageAction, page: PageSummary) {
+    if (pending || busy || sessionBlocked) return;
+    setSelection({ kind, page });
+  }
+  function closeDialogs() {
+    setSelection(null);
+    setDirectory(null);
+    setDirty(false);
+  }
+  const path = paths[filters.language];
+  const childAllowed = !path || isContentPath(`${path}/a`);
+  const newPageQuery = new URLSearchParams({ language: filters.language });
+  if (view === "directories" && path) newPageQuery.set("prefix", path);
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh deliberately reloads the authoritative list after a mutation or manual retry.
   useEffect(() => {
+    if (view !== "list") {
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
+    setResult(null);
     setFailure(null);
     const query = new URLSearchParams({
       language: filters.language,
@@ -383,15 +220,17 @@ export function PagesPage({
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        if (error instanceof ApiError && error.status === 401) onExpired();
-        else setFailure(error);
+        if (error instanceof ApiError && [401, 403].includes(error.status))
+          sessionRequired();
+        setFailure(error);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [filters, refresh, onExpired]);
-  function filter(next: Partial<Filters>) {
+  }, [filters, refresh, view, sessionRequired]);
+  function filter(next: Partial<Filters>, flat = true) {
+    if (flat) setView("list");
     setPrevious([]);
     setResult(null);
     setFilters((value) => ({ ...value, ...next, cursor: null }));
@@ -426,23 +265,94 @@ export function PagesPage({
               : "Organize bilingual documentation, from the first draft to publication."}
           </p>
         </div>
-        <a
-          className="admin-button pages-new-button"
-          href={`/admin/pages/new?language=${filters.language}`}
-        >
-          <span aria-hidden="true">＋</span>
-          {zh ? "新建页面" : "New page"}
-        </a>
+        {!pending &&
+        !busy &&
+        !sessionBlocked &&
+        (view !== "directories" || childAllowed) ? (
+          <a
+            className="admin-button pages-new-button"
+            href={`/admin/pages/new?${newPageQuery}`}
+          >
+            <span aria-hidden="true">＋</span>
+            {view === "directories" && path
+              ? zh
+                ? "在此目录新建页面"
+                : "New page here"
+              : zh
+                ? "新建页面"
+                : "New page"}
+          </a>
+        ) : (
+          <button
+            className="admin-button pages-new-button"
+            type="button"
+            disabled
+          >
+            {zh ? "新建页面" : "New page"}
+          </button>
+        )}
       </div>
       {notice && (
         <div className="admin-notice success" role="status">
-          <span>{notices[notice]}</span>
+          <span>
+            {notice.type === "directory"
+              ? zh
+                ? `已整体移动 ${notice.count} 个页面。`
+                : `${notice.count} pages moved together.`
+              : notice.type === "review"
+                ? zh
+                  ? "已结束本次状态核对。新的移动仍需重新预览并确认。"
+                  : "State review finished. Another move still requires a new preview and confirmation."
+                : notices[notice.type]}
+          </span>
           <button
             type="button"
             onClick={() => setNotice(null)}
             aria-label={zh ? "关闭提示" : "Dismiss notification"}
           >
             ×
+          </button>
+        </div>
+      )}
+      {sessionBlocked && !selection && !directory && (
+        <div className="admin-notice error content-session-notice" role="alert">
+          <span>
+            {zh
+              ? "登录状态已变化。请在新窗口登录，然后重新连接；待确认的操作会保留。"
+              : "Your session changed. Sign in in a new tab, then reconnect. Pending actions are retained."}
+          </span>
+          <a href="/admin" target="_blank" rel="noopener noreferrer">
+            {zh ? "新窗口登录" : "Sign in in new tab"}
+          </a>
+          <button
+            type="button"
+            disabled={reconnecting}
+            onClick={() => void reconnect()}
+          >
+            {zh ? "重新连接" : "Reconnect"}
+          </button>
+        </div>
+      )}
+      {pending && !selection && !directory && (
+        <div className="admin-notice warning pages-pending" role="status">
+          <span>
+            {zh
+              ? "上次操作的结果尚未确认。核对前暂不能提交其他页面操作。"
+              : "The previous action is unconfirmed. Review it before submitting other page changes."}
+          </span>
+          <button
+            className="admin-button secondary"
+            type="button"
+            onClick={() => {
+              if (directoryAttempt)
+                setDirectory({
+                  language: directoryAttempt.preview.language,
+                  path: directoryAttempt.preview.fromPath,
+                });
+              else if (actionAttempt) setSelection(actionAttempt.selection);
+            }}
+          >
+            {zh ? "核对待确认操作" : "Review pending action"}
           </button>
         </div>
       )}
@@ -489,7 +399,7 @@ export function PagesPage({
               id="content-language"
               value={filters.language}
               onChange={(event) =>
-                filter({ language: event.target.value as Language })
+                filter({ language: event.target.value as Language }, false)
               }
             >
               <option value="zh">中文</option>
@@ -502,266 +412,362 @@ export function PagesPage({
             className="pages-status-filters"
             aria-label={zh ? "页面状态" : "Page status"}
           >
+            <button
+              type="button"
+              aria-pressed={view === "directories"}
+              onClick={() => {
+                setView("directories");
+                setFailure(null);
+              }}
+            >
+              {zh ? "目录" : "Directories"}
+            </button>
             {statuses.map((status) => (
               <button
                 type="button"
                 key={status.id}
-                aria-pressed={filters.status === status.id}
+                aria-pressed={view === "list" && filters.status === status.id}
                 onClick={() => filter({ status: status.id })}
               >
                 {status.label}
               </button>
             ))}
           </fieldset>
-          <button
-            className="pages-refresh"
-            type="button"
-            disabled={loading}
-            onClick={() => setRefresh((value) => value + 1)}
-          >
-            {loading ? (zh ? "读取中…" : "Loading…") : zh ? "刷新" : "Refresh"}
-          </button>
-        </div>
-        {failure !== null ? (
-          <div className="pages-list-message">
-            <div className="admin-notice error" role="alert">
-              {failureMessage(failure, zh)}
-            </div>
+          {view === "list" && (
             <button
+              className="pages-refresh"
               type="button"
-              className="admin-button secondary"
-              onClick={() => setRefresh((value) => value + 1)}
+              disabled={loading}
+              onClick={refreshBoth}
             >
-              {zh ? "重试" : "Try again"}
-            </button>
-          </div>
-        ) : loading ? (
-          <div className="admin-loading" role="status">
-            <span className="admin-spinner" />
-            {zh ? "正在读取页面…" : "Loading pages…"}
-          </div>
-        ) : result?.items.length ? (
-          <div className="admin-table-wrap">
-            <table className="pages-list-table">
-              <thead>
-                <tr>
-                  <th scope="col">{zh ? "页面与路径" : "Page and path"}</th>
-                  <th scope="col">{zh ? "状态" : "Status"}</th>
-                  <th scope="col">{zh ? "更新时间" : "Updated"}</th>
-                  <th scope="col">
-                    <span className="sr-only">{zh ? "操作" : "Actions"}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.items.map((page) => {
-                  const route = `/admin/pages/${encodeURIComponent(page.id)}`;
-                  const hasDraft =
-                    page.draftRevisionId !== page.publishedRevisionId;
-                  return (
-                    <tr key={page.id}>
-                      <td>
-                        <div className="pages-file-cell">
-                          <span className="pages-file-icon">
-                            <FileIcon />
-                          </span>
-                          <div>
-                            <a
-                              href={`${route}/${page.deletedAt ? "history" : "edit"}`}
-                              className="pages-file-title"
-                            >
-                              {page.title}
-                            </a>
-                            <code>
-                              /{page.language}/{page.path}
-                            </code>
-                            {page.description && <p>{page.description}</p>}
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="pages-state-stack">
-                          {page.deletedAt ? (
-                            <span className="pages-badge deleted">
-                              {zh ? "已删除" : "Deleted"}
-                            </span>
-                          ) : (
-                            <>
-                              {page.publishedRevisionId && (
-                                <span className="pages-badge published">
-                                  {zh ? "已发布" : "Published"}
-                                </span>
-                              )}
-                              {hasDraft && (
-                                <span className="pages-badge draft">
-                                  {page.publishedRevisionId
-                                    ? zh
-                                      ? "有新草稿"
-                                      : "Draft changes"
-                                    : zh
-                                      ? "草稿"
-                                      : "Draft"}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="admin-date">
-                        <time dateTime={page.updatedAt}>
-                          {dateLabel(page.updatedAt, language)}
-                        </time>
-                      </td>
-                      <td>
-                        <div className="pages-row-actions">
-                          {!page.deletedAt && (
-                            <a href={`${route}/edit`}>{zh ? "编辑" : "Edit"}</a>
-                          )}
-                          <a href={`${route}/history`}>
-                            {zh ? "版本" : "History"}
-                          </a>
-                          <select
-                            className="pages-action-select"
-                            aria-label={`${zh ? "更多操作：" : "More actions: "}${page.title}`}
-                            defaultValue=""
-                            onChange={(event) => {
-                              const action = event.currentTarget.value;
-                              event.currentTarget.value = "";
-                              if (action === "view")
-                                window.location.assign(
-                                  publicPath(page.language, page.path),
-                                );
-                              else if (
-                                [
-                                  "move",
-                                  "delete",
-                                  "restore",
-                                  "unpublish",
-                                ].includes(action)
-                              )
-                                setSelection({
-                                  kind: action as PageAction,
-                                  page,
-                                });
-                            }}
-                          >
-                            <option value="" disabled>
-                              {zh ? "操作" : "Actions"}
-                            </option>
-                            {page.deletedAt ? (
-                              <option value="restore">
-                                {zh ? "恢复页面" : "Restore page"}
-                              </option>
-                            ) : (
-                              <>
-                                {page.publishedRevisionId && (
-                                  <option value="view">
-                                    {zh
-                                      ? "查看公开页面"
-                                      : "View published page"}
-                                  </option>
-                                )}
-                                <option value="move">
-                                  {zh
-                                    ? "移动 / 重命名路径"
-                                    : "Move / rename path"}
-                                </option>
-                                {page.publishedRevisionId && (
-                                  <option value="unpublish">
-                                    {zh ? "取消发布" : "Unpublish"}
-                                  </option>
-                                )}
-                                <option value="delete">
-                                  {zh ? "删除页面" : "Delete page"}
-                                </option>
-                              </>
-                            )}
-                          </select>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="admin-empty">
-            <FileIcon />
-            <h3>
-              {filters.query
+              {loading
                 ? zh
-                  ? "没有匹配的页面"
-                  : "No matching pages"
+                  ? "读取中…"
+                  : "Loading…"
                 : zh
-                  ? "这里还没有页面"
-                  : "No pages here yet"}
-            </h3>
-            <p>
-              {filters.query
-                ? zh
-                  ? "换一个标题、路径或状态试试。"
-                  : "Try another title, path or status."
-                : filters.status === "deleted"
-                  ? zh
-                    ? "删除的页面会保留在这里，随时可以恢复。"
-                    : "Deleted pages appear here and can be restored."
-                  : zh
-                    ? "创建一篇文档，开始记录你的知识。"
-                    : "Create a document to start sharing your knowledge."}
-            </p>
-          </div>
-        )}
-        {!failure && result && (
-          <footer className="pages-pagination">
-            <span>
-              {zh
-                ? `第 ${previous.length + 1} 页 · ${result.items.length} 个页面`
-                : `Page ${previous.length + 1} · ${result.items.length} pages`}
-            </span>
-            <div>
-              <button
-                type="button"
-                disabled={loading || previous.length === 0}
-                onClick={() => {
-                  const stack = [...previous];
-                  const cursor = stack.pop() ?? null;
-                  setPrevious(stack);
-                  setFilters((value) => ({ ...value, cursor }));
-                }}
-              >
-                {zh ? "上一页" : "Previous"}
-              </button>
-              <button
-                type="button"
-                disabled={loading || !result.nextCursor}
-                onClick={() => {
-                  if (!result.nextCursor) return;
-                  setPrevious((value) => [...value, filters.cursor]);
-                  setFilters((value) => ({
-                    ...value,
-                    cursor: result.nextCursor,
-                  }));
-                }}
-              >
-                {zh ? "下一页" : "Next"}
-              </button>
-            </div>
-          </footer>
+                  ? "刷新"
+                  : "Refresh"}
+            </button>
+          )}
+        </div>
+        {view === "directories" ? (
+          <PageDirectoryBrowser
+            language={language}
+            contentLanguage={filters.language}
+            path={path}
+            onPathChange={(next) =>
+              setPaths((value) => ({ ...value, [filters.language]: next }))
+            }
+            refreshKey={refresh}
+            actionsDisabled={pending || busy || sessionBlocked}
+            onSessionRequired={sessionRequired}
+            onPageAction={pageAction}
+            onMoveDirectory={(source) => {
+              if (!pending && !busy && !sessionBlocked)
+                setDirectory({ language: filters.language, path: source });
+            }}
+          />
+        ) : (
+          <>
+            {failure !== null ? (
+              <div className="pages-list-message">
+                <div className="admin-notice error" role="alert">
+                  {failureMessage(failure, zh)}
+                </div>
+                <button
+                  type="button"
+                  className="admin-button secondary"
+                  onClick={() => setRefresh((value) => value + 1)}
+                >
+                  {zh ? "重试" : "Try again"}
+                </button>
+              </div>
+            ) : loading ? (
+              <div className="admin-loading" role="status">
+                <span className="admin-spinner" />
+                {zh ? "正在读取页面…" : "Loading pages…"}
+              </div>
+            ) : result?.items.length ? (
+              <div className="admin-table-wrap">
+                <table className="pages-list-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">{zh ? "页面与路径" : "Page and path"}</th>
+                      <th scope="col">{zh ? "状态" : "Status"}</th>
+                      <th scope="col">{zh ? "更新时间" : "Updated"}</th>
+                      <th scope="col">
+                        <span className="sr-only">
+                          {zh ? "操作" : "Actions"}
+                        </span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.items.map((page) => {
+                      const route = `/admin/pages/${encodeURIComponent(page.id)}`;
+                      const hasDraft =
+                        page.draftRevisionId !== page.publishedRevisionId;
+                      return (
+                        <tr key={page.id}>
+                          <td>
+                            <div className="pages-file-cell">
+                              <span className="pages-file-icon">
+                                <FileIcon />
+                              </span>
+                              <div>
+                                <a
+                                  href={`${route}/${page.deletedAt ? "history" : "edit"}`}
+                                  className="pages-file-title"
+                                >
+                                  {page.title}
+                                </a>
+                                <code>
+                                  /{page.language}/{page.path}
+                                </code>
+                                {page.description && <p>{page.description}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="pages-state-stack">
+                              {page.deletedAt ? (
+                                <span className="pages-badge deleted">
+                                  {zh ? "已删除" : "Deleted"}
+                                </span>
+                              ) : (
+                                <>
+                                  {page.publishedRevisionId && (
+                                    <span className="pages-badge published">
+                                      {zh ? "已发布" : "Published"}
+                                    </span>
+                                  )}
+                                  {hasDraft && (
+                                    <span className="pages-badge draft">
+                                      {page.publishedRevisionId
+                                        ? zh
+                                          ? "有新草稿"
+                                          : "Draft changes"
+                                        : zh
+                                          ? "草稿"
+                                          : "Draft"}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          <td className="admin-date">
+                            <time dateTime={page.updatedAt}>
+                              {dateLabel(page.updatedAt, language)}
+                            </time>
+                          </td>
+                          <td>
+                            <div className="pages-row-actions">
+                              {!page.deletedAt && (
+                                <a href={`${route}/edit`}>
+                                  {zh ? "编辑" : "Edit"}
+                                </a>
+                              )}
+                              <a href={`${route}/history`}>
+                                {zh ? "版本" : "History"}
+                              </a>
+                              <select
+                                className="pages-action-select"
+                                disabled={pending || busy || sessionBlocked}
+                                aria-label={`${zh ? "更多操作：" : "More actions: "}${page.title}`}
+                                defaultValue=""
+                                onChange={(event) => {
+                                  const action = event.currentTarget.value;
+                                  event.currentTarget.value = "";
+                                  if (action === "view")
+                                    window.location.assign(
+                                      publicPath(page.language, page.path),
+                                    );
+                                  else if (
+                                    [
+                                      "move",
+                                      "delete",
+                                      "restore",
+                                      "unpublish",
+                                    ].includes(action)
+                                  )
+                                    pageAction(action as PageAction, page);
+                                }}
+                              >
+                                <option value="" disabled>
+                                  {zh ? "操作" : "Actions"}
+                                </option>
+                                {page.deletedAt ? (
+                                  <option value="restore">
+                                    {zh ? "恢复页面" : "Restore page"}
+                                  </option>
+                                ) : (
+                                  <>
+                                    {page.publishedRevisionId && (
+                                      <option value="view">
+                                        {zh
+                                          ? "查看公开页面"
+                                          : "View published page"}
+                                      </option>
+                                    )}
+                                    <option value="move">
+                                      {zh
+                                        ? "移动 / 重命名路径"
+                                        : "Move / rename path"}
+                                    </option>
+                                    {page.publishedRevisionId && (
+                                      <option value="unpublish">
+                                        {zh ? "取消发布" : "Unpublish"}
+                                      </option>
+                                    )}
+                                    <option value="delete">
+                                      {zh ? "删除页面" : "Delete page"}
+                                    </option>
+                                  </>
+                                )}
+                              </select>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="admin-empty">
+                <FileIcon />
+                <h3>
+                  {filters.query
+                    ? zh
+                      ? "没有匹配的页面"
+                      : "No matching pages"
+                    : zh
+                      ? "这里还没有页面"
+                      : "No pages here yet"}
+                </h3>
+                <p>
+                  {filters.query
+                    ? zh
+                      ? "换一个标题、路径或状态试试。"
+                      : "Try another title, path or status."
+                    : filters.status === "deleted"
+                      ? zh
+                        ? "删除的页面会保留在这里，随时可以恢复。"
+                        : "Deleted pages appear here and can be restored."
+                      : zh
+                        ? "创建一篇文档，开始记录你的知识。"
+                        : "Create a document to start sharing your knowledge."}
+                </p>
+              </div>
+            )}
+            {!failure && result && (
+              <footer className="pages-pagination">
+                <span>
+                  {zh
+                    ? `第 ${previous.length + 1} 页 · ${result.items.length} 个页面`
+                    : `Page ${previous.length + 1} · ${result.items.length} pages`}
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    disabled={loading || previous.length === 0}
+                    onClick={() => {
+                      const stack = [...previous];
+                      const cursor = stack.pop() ?? null;
+                      setPrevious(stack);
+                      setFilters((value) => ({ ...value, cursor }));
+                    }}
+                  >
+                    {zh ? "上一页" : "Previous"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={loading || !result.nextCursor}
+                    onClick={() => {
+                      if (!result.nextCursor) return;
+                      setPrevious((value) => [...value, filters.cursor]);
+                      setFilters((value) => ({
+                        ...value,
+                        cursor: result.nextCursor,
+                      }));
+                    }}
+                  >
+                    {zh ? "下一页" : "Next"}
+                  </button>
+                </div>
+              </footer>
+            )}
+          </>
         )}
       </section>
       {selection && (
-        <PageDialog
+        <PageActionDialog
           key={`${selection.page.id}-${selection.kind}`}
           selection={selection}
-          session={session}
-          onSessionChange={onSessionChange}
+          session={activeSession}
           language={language}
-          onClose={() => setSelection(null)}
+          sessionBlocked={sessionBlocked}
+          onSessionRequired={sessionRequired}
+          onSessionChange={updateSession}
+          attempt={actionAttempt}
+          onAttemptChange={setActionAttempt}
+          onBusyChange={setBusy}
+          onDirtyChange={setDirty}
+          onClose={closeDialogs}
           onDone={(kind) => {
-            setSelection(null);
-            setNotice(kind);
-            setRefresh((value) => value + 1);
+            closeDialogs();
+            setNotice({ type: kind });
+            refreshBoth();
+          }}
+        />
+      )}
+      {directory && (
+        <DirectoryMoveDialog
+          key={`${directory.language}:${directory.path}`}
+          language={language}
+          contentLanguage={directory.language}
+          fromPath={directory.path}
+          session={activeSession}
+          sessionBlocked={sessionBlocked}
+          onSessionRequired={sessionRequired}
+          onSessionChange={updateSession}
+          attempt={directoryAttempt}
+          onAttemptChange={setDirectoryAttempt}
+          onBusyChange={setBusy}
+          onDirtyChange={setDirty}
+          onClose={closeDialogs}
+          onDone={(value) => {
+            closeDialogs();
+            setPaths((previousPaths) => ({
+              ...previousPaths,
+              [value.language]: value.toPath,
+            }));
+            setFilters((previousFilters) => ({
+              ...previousFilters,
+              language: value.language,
+              cursor: null,
+            }));
+            setView("directories");
+            setNotice({ type: "directory", count: value.items.length });
+            refreshBoth();
+          }}
+          onReviewed={(confirmedPath) => {
+            if (confirmedPath) {
+              setPaths((previousPaths) => ({
+                ...previousPaths,
+                [directory.language]: confirmedPath,
+              }));
+              setFilters((previousFilters) => ({
+                ...previousFilters,
+                language: directory.language,
+                cursor: null,
+              }));
+              setView("directories");
+            }
+            closeDialogs();
+            refreshBoth();
+            setNotice({ type: "review" });
           }}
         />
       )}

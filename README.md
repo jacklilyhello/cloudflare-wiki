@@ -53,7 +53,7 @@ Monaco and its diff editor load only for the editor/history workspace. These doc
 
 `scripts/monaco-csp.ts` adapts the pinned Monaco sources using exact source hashes and single-constructor checks; changes to a matched source fail the build until reviewed. It also replaces Monaco's embedded sanitizer with the pinned DOMPurify dependency in an isolated instance, so hooks are not shared with Mermaid. The Markdown sanitizer still strips author styles and unsafe HTML. The file service and its visual manager are described below.
 
-## Page directory service
+## Page directories
 
 The authenticated directory API derives folders from active canonical page paths independently for `zh` and `en`. A path can be both a page and a parent of other pages; directory entries include its landing-page summary and whether it has children. Empty folders are not stored. `GET /api/admin/directories/{language}` accepts only unique `path`, `cursor` and `limit` parameters. Root uses an empty path, pages default to 25 entries and are limited to 50, and cursors bind the language, directory and route-registry version. Deleted pages remain in the existing flat Trash list.
 
@@ -61,7 +61,11 @@ The authenticated directory API derives folders from active canonical page paths
 
 One D1 transaction validates the complete membership and versions, adds new routes, updates published search paths, records each page move and changes canonical paths. It checks the completed page, route, search, event and audit records before committing; an incomplete result rolls back the whole move. Draft and published revision pointers, publication times, bilingual identities and navigation targets stay intact. Old paths remain aliases directly to the current page. Deleted pages stay in their original location. Markdown bodies are unchanged, so ordinary relative Markdown links may resolve differently after a path move. There is no automatic write retry.
 
-The directory service is implemented; its visual page-workspace integration remains follow-up work. Migration `0011_page_directories.sql` adds transaction-claim state and invalidates directory cursors on page deletion/restoration. It is compatible with the previous Worker during migration-first deployment. Keep applied migrations on rollback and repair schema issues through forward migrations.
+`/admin/pages` opens a bilingual directory browser with breadcrumbs, direct children and separate controls for a landing page and its descendants. Entering a page-only node lets you create children beneath it. New pages can inherit the current directory; this context survives the editor's login return path without marking an otherwise untouched form dirty. Search, Drafts, Published and Trash remain paginated flat views, and switching back to directories remembers each language's location.
+
+Directory move/rename shows every affected page and its old/new path before an explicit confirmation. The workspace preserves an uncertain request across dialog closure, blocks another page mutation and offers read-only comparison of the original IDs. Two complete read rounds and registry fences detect changes during inspection; a stable observation still requires explicit acknowledgement, and another move requires a fresh preview. Session failures retain inputs and pending actions until a verified reconnect. Single-page move, unpublish, delete and restore use the same explicit comparison principle. Leaving or signing out warns while input, a request or an unresolved operation remains in the tab. Nothing is automatically replayed; closing the document after confirming departure discards its in-memory recovery record.
+
+Migration `0011_page_directories.sql` adds transaction-claim state and invalidates directory cursors on page deletion/restoration. It is compatible with the previous Worker during migration-first deployment. Keep applied migrations on rollback and repair schema issues through forward migrations.
 
 ## File Manager
 

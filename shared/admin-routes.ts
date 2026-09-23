@@ -1,3 +1,5 @@
+import { isContentPath } from "./page-path";
+
 export type AdminRoute =
   | {
       page:
@@ -41,11 +43,11 @@ export function parseAdminRoute(pathname: string): AdminRoute {
 }
 
 // Only editor/history documents may be resumed after login. New translations
-// preserve their language and stable page identity through a closed query schema.
+// preserve their language, stable page identity and directory through a closed query schema.
 export function normalizeAdminReturnTo(value: unknown): string | null {
   if (
     typeof value !== "string" ||
-    value.length > 1024 ||
+    value.length > 4096 ||
     !value.startsWith("/admin/pages/") ||
     /[\\#]/.test(value) ||
     [...value].some(
@@ -75,10 +77,12 @@ export function normalizeAdminReturnTo(value: unknown): string | null {
         if (parameter !== "zh" && parameter !== "en") return null;
       } else if (key === "pageId") {
         if (!/^[A-Za-z0-9][A-Za-z0-9:_-]{0,127}$/.test(parameter)) return null;
+      } else if (key === "prefix") {
+        if (!isContentPath(parameter)) return null;
       } else return null;
     }
     const query = new URLSearchParams();
-    for (const key of ["language", "pageId"])
+    for (const key of ["language", "pageId", "prefix"])
       if (seen.has(key)) query.set(key, target.searchParams.get(key) ?? "");
     return `/admin/pages/new${query.size ? `?${query}` : ""}`;
   } catch {

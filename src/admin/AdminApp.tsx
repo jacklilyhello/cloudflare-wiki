@@ -1367,7 +1367,6 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
               <PagesPage
                 language={language}
                 session={session}
-                onExpired={onExpired}
                 onSessionChange={setSession}
               />
             ) : route.page === "navigation" ? (
