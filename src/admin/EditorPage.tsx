@@ -9,6 +9,7 @@ import {
 import type { Language } from "../../shared/contracts";
 import { publicPath } from "../../shared/paths";
 import { ApiError, mutation, request } from "./api";
+import { FilePicker } from "./FilePicker";
 import { type EditorHandle, MarkdownCodeEditor } from "./MarkdownCodeEditor";
 import { MarkdownPreview } from "./MarkdownPreview";
 import "./editor.css";
@@ -19,6 +20,12 @@ type Fields = {
   markdown: string;
   tags: string;
   changeNote: string;
+};
+type FileInsertionPoint = {
+  instance: EditorHandle;
+  model: NonNullable<ReturnType<EditorHandle["getModel"]>>;
+  selection: NonNullable<ReturnType<EditorHandle["getSelection"]>>;
+  version: number;
 };
 const empty: Fields = {
   title: "",
@@ -60,7 +67,25 @@ export function EditorPage({
   const [authExpired, setAuthExpired] = useState(false);
   const [view, setView] = useState<"split" | "write" | "preview">("split");
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [editorReady, setEditorReady] = useState(false);
+  const [fileInsertion, setFileInsertion] = useState<FileInsertionPoint | null>(
+    null,
+  );
   const editor = useRef<EditorHandle | null>(null);
+  const insertionState = useRef({
+    busy,
+    loading,
+    authExpired,
+    deleted: Boolean(translation?.deletedAt),
+    fileInsertion,
+  });
+  insertionState.current = {
+    busy,
+    loading,
+    authExpired,
+    deleted: Boolean(translation?.deletedAt),
+    fileInsertion,
+  };
   const reconnectController = useRef<AbortController | null>(null);
   const loadedId = useRef<string | undefined>(undefined);
   const dirty =
@@ -169,7 +194,14 @@ export function EditorPage({
   }
 
   async function save(publish = false) {
-    if (busy || loading || translation?.deletedAt || authExpired) return;
+    if (
+      busy ||
+      loading ||
+      translation?.deletedAt ||
+      authExpired ||
+      fileInsertion
+    )
+      return;
     if (!fields.title.trim() || (!translation && !path.trim())) {
       setError(zh ? "请填写标题和页面路径。" : "Enter a title and page path.");
       return;
@@ -342,6 +374,68 @@ export function EditorPage({
     anchor.download = "wiki-draft.md";
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function openFilePicker() {
+    const instance = editor.current;
+    const model = instance?.getModel();
+    const selection = instance?.getSelection();
+    if (
+      !instance ||
+      !model ||
+      !selection ||
+      busy ||
+      loading ||
+      authExpired ||
+      translation?.deletedAt
+    )
+      return;
+    setFileInsertion({
+      instance,
+      model,
+      selection,
+      version: model.getVersionId(),
+    });
+    if (view === "preview") setView("split");
+  }
+
+  function insertFile(markdown: string): (() => void) | null {
+    const state = insertionState.current;
+    const point = state.fileInsertion;
+    if (
+      !point ||
+      state.busy ||
+      state.loading ||
+      state.authExpired ||
+      state.deleted ||
+      editor.current !== point.instance ||
+      point.model.isDisposed() ||
+      point.instance.getModel() !== point.model ||
+      point.model.getVersionId() !== point.version ||
+      !point.instance.getSelection()?.equalsSelection(point.selection)
+    )
+      return null;
+    point.instance.pushUndoStop();
+    const inserted = point.instance.executeEdits("wiki-file-picker", [
+      {
+        range: point.selection,
+        text: markdown,
+        forceMoveMarkers: true,
+      },
+    ]);
+    point.instance.pushUndoStop();
+    if (!inserted) return null;
+    const insertedVersion = point.model.getVersionId();
+    return () => {
+      if (
+        editor.current === point.instance &&
+        !point.model.isDisposed() &&
+        point.instance.getDomNode()?.isConnected &&
+        point.instance.getModel() === point.model &&
+        point.model.getVersionId() === insertedVersion
+      )
+        point.instance.focus();
+    };
   }
 
   async function reconnect() {
@@ -624,6 +718,15 @@ export function EditorPage({
               ↗
             </button>
             <button
+              className="wiki-file-tool"
+              type="button"
+              disabled={readOnly || authExpired || !editorReady}
+              onClick={openFilePicker}
+              title={zh ? "插入图片或附件" : "Insert an image or attachment"}
+            >
+              {zh ? "文件" : "File"}
+            </button>
+            <button
               type="button"
               disabled={readOnly}
               onClick={() => insert("\n```text\n", "code", "\n```\n")}
@@ -697,6 +800,7 @@ export function EditorPage({
               language={language}
               onReady={(instance) => {
                 editor.current = instance;
+                setEditorReady(Boolean(instance));
               }}
             />
           </div>
@@ -793,6 +897,21 @@ export function EditorPage({
           </button>
         </div>
       </div>
+      {fileInsertion && (
+        <FilePicker
+          language={language}
+          contentLanguage={contentLanguage}
+          blocked={authExpired}
+          onSessionRequired={() => setAuthExpired(true)}
+          onSessionChange={(next) => {
+            setAuth(next);
+            onSessionChange(next);
+            setAuthExpired(false);
+          }}
+          onInsert={insertFile}
+          onClose={() => setFileInsertion(null)}
+        />
+      )}
     </div>
   );
 }

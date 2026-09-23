@@ -104,6 +104,7 @@ describe("safe administrator login return paths", () => {
 
 describe("editor document security policy", () => {
   it("shares exact routing with the UI and rejects malformed or encoded separators", () => {
+    expect(parseAdminRoute("/admin/files")).toEqual({ page: "files" });
     expect(parseAdminRoute("/admin/pages/seed%3Azh%3Ahome/edit")).toEqual({
       page: "editor",
       translationId: "seed:zh:home",
@@ -137,6 +138,7 @@ describe("editor document security policy", () => {
       "/admin",
       "/admin/account",
       "/admin/pages",
+      "/admin/files",
       "/admin/pages/id%2Fother/edit",
     ])
       expect(editorPolicy(path)).toBeNull();
@@ -160,6 +162,14 @@ describe("editor document security policy", () => {
       securityHeaders["Content-Security-Policy"],
     );
     expect(await login.text()).not.toContain('property="csp-nonce"');
+    const files = await exports.default.fetch(
+      "https://example.com/admin/files",
+    );
+    expect(files.status).toBe(200);
+    expect(files.headers.get("Content-Security-Policy")).toBe(
+      securityHeaders["Content-Security-Policy"],
+    );
+    expect(await files.text()).not.toContain('property="csp-nonce"');
     expect(
       (await exports.default.fetch("https://example.com/admin/unknown")).status,
     ).toBe(404);
