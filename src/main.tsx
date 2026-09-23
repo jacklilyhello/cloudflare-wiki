@@ -1,30 +1,29 @@
 import { StrictMode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import type { ReaderData } from "../shared/reader";
+import { parseSiteSettingsValues } from "../shared/settings";
 import { App } from "./App";
+import { applySiteAppearance } from "./site-appearance";
 import "./styles.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing application root");
 
-// An external module applies saved preferences without relaxing script CSP.
-try {
-  const theme = localStorage.getItem("wiki-theme");
-  if (theme === "light" || theme === "dark")
-    document.documentElement.dataset.theme = theme;
-} catch {
-  /* System theme remains available when browser storage is disabled. */
-}
-
 if (
   window.location.pathname === "/admin" ||
   window.location.pathname.startsWith("/admin/")
 ) {
+  const settingsElement = document.getElementById("site-settings");
+  if (!settingsElement?.textContent) throw new Error("Missing site settings");
+  const settings = parseSiteSettingsValues(
+    JSON.parse(settingsElement.textContent),
+  );
+  applySiteAppearance(settings);
   void import("./admin/AdminApp")
     .then(({ AdminApp }) => {
       createRoot(root).render(
         <StrictMode>
-          <AdminApp />
+          <AdminApp settings={settings} />
         </StrictMode>,
       );
     })
@@ -36,6 +35,8 @@ if (
   const readerData = document.getElementById("reader-data");
   if (!readerData?.textContent) throw new Error("Missing reader document");
   const data = JSON.parse(readerData.textContent) as ReaderData;
+  data.settings = parseSiteSettingsValues(data.settings);
+  applySiteAppearance(data.settings);
   hydrateRoot(
     root,
     <StrictMode>

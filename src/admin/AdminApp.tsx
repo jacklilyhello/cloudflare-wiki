@@ -17,6 +17,9 @@ import {
 } from "../../shared/auth";
 import type { Language } from "../../shared/contracts";
 import { publicPath } from "../../shared/paths";
+import type { SiteSettingsValues } from "../../shared/settings";
+import { SiteLogo } from "../components/SiteLogo";
+import { applySiteAppearance } from "../site-appearance";
 import { ApiError, mutation, request } from "./api";
 import "./admin.css";
 
@@ -45,6 +48,10 @@ const RedirectsPage = lazy(() =>
   })),
 );
 
+const SettingsPage = lazy(() =>
+  import("./SettingsPage").then((module) => ({ default: module.SettingsPage })),
+);
+
 type Overview = {
   pages: { total: number; drafts: number; published: number; deleted: number };
   revisions: number;
@@ -66,7 +73,8 @@ type IconName =
   | "logout"
   | "page"
   | "check"
-  | "clock";
+  | "clock"
+  | "settings";
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, string> = {
@@ -79,6 +87,7 @@ function Icon({ name }: { name: IconName }) {
     page: "M14 2H5v20h14V7l-5-5v5h5M8 12h8M8 16h8",
     check: "m5 12 4 4L19 6",
     clock: "M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0",
+    settings: "M4 7h16M4 17h16M8 4v6M16 14v6",
   };
   return (
     <svg
@@ -97,14 +106,22 @@ function Icon({ name }: { name: IconName }) {
   );
 }
 
-function Brand({ zh }: { zh: boolean }) {
+function Brand({
+  zh,
+  settings,
+}: {
+  zh: boolean;
+  settings: SiteSettingsValues;
+}) {
   return (
     <a className="admin-brand" href="/admin">
-      <span className="admin-mark" aria-hidden="true">
-        E
-      </span>
+      {settings.logo !== "none" && (
+        <span className="admin-mark" aria-hidden="true">
+          <SiteLogo logo={settings.logo} />
+        </span>
+      )}
       <span>
-        Emby <strong>Wiki</strong>
+        <strong>{settings.locales[zh ? "zh" : "en"].name}</strong>
         <small>{zh ? "管理工作空间" : "ADMIN WORKSPACE"}</small>
       </span>
     </a>
@@ -685,7 +702,8 @@ function SignOutDialog({
   );
 }
 
-export function AdminApp() {
+export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
+  const [siteSettings, setSiteSettings] = useState(settings);
   const [language, setLanguage] = useState<Language>(() => {
     try {
       const saved = localStorage.getItem("wiki-admin-language");
@@ -693,9 +711,10 @@ export function AdminApp() {
     } catch {
       /* The interface remains usable when browser storage is unavailable. */
     }
-    return "zh";
+    return settings.defaultLanguage;
   });
   const zh = language === "zh";
+  const siteName = siteSettings.locales[language].name;
   const [session, setSession] = useState<AuthSession | null>(null);
   const [setup, setSetup] = useState<BootstrapStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -713,13 +732,17 @@ export function AdminApp() {
 
   useEffect(() => {
     document.documentElement.lang = language;
-    document.title = `${zh ? "管理工作空间" : "Admin workspace"} · Emby Wiki`;
+    document.title = `${zh ? "管理工作空间" : "Admin workspace"} · ${siteName}`;
     try {
       localStorage.setItem("wiki-admin-language", language);
     } catch {
       /* This page still uses the selected language without persistence. */
     }
-  }, [language, zh]);
+  }, [language, zh, siteName]);
+
+  useEffect(() => {
+    applySiteAppearance(siteSettings);
+  }, [siteSettings]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: attempt deliberately repeats session discovery after a manual retry.
   useEffect(() => {
@@ -978,7 +1001,7 @@ export function AdminApp() {
     return (
       <div className="admin-root admin-auth">
         <header className="admin-auth-header">
-          <Brand zh={zh} />
+          <Brand zh={zh} settings={siteSettings} />
           <div>
             {languageSwitch}
             <a className="admin-text-link" href={publicPath(language, "home")}>
@@ -989,7 +1012,7 @@ export function AdminApp() {
         </header>
         <main className="admin-auth-main">
           <section className="admin-auth-intro">
-            <span className="admin-eyebrow">EMBY WIKI / WORKSPACE</span>
+            <span className="admin-eyebrow">{siteName} / WORKSPACE</span>
             <h1>
               {zh ? (
                 <>
@@ -1048,8 +1071,8 @@ export function AdminApp() {
                   ? "创建本站唯一的管理员账户。"
                   : "Create the administrator account for this wiki."
                 : zh
-                  ? "登录，继续管理你的 Emby Wiki。"
-                  : "Sign in to your Emby Wiki workspace."}
+                  ? `登录，继续管理你的 ${siteName}。`
+                  : `Sign in to your ${siteName} workspace.`}
             </p>
             {notice && (
               <div className="admin-notice success" role="status">
@@ -1184,7 +1207,7 @@ export function AdminApp() {
           </section>
         </main>
         <footer className="admin-auth-footer">
-          <span>Emby Wiki</span>
+          <span>{siteName}</span>
           <span>
             {zh ? "知识，在这里连接。" : "A connected knowledge base."}
           </span>
@@ -1199,7 +1222,7 @@ export function AdminApp() {
         {zh ? "跳转到主要内容" : "Skip to content"}
       </a>
       <aside className="admin-sidebar">
-        <Brand zh={zh} />
+        <Brand zh={zh} settings={siteSettings} />
         <p className="admin-nav-label">{zh ? "工作空间" : "WORKSPACE"}</p>
         <nav aria-label={zh ? "管理导航" : "Administration"}>
           <a
@@ -1237,6 +1260,13 @@ export function AdminApp() {
             <Icon name="clock" />
             <span>{zh ? "审计日志" : "Audit logs"}</span>
           </a>
+          <a
+            href="/admin/settings"
+            aria-current={route.page === "settings" ? "page" : undefined}
+          >
+            <Icon name="settings" />
+            <span>{zh ? "站点设置" : "Site settings"}</span>
+          </a>
           <a href="/admin/account" aria-current={account ? "page" : undefined}>
             <Icon name="user" />
             <span>{zh ? "管理员" : "Administrator"}</span>
@@ -1270,7 +1300,7 @@ export function AdminApp() {
       <div className="admin-workspace-main">
         <header className="admin-toolbar">
           <div className="admin-breadcrumb">
-            <span>Emby Wiki</span>
+            <span>{siteName}</span>
             <span aria-hidden="true">/</span>
             <strong>
               {
@@ -1281,6 +1311,7 @@ export function AdminApp() {
                   navigation: zh ? "导航" : "Navigation",
                   redirects: zh ? "重定向" : "Redirects",
                   audit: zh ? "审计日志" : "Audit logs",
+                  settings: zh ? "站点设置" : "Site settings",
                   editor: zh ? "编辑页面" : "Page editor",
                   history: zh ? "版本历史" : "Revision history",
                   "not-found": zh ? "找不到页面" : "Page not found",
@@ -1339,6 +1370,13 @@ export function AdminApp() {
                 session={session}
                 onSessionChange={setSession}
               />
+            ) : route.page === "settings" ? (
+              <SettingsPage
+                language={language}
+                session={session}
+                onSessionChange={setSession}
+                onSaved={setSiteSettings}
+              />
             ) : route.page === "audit" ? (
               <AuditPage language={language} onSessionChange={setSession} />
             ) : route.page === "editor" ? (
@@ -1378,7 +1416,7 @@ export function AdminApp() {
             )}
           </Suspense>
           <footer className="admin-content-footer">
-            <span>Emby Wiki</span>
+            <span>{siteName}</span>
             <span>
               {zh ? "让知识不断生长。" : "Keep your knowledge growing."}
             </span>

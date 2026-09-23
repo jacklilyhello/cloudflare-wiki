@@ -14,9 +14,15 @@
     --muted: #6d7972;
     --faint: #6f7b73;
     --line: #e5eae5;
-    --accent: #23754c;
-    --accent-bright: #319462;
-    --accent-soft: #eaf3ed;
+    --accent-light: #23754c;
+    --accent-dark: #8ccca7;
+    --accent-soft-light: #eaf3ed;
+    --accent-soft-dark: #203e2d;
+    --accent: var(--accent-light);
+    --accent-bright: var(--accent-light);
+    --accent-soft: var(--accent-soft-light);
+    --theme-sun: inline-block;
+    --theme-moon: none;
     --code: #f5f7f6;
     --logo-ink: #fff;
     color-scheme: light;
@@ -24,6 +30,18 @@
     line-height: 1.65;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
+  }
+  :root[data-accent="ocean"] {
+    --accent-light: #19669e;
+    --accent-dark: #a0ceef;
+    --accent-soft-light: #e9f2f9;
+    --accent-soft-dark: #16374d;
+  }
+  :root[data-accent="plum"] {
+    --accent-light: #7950a2;
+    --accent-dark: #d3b0ec;
+    --accent-soft-light: #f2ecf8;
+    --accent-soft-dark: #382543;
   }
   :root[data-theme="dark"] {
     --page: #151a18;
@@ -33,9 +51,11 @@
     --muted: #a2afa5;
     --faint: #84958a;
     --line: #303b34;
-    --accent: #8ccca7;
-    --accent-bright: #74c794;
-    --accent-soft: #203e2d;
+    --accent: var(--accent-dark);
+    --accent-bright: var(--accent-dark);
+    --accent-soft: var(--accent-soft-dark);
+    --theme-sun: none;
+    --theme-moon: inline-block;
     --code: #1c2520;
     --logo-ink: #153023;
     color-scheme: dark;
@@ -49,9 +69,11 @@
       --muted: #a2afa5;
       --faint: #84958a;
       --line: #303b34;
-      --accent: #8ccca7;
-      --accent-bright: #74c794;
-      --accent-soft: #203e2d;
+      --accent: var(--accent-dark);
+      --accent-bright: var(--accent-dark);
+      --accent-soft: var(--accent-soft-dark);
+      --theme-sun: none;
+      --theme-moon: inline-block;
       --code: #1c2520;
       --logo-ink: #153023;
       color-scheme: dark;
@@ -146,6 +168,7 @@
   }
   .header-inner {
     max-width: 1536px;
+    height: 82px;
     min-height: 82px;
     padding: 0 38px;
     margin: 0 auto;
@@ -157,7 +180,8 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    min-width: 220px;
+    min-width: 0;
+    max-width: 320px;
     line-height: 1.2;
     font-size: 22px;
     font-weight: 520;
@@ -165,18 +189,32 @@
   }
   .site-brand strong {
     font-weight: 740;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .site-brand > span {
+    min-width: 0;
   }
   .site-brand small {
-    display: block;
     color: var(--muted);
     font-size: 9px;
     font-weight: 500;
     letter-spacing: 1.1px;
     margin-top: 5px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .site-mark {
     width: 36px;
     height: 36px;
+    flex: 0 0 auto;
     color: var(--accent-bright);
   }
   .header-search {
@@ -285,6 +323,12 @@
   :where(.theme-toggle) .icon {
     width: 18px;
     height: 18px;
+  }
+  .theme-toggle .theme-sun {
+    display: var(--theme-sun);
+  }
+  .theme-toggle .theme-moon {
+    display: var(--theme-moon);
   }
   .reader-layout {
     max-width: 1536px;
@@ -961,6 +1005,7 @@
   }
   .site-footer {
     display: flex;
+    flex-wrap: wrap;
     gap: 12px;
     justify-content: space-between;
     border-top: 1px solid var(--line);
@@ -968,6 +1013,10 @@
     font-size: 9px;
     padding: 22px 0 28px;
     margin-top: 40px;
+  }
+  .site-footer > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
   .site-footer > :first-child {
     font-weight: 600;
@@ -1204,11 +1253,14 @@
     .header-inner {
       flex-wrap: wrap;
       gap: 0;
+      height: auto;
       min-height: 114px;
       padding: 15px 20px 12px;
     }
     .site-brand {
+      flex: 1 1 0;
       min-width: 0;
+      max-width: calc(100% - 145px);
       font-size: 20px;
       gap: 10px;
     }
@@ -1220,6 +1272,7 @@
       height: 31px;
     }
     .header-actions {
+      flex-shrink: 0;
       gap: 14px;
     }
     .language-switch {

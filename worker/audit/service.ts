@@ -10,6 +10,7 @@ import {
   type AuditRecord,
 } from "../../shared/audit";
 import type { Language } from "../../shared/contracts";
+import { SETTINGS_FIELDS, type SettingsField } from "../../shared/settings";
 import { type ContentWriteAccess, sessionGuard } from "../auth/access";
 
 export class AuditError extends Error {
@@ -205,6 +206,33 @@ function record(row: Row): AuditRecord {
         mode: details.mode,
         nodeCount: details.nodeCount,
       },
+      pageTitle: null,
+    };
+  }
+  if (row.category === "settings") {
+    if (
+      row.action !== "settings.update" ||
+      row.language !== null ||
+      row.subject_id !== "1" ||
+      row.origin !== "current" ||
+      !exactObject(details, ["changedFields"]) ||
+      !Array.isArray(details.changedFields) ||
+      details.changedFields.length < 1 ||
+      details.changedFields.length > SETTINGS_FIELDS.length ||
+      new Set(details.changedFields).size !== details.changedFields.length ||
+      !details.changedFields.every(
+        (field) =>
+          typeof field === "string" &&
+          SETTINGS_FIELDS.includes(field as SettingsField),
+      )
+    )
+      storageFailure();
+    return {
+      ...base,
+      category: "settings",
+      action: "settings.update",
+      language: null,
+      details: { changedFields: details.changedFields as SettingsField[] },
       pageTitle: null,
     };
   }

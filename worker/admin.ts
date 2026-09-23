@@ -9,12 +9,14 @@ import { adminContent } from "./admin-content";
 import { adminHeaders, csrf, json, readJson, sameOrigin } from "./admin-http";
 import { adminNavigation } from "./admin-navigation";
 import { adminRedirects } from "./admin-redirects";
+import { adminSettings } from "./admin-settings";
 import { AuditError } from "./audit/service";
 import { AuthError, AuthService } from "./auth/service";
 import { ContentError } from "./content/service";
 import { editorPolicy } from "./editor-policy";
 import { NavigationError } from "./navigation/service";
 import { RedirectError } from "./redirects/service";
+import { getSiteSettings, SettingsError } from "./settings/service";
 
 const cookieName = "__Host-wiki_session";
 const encoder = new TextEncoder();
@@ -200,6 +202,13 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       rawToken,
     );
     if (redirectResponse) return redirectResponse;
+    const settingsResponse = await adminSettings(
+      request,
+      env,
+      session,
+      rawToken,
+    );
+    if (settingsResponse) return settingsResponse;
     const auditResponse = await adminAudit(request, env, session, rawToken);
     return auditResponse ?? json({ error: "Not found" }, 404);
   } catch (error) {
@@ -208,7 +217,8 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       error instanceof AuditError ||
       error instanceof ContentError ||
       error instanceof NavigationError ||
-      error instanceof RedirectError
+      error instanceof RedirectError ||
+      error instanceof SettingsError
     )
       return json(
         { error: error.message },
@@ -248,32 +258,81 @@ export async function adminShell(
       return json({ error: "Administration temporarily unavailable" }, 503);
     }
   }
-  const template = await env.ASSETS.fetch(
-    new Request(new URL("/index.html", request.url)),
-  );
-  if (!template.ok)
-    return json({ error: "Administration temporarily unavailable" }, 503);
-  const policy = editorPolicy(pathname);
-  const rewriter = new HTMLRewriter().on("title", {
-    element(element) {
-      element.setInnerContent("Administration · Emby Wiki");
-    },
-  });
-  if (policy)
-    rewriter.on("head", {
-      element(element) {
-        element.append(`<meta property="csp-nonce" nonce="${policy.nonce}">`, {
-          html: true,
-        });
+  try {
+    const {
+      version: _version,
+      updatedAt: _updatedAt,
+      ...settings
+    } = await getSiteSettings(env.DB);
+    const serialized = JSON.stringify(settings)
+      .replace(/</g, "\\u003c")
+      .replace(/>/g, "\\u003e")
+      .replace(/&/g, "\\u0026")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+    const template = await env.ASSETS.fetch(
+      new Request(new URL("/index.html", request.url)),
+    );
+    if (!template.ok)
+      return json({ error: "Administration temporarily unavailable" }, 503);
+    const policy = editorPolicy(pathname);
+    const rewriter = new HTMLRewriter()
+      .on("html", {
+        element(element) {
+          element.setAttribute("lang", settings.defaultLanguage);
+          element.setAttribute("data-theme", settings.theme);
+          element.setAttribute("data-accent", settings.accent);
+        },
+      })
+      .on("title", {
+        element(element) {
+          element.setInnerContent(
+            `Administration · ${settings.locales[settings.defaultLanguage].name}`,
+          );
+        },
+      })
+      .on("head", {
+        element(element) {
+          element.prepend(
+            '<script src="/assets/site-appearance.js"></script>',
+            { html: true },
+          );
+          if (policy)
+            element.append(
+              `<meta property="csp-nonce" nonce="${policy.nonce}">`,
+              { html: true },
+            );
+        },
+      })
+      .on("body", {
+        element(element) {
+          element.append(
+            `<script id="site-settings" type="application/json">${serialized}</script>`,
+            { html: true },
+          );
+        },
+      });
+    const transformed = rewriter.transform(template);
+    return new Response(request.method === "HEAD" ? null : transformed.body, {
+      status: route.page === "not-found" ? 404 : 200,
+      headers: {
+        ...adminHeaders,
+        "Content-Type": "text/html; charset=utf-8",
+        ...(policy ? { "Content-Security-Policy": policy.csp } : {}),
       },
     });
-  const transformed = rewriter.transform(template);
-  return new Response(request.method === "HEAD" ? null : transformed.body, {
-    status: route.page === "not-found" ? 404 : 200,
-    headers: {
-      ...adminHeaders,
-      "Content-Type": "text/html; charset=utf-8",
-      ...(policy ? { "Content-Security-Policy": policy.csp } : {}),
-    },
-  });
+  } catch {
+    return new Response(
+      request.method === "HEAD"
+        ? null
+        : JSON.stringify({ error: "Administration temporarily unavailable" }),
+      {
+        status: 503,
+        headers: {
+          ...adminHeaders,
+          "Content-Type": "application/json; charset=utf-8",
+        },
+      },
+    );
+  }
 }

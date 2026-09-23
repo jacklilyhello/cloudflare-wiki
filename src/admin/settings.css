@@ -1,0 +1,645 @@
+.admin-root .settings-workspace {
+  min-width: 0;
+}
+.admin-root .settings-workspace :where(.settings-heading) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+.admin-root .settings-workspace :where(.settings-heading h1) {
+  font-size: clamp(24px, 2.6vw, 32px);
+  line-height: 1.35;
+  letter-spacing: -0.8px;
+  font-weight: 650;
+  margin: 9px 0 10px;
+}
+.admin-root .settings-workspace :where(.settings-heading p:last-child) {
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.admin-root .settings-workspace :where(.settings-save-state) {
+  flex: 0 0 auto;
+  border: 1px solid var(--admin-line);
+  border-radius: 100px;
+  padding: 7px 12px;
+  color: var(--admin-muted);
+  background: var(--admin-panel);
+  font-size: 10px;
+}
+.admin-root .settings-workspace :where(.settings-save-state.is-dirty) {
+  color: var(--admin-accent);
+  background: var(--admin-soft);
+  border-color: var(--admin-soft);
+}
+.admin-root .settings-workspace :where(.settings-layout) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(290px, 0.85fr);
+  gap: 24px;
+  align-items: start;
+}
+.admin-root .settings-workspace :where(.settings-sections) {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+.admin-root .settings-workspace :where(.settings-card) {
+  padding: 25px;
+}
+.admin-root .settings-workspace :where(.settings-card > header) {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 24px;
+}
+.admin-root .settings-workspace :where(.settings-step) {
+  display: grid;
+  place-items: center;
+  flex: 0 0 31px;
+  height: 31px;
+  border-radius: 8px;
+  background: var(--admin-soft);
+  color: var(--admin-accent);
+  font-size: 10px;
+  font-weight: 650;
+}
+.admin-root
+  .settings-workspace
+  :where(
+    .settings-card h2,
+    .settings-preview-card h2,
+    .settings-comparison h2
+  ) {
+  font-size: 17px;
+  letter-spacing: -0.35px;
+  font-weight: 600;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-card header p, .settings-comparison header > p:last-child) {
+  color: var(--admin-muted);
+  font-size: 11px;
+  margin-top: 5px;
+  line-height: 1.8;
+}
+.admin-root .settings-workspace :where(.settings-language-tabs) {
+  display: flex;
+  gap: 5px;
+  padding: 4px;
+  background: var(--admin-bg);
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+.admin-root .settings-workspace :where(.settings-language-tabs button) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  flex: 1;
+  padding: 9px 13px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-language-tabs button[aria-pressed="true"]) {
+  background: var(--admin-panel);
+  color: var(--admin-accent);
+  border-color: var(--admin-line);
+  box-shadow: 0 1px 3px #00000005;
+}
+.admin-root .settings-workspace :where(.settings-language-tabs button span) {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.admin-root .settings-workspace :where(.settings-fields .admin-field > span) {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-fields textarea, .settings-fields select) {
+  font: inherit;
+  color: var(--admin-ink);
+  background: var(--admin-panel);
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  min-width: 0;
+  width: 100%;
+  line-height: 1.7;
+}
+.admin-root .settings-workspace :where(.settings-fields textarea) {
+  resize: vertical;
+  min-height: 84px;
+  max-height: 240px;
+}
+.admin-root .settings-workspace :where(.settings-fields input) {
+  font-size: 13px;
+}
+.admin-root .settings-workspace :where(.settings-default-language) {
+  padding-top: 21px;
+  margin-top: 23px;
+  margin-bottom: 0;
+  border-top: 1px solid var(--admin-line);
+}
+.admin-root .settings-workspace :where(.settings-default-language select) {
+  max-width: 200px;
+}
+.admin-root .settings-workspace :where(.settings-option-group) {
+  margin-top: 23px;
+}
+.admin-root .settings-workspace :where(.settings-option-group legend) {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 11px;
+}
+.admin-root .settings-workspace :where(.settings-option-group > p) {
+  color: var(--admin-muted);
+  font-size: 10px;
+  margin-top: 11px;
+  line-height: 1.8;
+}
+.admin-root .settings-workspace :where(.settings-options) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.admin-root .settings-workspace :where(.settings-options > button) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 9px;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  background: var(--admin-panel);
+  color: var(--admin-muted);
+  font-size: 11px;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-options > button[aria-pressed="true"]) {
+  border-color: var(--admin-accent);
+  background: var(--admin-soft);
+  color: var(--admin-accent);
+  box-shadow: inset 0 0 0 1px var(--admin-accent);
+}
+.admin-root .settings-workspace :where(.settings-theme-sample) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 55px;
+  height: 39px;
+  padding: 8px;
+  border: 1px solid #c9d3cb;
+  border-radius: 5px;
+  background: #fff;
+}
+.admin-root .settings-workspace :where(.settings-theme-sample i) {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: #a5b2a8;
+}
+.admin-root .settings-workspace :where(.settings-theme-sample i:nth-child(2)) {
+  width: 70%;
+}
+.admin-root .settings-workspace :where(.settings-theme-sample.theme-dark) {
+  background: #24332b;
+  border-color: #425247;
+}
+.admin-root .settings-workspace :where(.settings-theme-sample.theme-system) {
+  background: linear-gradient(90deg, #fff 50%, #24332b 50%);
+}
+.admin-root .settings-workspace :where(.settings-color-options > button) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 12px 7px;
+}
+.admin-root .settings-workspace :where(.settings-color-sample) {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+.admin-root .settings-workspace :where(.settings-color-sample.accent-forest) {
+  background: #23754c;
+}
+.admin-root .settings-workspace :where(.settings-color-sample.accent-ocean) {
+  background: #19669e;
+}
+.admin-root .settings-workspace :where(.settings-color-sample.accent-plum) {
+  background: #7950a2;
+}
+.admin-root .settings-workspace :where(.settings-choice-check) {
+  width: 10px;
+  font-size: 10px;
+}
+.admin-root .settings-workspace :where(.settings-logo-sample) {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  font-size: 21px;
+  font-weight: 600;
+}
+.admin-root .settings-workspace :where(.settings-logo-sample svg) {
+  width: 31px;
+  height: 31px;
+}
+.admin-root .settings-workspace :where(.settings-preview-column) {
+  position: sticky;
+  top: 24px;
+  min-width: 0;
+}
+.admin-root .settings-workspace :where(.settings-preview-card) {
+  border: 1px solid var(--admin-line);
+  background: var(--admin-panel);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.admin-root .settings-workspace :where(.settings-preview-card > header) {
+  padding: 23px 23px 20px;
+}
+.admin-root .settings-workspace :where(.settings-preview-card h2) {
+  margin: 7px 0 5px;
+}
+.admin-root .settings-workspace :where(.settings-preview-card header > span) {
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+.admin-root .settings-workspace :where(.settings-preview) {
+  --preview-bg: #fff;
+  --preview-ink: #28392e;
+  --preview-muted: #6c7c71;
+  --preview-line: #e2e8e3;
+  --preview-soft: #f3f6f3;
+  --preview-accent: #23754c;
+  margin: 0 20px;
+  background: var(--preview-bg);
+  color: var(--preview-ink);
+  border: 1px solid var(--preview-line);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 8px 22px #17241909;
+}
+.admin-root .settings-workspace :where(.settings-preview.accent-ocean) {
+  --preview-accent: #19669e;
+}
+.admin-root .settings-workspace :where(.settings-preview.accent-plum) {
+  --preview-accent: #7950a2;
+}
+.admin-root .settings-workspace :where(.settings-preview.preview-dark) {
+  --preview-bg: #17211c;
+  --preview-ink: #e3ece5;
+  --preview-muted: #a6b7ac;
+  --preview-line: #38483e;
+  --preview-soft: #202e26;
+  --preview-accent: #8ccca7;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-preview.preview-dark.accent-ocean) {
+  --preview-accent: #a0ceef;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-preview.preview-dark.accent-plum) {
+  --preview-accent: #d3b0ec;
+}
+.admin-root .settings-workspace :where(.settings-preview-browser) {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--preview-line);
+  background: var(--preview-soft);
+}
+.admin-root .settings-workspace :where(.settings-preview-browser i) {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--preview-muted);
+  opacity: 0.5;
+}
+.admin-root .settings-workspace :where(.settings-preview-browser > span) {
+  text-align: center;
+  flex: 1;
+  font-size: 7px;
+  color: var(--preview-muted);
+  letter-spacing: 1px;
+}
+.admin-root .settings-workspace :where(.settings-preview-brand) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 51px;
+  padding: 13px 11px;
+  border-bottom: 1px solid var(--preview-line);
+}
+.admin-root .settings-workspace :where(.settings-preview-brand > span) {
+  display: grid;
+  place-items: center;
+  flex: 0 0 23px;
+  height: 23px;
+  border-radius: 5px;
+  color: var(--preview-bg);
+  background: var(--preview-accent);
+}
+.admin-root .settings-workspace :where(.settings-preview-brand svg) {
+  width: 19px;
+  height: 19px;
+}
+.admin-root .settings-workspace :where(.settings-preview-brand strong) {
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.admin-root .settings-workspace :where(.settings-preview-brand small) {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--preview-muted);
+  font-size: 7px;
+}
+.admin-root .settings-workspace :where(.settings-preview-body) {
+  display: flex;
+  min-height: 284px;
+}
+.admin-root .settings-workspace :where(.settings-preview-nav) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 33px;
+  gap: 15px;
+  padding: 17px 9px;
+  border-right: 1px solid var(--preview-line);
+  background: var(--preview-soft);
+  color: var(--preview-accent);
+}
+.admin-root .settings-workspace :where(.settings-preview-nav i) {
+  display: block;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--preview-muted);
+  opacity: 0.35;
+}
+.admin-root .settings-workspace :where(.settings-preview article) {
+  padding: 24px 17px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-root .settings-workspace :where(.settings-preview-kicker) {
+  font-size: 7px;
+  color: var(--preview-accent);
+  letter-spacing: 0.5px;
+}
+.admin-root .settings-workspace :where(.settings-preview h3) {
+  font-size: 18px;
+  line-height: 1.6;
+  font-weight: 600;
+  margin: 10px 0;
+  letter-spacing: -0.4px;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-preview article > p:not(.settings-preview-kicker)) {
+  font-size: 9px;
+  line-height: 1.9;
+  color: var(--preview-muted);
+}
+.admin-root .settings-workspace :where(.settings-preview-callout) {
+  padding: 11px;
+  margin: 17px 0 13px;
+  border-left: 2px solid var(--preview-accent);
+  border-radius: 2px;
+  background: var(--preview-soft);
+  font-size: 9px;
+  line-height: 1.8;
+}
+.admin-root .settings-workspace :where(.settings-preview-link) {
+  color: var(--preview-accent);
+  font-size: 9px;
+  font-weight: 600;
+}
+.admin-root .settings-workspace :where(.settings-preview-note) {
+  color: var(--admin-muted);
+  font-size: 10px;
+  line-height: 1.85;
+  padding: 18px 23px 22px;
+}
+.admin-root .settings-workspace :where(.settings-tip) {
+  display: flex;
+  gap: 11px;
+  padding: 21px 8px;
+  color: var(--admin-muted);
+  font-size: 10px;
+  line-height: 1.9;
+}
+.admin-root .settings-workspace :where(.settings-tip > span) {
+  color: var(--admin-accent);
+  font-size: 17px;
+}
+.admin-root .settings-workspace :where(.settings-savebar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 28px;
+  padding: 22px 0 4px;
+  border-top: 1px solid var(--admin-line);
+}
+.admin-root .settings-workspace :where(.settings-savebar strong) {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-root .settings-workspace :where(.settings-savebar small) {
+  display: block;
+  font-size: 10px;
+  color: var(--admin-muted);
+  margin-top: 5px;
+}
+.admin-root
+  .settings-workspace
+  :where(
+    .settings-savebar > div:last-child,
+    .settings-inline-actions,
+    .settings-compare-actions
+  ) {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.admin-root .settings-workspace :where(.settings-notice) {
+  flex-wrap: wrap;
+  line-height: 1.8;
+}
+.admin-root .settings-workspace :where(.settings-notice > span) {
+  flex: 1 1 320px;
+}
+.admin-root .settings-workspace :where(.settings-comparison) {
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.admin-root .settings-workspace :where(.settings-comparison h2) {
+  margin-top: 7px;
+}
+.admin-root .settings-workspace :where(.settings-comparison-scroll) {
+  overflow-x: auto;
+  margin: 22px -1px;
+}
+.admin-root .settings-workspace :where(.settings-comparison table) {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.admin-root
+  .settings-workspace
+  :where(.settings-comparison th, .settings-comparison td) {
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--admin-line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.admin-root .settings-workspace :where(.settings-comparison th:first-child) {
+  width: 24%;
+}
+.admin-root .settings-workspace :where(.settings-comparison th) {
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+.admin-root .settings-workspace :where(.settings-comparison .is-changed td) {
+  background: var(--admin-soft);
+}
+.admin-root .settings-workspace :where(.settings-compare-actions) {
+  justify-content: flex-end;
+}
+.admin-root .settings-workspace :where(.settings-compare-actions button) {
+  white-space: normal;
+}
+.admin-root .settings-dialog {
+  width: min(450px, calc(100vw - 32px));
+  color: var(--admin-ink);
+  background: var(--admin-panel);
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  padding: 27px;
+}
+.admin-root .settings-dialog::backdrop {
+  background: #101b16b3;
+  backdrop-filter: blur(3px);
+}
+.admin-root .settings-dialog h2 {
+  font-size: 21px;
+  margin: 0 0 13px;
+}
+.admin-root .settings-dialog p {
+  color: var(--admin-muted);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.admin-root .settings-dialog > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 11px;
+  margin-top: 25px;
+}
+@media (prefers-color-scheme: dark) {
+  .admin-root .settings-workspace :where(.settings-preview.preview-system) {
+    --preview-bg: #17211c;
+    --preview-ink: #e3ece5;
+    --preview-muted: #a6b7ac;
+    --preview-line: #38483e;
+    --preview-soft: #202e26;
+    --preview-accent: #8ccca7;
+  }
+  .admin-root
+    .settings-workspace
+    :where(.settings-preview.preview-system.accent-ocean) {
+    --preview-accent: #a0ceef;
+  }
+  .admin-root
+    .settings-workspace
+    :where(.settings-preview.preview-system.accent-plum) {
+    --preview-accent: #d3b0ec;
+  }
+}
+@media (max-width: 1050px) {
+  .admin-root .settings-workspace :where(.settings-layout) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-root .settings-workspace :where(.settings-preview-column) {
+    position: static;
+  }
+  .admin-root .settings-workspace :where(.settings-preview) {
+    max-width: 510px;
+    margin-inline: auto;
+  }
+  .admin-root .settings-workspace :where(.settings-preview-card) {
+    padding-inline: 18px;
+  }
+  .admin-root
+    .settings-workspace
+    :where(.settings-preview-card > header, .settings-preview-note) {
+    padding-inline: 4px;
+  }
+}
+@media (max-width: 650px) {
+  .admin-root .settings-workspace :where(.settings-heading) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .admin-root .settings-workspace :where(.settings-heading h1) {
+    font-size: 26px;
+  }
+  .admin-root .settings-workspace :where(.settings-card, .settings-comparison) {
+    padding: 21px 17px;
+  }
+  .admin-root .settings-workspace :where(.settings-options) {
+    gap: 7px;
+  }
+  .admin-root .settings-workspace :where(.settings-options > button) {
+    font-size: 10px;
+  }
+  .admin-root .settings-workspace :where(.settings-color-options > button) {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .admin-root .settings-workspace :where(.settings-choice-check) {
+    display: none;
+  }
+  .admin-root .settings-workspace :where(.settings-savebar) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 17px;
+  }
+  .admin-root
+    .settings-workspace
+    :where(.settings-savebar > div:last-child > button) {
+    flex: 1;
+  }
+  .admin-root
+    .settings-workspace
+    :where(.settings-comparison th, .settings-comparison td) {
+    padding: 10px 7px;
+    font-size: 10px;
+  }
+  .admin-root .settings-workspace :where(.settings-comparison th:first-child) {
+    width: 21%;
+  }
+}

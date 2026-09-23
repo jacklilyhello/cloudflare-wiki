@@ -54,7 +54,7 @@
 .admin-root .audit-workspace :where(.audit-filter-panel label > span) {
   font-size: 11px;
   font-weight: 600;
-  color: #647565;
+  color: var(--admin-ink);
 }
 .admin-root
   .audit-workspace
@@ -63,11 +63,11 @@
   width: 100%;
   min-width: 0;
   height: 41px;
-  border: 1px solid #dce5d8;
+  border: 1px solid var(--admin-line);
   border-radius: 6px;
   padding: 8px 11px;
-  color: #455d46;
-  background: #fff;
+  color: var(--admin-ink);
+  background: var(--admin-panel);
   font: inherit;
   font-size: 11px;
 }
@@ -75,7 +75,7 @@
   padding-right: 27px;
 }
 .admin-root .audit-workspace :where(.audit-filter-panel input::placeholder) {
-  color: #a0aa9a;
+  color: var(--admin-muted);
 }
 .admin-root .audit-workspace :where(.audit-more-filters) {
   margin-top: 18px;
@@ -85,7 +85,7 @@
   align-items: center;
   gap: 9px;
   padding: 4px 0;
-  color: #7a8d72;
+  color: var(--admin-muted);
   font-size: 11px;
   cursor: pointer;
   list-style: none;
@@ -110,7 +110,7 @@
 }
 .admin-root .audit-workspace :where(.audit-filter-advanced > p) {
   grid-column: 1 / -1;
-  color: #8c9a84;
+  color: var(--admin-muted);
   font-size: 10px;
   line-height: 1.8;
 }
@@ -121,12 +121,12 @@
   gap: 16px;
   margin: 19px -24px 0;
   padding: 15px 24px;
-  border-top: 1px solid #e8eee3;
-  background: #fafcf8;
+  border-top: 1px solid var(--admin-line);
+  background: var(--admin-bg);
   border-radius: 0 0 9px 9px;
 }
 .admin-root .audit-workspace :where(.audit-filter-footer p) {
-  color: #8b9982;
+  color: var(--admin-muted);
   font-size: 10px;
 }
 .admin-root .audit-workspace :where(.audit-filter-footer > div) {
@@ -143,12 +143,12 @@
   border: 0;
   padding: 8px 0;
   background: transparent;
-  color: #809474;
+  color: var(--admin-muted);
   font-size: 11px;
 }
 .admin-root .audit-workspace :where(.audit-validation) {
   margin-top: 15px;
-  color: #a66252;
+  color: var(--admin-danger-ink);
   font-size: 11px;
 }
 .admin-root .audit-workspace :where(.audit-records) {
@@ -174,7 +174,7 @@
 }
 .admin-root .audit-workspace :where(.audit-records header span) {
   font-size: 10px;
-  color: #8d9b85;
+  color: var(--admin-muted);
 }
 .admin-root .audit-workspace :where(.audit-readonly) {
   display: flex;
@@ -188,7 +188,7 @@
   padding: 0;
 }
 .admin-root .audit-workspace :where(.audit-entry + .audit-entry) {
-  border-top: 1px solid #edf1e9;
+  border-top: 1px solid var(--admin-line);
 }
 .admin-root .audit-workspace :where(.audit-entry summary) {
   display: grid;
@@ -205,20 +205,20 @@
   display: none;
 }
 .admin-root .audit-workspace :where(.audit-entry summary:hover) {
-  background: #fbfdf8;
+  background: var(--admin-soft);
 }
 .admin-root .audit-workspace :where(.audit-entry details[open] > summary) {
-  background: #f6f9f2;
+  background: var(--admin-soft);
 }
 .admin-root .audit-workspace :where(.audit-category-icon) {
   display: grid;
   place-items: center;
   width: 36px;
   height: 39px;
-  border: 1px solid #e0e9d9;
+  border: 1px solid var(--admin-line);
   border-radius: 7px;
-  background: #f3f7ed;
-  color: #80a074;
+  background: var(--admin-bg);
+  color: var(--admin-accent);
 }
 .admin-root .audit-workspace :where(.audit-category-icon.navigation) {
   background: #f5f5ed;
@@ -240,7 +240,7 @@
   gap: 9px;
 }
 .admin-root .audit-workspace :where(.audit-entry-action strong) {
-  color: #435c3e;
+  color: var(--admin-ink);
   font-weight: 550;
   font-size: 12px;
 }
@@ -248,17 +248,17 @@
   .audit-workspace
   :where(.audit-language-badge, .audit-legacy-badge) {
   display: inline-block;
-  border: 1px solid #e2e8dc;
+  border: 1px solid var(--admin-line);
   border-radius: 4px;
   padding: 1px 6px;
-  color: #88967e;
+  color: var(--admin-muted);
   font-size: 9px;
   white-space: nowrap;
 }
 .admin-root .audit-workspace :where(.audit-legacy-badge) {
-  border-color: #ece2c8;
-  background: #fcf9ef;
-  color: #a28b54;
+  border-color: var(--admin-line);
+  background: var(--admin-bg);
+  color: var(--admin-warning-ink);
 }
 .admin-root .audit-workspace :where(.audit-entry-target) {
   display: flex;
@@ -266,7 +266,7 @@
   align-items: baseline;
   gap: 4px 12px;
   margin-top: 7px;
-  color: #89997e;
+  color: var(--admin-muted);
   font-size: 11px;
   overflow-wrap: anywhere;
 }
@@ -277,7 +277,7 @@
   font:
     10px / 1.7 ui-monospace,
     monospace;
-  color: #96a38c;
+  color: var(--admin-muted);
 }
 .admin-root .audit-workspace :where(.audit-entry-time) {
   display: flex;
@@ -285,14 +285,14 @@
   gap: 4px;
   font-size: 10px;
   text-align: right;
-  color: #829679;
+  color: var(--admin-muted);
 }
 .admin-root .audit-workspace :where(.audit-entry-time small) {
-  color: #a6b39b;
+  color: var(--admin-muted);
   font-size: 9px;
 }
 .admin-root .audit-workspace :where(.audit-entry-toggle) {
-  color: #9fb294;
+  color: var(--admin-muted);
   font-size: 16px;
   transition: transform 0.15s;
 }
@@ -303,7 +303,7 @@
 }
 .admin-root .audit-workspace :where(.audit-record-details) {
   padding: 0 24px 22px 76px;
-  background: #f6f9f2;
+  background: var(--admin-bg);
 }
 .admin-root .audit-workspace :where(.audit-details-grid) {
   display: grid;
@@ -311,15 +311,15 @@
   gap: 20px 30px;
   margin: 0;
   padding-top: 21px;
-  border-top: 1px solid #e3ebdb;
+  border-top: 1px solid var(--admin-line);
 }
 .admin-root .audit-workspace :where(.audit-details-grid dt) {
-  color: #8d9d82;
+  color: var(--admin-muted);
   font-size: 10px;
 }
 .admin-root .audit-workspace :where(.audit-details-grid dd) {
   margin: 5px 0 0;
-  color: #5b7550;
+  color: var(--admin-ink);
   font-size: 11px;
   overflow-wrap: anywhere;
 }
@@ -337,7 +337,7 @@
 }
 .admin-root .audit-workspace :where(.audit-record-footer p) {
   flex: 1 1 220px;
-  color: #93a08b;
+  color: var(--admin-muted);
   font-size: 10px;
   line-height: 1.9;
 }
@@ -359,28 +359,28 @@
 .admin-root .audit-workspace :where(.audit-empty > .audit-icon) {
   width: 35px;
   height: 35px;
-  color: #acbda2;
+  color: var(--admin-accent);
 }
 .admin-root .audit-workspace :where(.audit-empty h3) {
   font-size: 14px;
   font-weight: 500;
-  color: #708565;
+  color: var(--admin-muted);
 }
 .admin-root .audit-workspace :where(.audit-empty p) {
   font-size: 11px;
-  color: #98a58f;
+  color: var(--admin-muted);
 }
 .admin-root .audit-workspace :where(.audit-list-footer) {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 18px;
-  border-top: 1px solid #e6edde;
+  border-top: 1px solid var(--admin-line);
   padding: 18px 24px;
-  background: #fafcf7;
+  background: var(--admin-bg);
 }
 .admin-root .audit-workspace :where(.audit-list-footer p) {
-  color: #91a185;
+  color: var(--admin-muted);
   font-size: 10px;
 }
 .admin-root .audit-workspace :where(.audit-list-footer .admin-button) {
@@ -397,7 +397,7 @@
 }
 .admin-root .audit-workspace :where(.audit-privacy-note) {
   margin: 18px 4px 0;
-  color: #96a38d;
+  color: var(--admin-muted);
   font-size: 10px;
   line-height: 1.8;
 }
