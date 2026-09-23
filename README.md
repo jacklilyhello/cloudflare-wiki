@@ -152,6 +152,18 @@ PR CI receives no Cloudflare credential and never deploys. Manual deployment acc
 
 After CI exists, import `.github/rulesets/main.json` through **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, or apply it via the authenticated Administration API. A file in Git does **not** activate rules. The policy requires PR/CI/conversation resolution and linear history, blocks deletion/force push, has no bypass actors and permits squash only. Prefer squash-only repository merge settings too. Read back live settings before claiming protection is active.
 
+## Read-only R2 readiness
+
+The manual **R2 Readiness** Actions workflow inspects the planned `cloudflare-wiki-assets-test` bucket using the existing deployment secret without copying it locally. Run it on current main:
+
+```sh
+gh workflow run r2-readiness.yml --ref main
+```
+
+It makes GET requests only: bounded bucket inventory, the existing Worker settings, and—if the bucket exists—its project ownership marker and public-domain state. It shares the deployment concurrency lock, rejects stale/non-main runs, and prints only a fixed status or sanitized failure. An existing bucket must have the exact project marker, use the default jurisdiction, have its managed public domain disabled and have no custom domains. Missing/incorrect markers or conflicting bindings stop the check; nothing is adopted, repaired or deleted.
+
+A successful inventory read establishes visibility, not write permission or permission to enable a subscription. The workflow does not inspect token policies or billing, create resources, upload objects, change bindings, migrate D1 or deploy. R2/file management is still unimplemented. Missing permissions or subscription access require an owner decision; no permission expansion or paid activation happens automatically.
+
 ## Deployment and health
 
 Only Worker `cloudflare-wiki`, Custom Domain `cf.emby.wiki` and D1 database `cloudflare-wiki-test` are provisioned and reused. R2 and KV are not provisioned yet. Actions locates the exact D1 name, validates the project ownership marker and migration ledger, applies pending reviewed migrations, and verifies the Worker DB binding after deployment. An existing unmarked database is never adopted or replaced. If creation succeeds but initialization fails before the marker is committed, the workflow stops for explicit recovery; it does not retry creation or delete the resource. Wrangler automatic resource provisioning is disabled. Database creation and remote SQL never run locally. Its stable `cloudflare-wiki.<account-subdomain>.workers.dev` address is enabled only for GitHub Actions post-deploy smoke tests; the deployment script reads the account subdomain through Cloudflare's API and publishes the exact URL as a step output. `cf.emby.wiki` remains the actual test Custom Domain. Versioned and aliased Preview URLs remain disabled.
