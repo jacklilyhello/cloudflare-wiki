@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { runInNewContext } from "node:vm";
 import {
   LOCAL_SMOKE_BASE_URL,
   validateSmokeBaseUrl,
   workersDevBaseUrl,
 } from "../scripts/smoke-policy.mjs";
-import { checkAdmin } from "../scripts/smoke-test.mjs";
+import { checkAdmin, checkHome } from "../scripts/smoke-test.mjs";
 
 const accountSubdomain = "account-subdomain";
 const workersDevBase = workersDevBaseUrl(accountSubdomain);
@@ -78,12 +80,25 @@ const adminApiPaths = [
   "/api/admin/navigation/zh",
   "/api/admin/redirects/zh",
   "/api/admin/redirects/en",
+  "/api/admin/settings",
   "/api/admin/audit",
 ];
 const editorPaths = [
   "/admin/pages/new",
   "/admin/pages/starter-home-en/history",
 ];
+
+const siteSettings = {
+  locales: {
+    zh: { name: "Emby Wiki", description: "技术文档" },
+    en: { name: "Emby Wiki", description: "Documentation" },
+  },
+  defaultLanguage: "zh",
+  theme: "system",
+  accent: "forest",
+  logo: "emby",
+};
+const appearanceScript = '<script src="/assets/site-appearance.js"></script>';
 
 function adminResponses(
   status = { initialized: false, setupAvailable: false },
@@ -92,7 +107,7 @@ function adminResponses(
     [
       "/admin",
       new Response(
-        '<title>Administration · Emby Wiki</title><div id="root"></div><script src="/assets/app.js"></script>',
+        `<html data-theme="system" data-accent="forest"><head>${appearanceScript}<title>Administration · Emby Wiki</title></head><body><div id="root"></div><script src="/assets/app.js"></script><script id="site-settings" type="application/json">${JSON.stringify(siteSettings)}</script></body></html>`,
         { headers: { ...adminHeaders, "Content-Type": "text/html" } },
       ),
     ],
@@ -149,6 +164,7 @@ test("admin smoke accepts all lifecycle states using only anonymous reads", asyn
       "/api/admin/navigation/zh",
       "/api/admin/redirects/zh",
       "/api/admin/redirects/en",
+      "/api/admin/settings",
       "/api/admin/audit",
       "/admin/pages/new",
       "/admin/pages/starter-home-en/history",
@@ -263,6 +279,133 @@ test("admin smoke rejects editor data, session issuance, unsafe redirects, and r
           `${adminHeaders["Content-Security-Policy"]}; ${directive}`,
         );
       await assert.rejects(checkAdmin(getFixture(responses)));
+    }
+  }
+});
+
+function homepage(language, defaultLanguage = language) {
+  const settings = { ...siteSettings, defaultLanguage };
+  const identity = settings.locales[language];
+  const data = {
+    settings,
+    language,
+    mode: "article",
+    page: {
+      language,
+      path: "home",
+      title: "Home",
+      description: "Article description",
+    },
+  };
+  return `<html lang="${language}" data-theme="system" data-accent="forest"><head>${appearanceScript}<title>Home · ${identity.name}</title><link rel="canonical" href="https://cf.emby.wiki/${language}/home"><meta property="og:site_name" content="${identity.name}"><meta property="og:title" content="Home · ${identity.name}"><meta name="description" content="Article description"><link rel="alternate" hreflang="zh" href="https://cf.emby.wiki/zh/home"><link rel="alternate" hreflang="en" href="https://cf.emby.wiki/en/home"></head><body><article><h1>Home</h1><a href="#section">Section</a></article><script id="reader-data" type="application/json">${JSON.stringify(data)}</script></body></html>`;
+}
+
+test("homepage smoke follows configured language while checking both explicit article routes", async () => {
+  for (const language of ["zh", "en"]) {
+    const response = (html) =>
+      new Response(html, {
+        headers: { ...adminHeaders, "Content-Type": "text/html" },
+      });
+    await checkHome(response(homepage(language)));
+    await checkHome(
+      response(homepage(language, language === "zh" ? "en" : "zh")),
+      language,
+    );
+    for (const broken of [
+      homepage(language, language === "zh" ? "en" : "zh"),
+      homepage(language).replace('rel="canonical"', 'rel="removed"'),
+      homepage(language).replace(
+        `https://cf.emby.wiki/${language}/home`,
+        `https://attacker.invalid/${language}/home`,
+      ),
+      homepage(language).replace('property="og:title"', 'property="removed"'),
+      homepage(language).replace(
+        'property="og:site_name"',
+        'property="removed"',
+      ),
+      homepage(language).replace('name="description"', 'name="removed"'),
+      homepage(language).replace('hreflang="en"', 'hreflang="fr"'),
+      homepage(language).replace("<article>", "<section>"),
+    ])
+      await assert.rejects(checkHome(response(broken)));
+  }
+});
+
+test("first-paint theme script accepts only explicit visitor choices and preserves server settings on storage failure", () => {
+  const source = readFileSync(
+    new URL("../public/assets/site-appearance.js", import.meta.url),
+    "utf8",
+  );
+  for (const theme of ["system", "light", "dark"])
+    for (const saved of [
+      null,
+      "system",
+      "light",
+      "dark",
+      'dark" onclick="alert(1)',
+    ]) {
+      const dataset = { theme, accent: "ocean" };
+      runInNewContext(source, {
+        document: { documentElement: { dataset } },
+        localStorage: { getItem: () => saved },
+      });
+      assert.deepEqual(dataset, {
+        theme: ["light", "dark"].includes(saved) ? saved : theme,
+        accent: "ocean",
+      });
+    }
+  const dataset = { theme: "dark", accent: "plum" };
+  runInNewContext(source, {
+    document: { documentElement: { dataset } },
+    localStorage: {
+      getItem() {
+        throw new Error("Storage blocked");
+      },
+    },
+  });
+  assert.deepEqual(dataset, { theme: "dark", accent: "plum" });
+});
+
+test("all fixed accent palettes retain readable text contrast in light and dark schemes", () => {
+  const css = readFileSync(
+    new URL("../src/styles.css", import.meta.url),
+    "utf8",
+  );
+  function luminance(color) {
+    const channels = color
+      .slice(1)
+      .match(/../g)
+      .map((hex) => Number.parseInt(hex, 16) / 255)
+      .map((value) =>
+        value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4,
+      );
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  }
+  function contrast(first, second) {
+    const values = [luminance(first), luminance(second)].sort((a, b) => a - b);
+    return (values[1] + 0.05) / (values[0] + 0.05);
+  }
+  for (const selector of [
+    ":root",
+    ':root[data-accent="ocean"]',
+    ':root[data-accent="plum"]',
+  ]) {
+    const block = css.slice(css.indexOf(`${selector} {`)).split("}")[0];
+    const value = (name) =>
+      new RegExp(`--${name}: (#[0-9a-f]{6});`).exec(block)?.[1];
+    for (const [theme, background] of [
+      ["light", "#ffffff"],
+      ["dark", "#151a18"],
+    ]) {
+      assert.ok(
+        contrast(value(`accent-${theme}`), background) >= 4.5,
+        `${selector} ${theme} body contrast`,
+      );
+      assert.ok(
+        contrast(value(`accent-${theme}`), value(`accent-soft-${theme}`)) >=
+          4.5,
+        `${selector} ${theme} selected text contrast`,
+      );
     }
   }
 });

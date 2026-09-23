@@ -24,9 +24,9 @@
 .admin-root .navigation-workspace :where(.navigation-workspace select) {
   min-width: 0;
   padding: 9px 30px 9px 12px;
-  border: 1px solid #dbe4dc;
+  border: 1px solid var(--admin-line);
   border-radius: 6px;
-  background: #fff;
+  background: var(--admin-panel);
   color: var(--admin-ink);
   font: inherit;
 }
@@ -41,7 +41,7 @@
 .admin-root .navigation-workspace :where(.navigation-save-state small) {
   flex-basis: 100%;
   margin-left: 15px;
-  color: #89948b;
+  color: var(--admin-muted);
   font-size: 10px;
 }
 .admin-root .navigation-workspace :where(.navigation-dirty-dot) {
@@ -85,21 +85,21 @@
   display: flex;
   flex: 0 0 auto;
   padding: 4px;
-  background: #f1f5f0;
+  background: var(--admin-bg);
   border-radius: 8px;
 }
 .admin-root .navigation-workspace :where(.navigation-mode-switch button) {
   border: 0;
   border-radius: 5px;
   padding: 9px 16px;
-  color: #758778;
+  color: var(--admin-muted);
   background: transparent;
   font-size: 11px;
 }
 .admin-root
   .navigation-workspace
   :where(.navigation-mode-switch button[aria-pressed="true"]) {
-  background: white;
+  background: var(--admin-panel);
   box-shadow: 0 1px 5px #213b2212;
   color: var(--admin-accent);
   font-weight: 650;
@@ -127,7 +127,7 @@
   gap: 18px;
   height: 66px;
   margin-bottom: 14px;
-  color: #739a7a;
+  color: var(--admin-muted);
 }
 .admin-root
   .navigation-workspace
@@ -171,7 +171,7 @@
 }
 .admin-root .navigation-workspace :where(.navigation-tree-panel header small),
 .admin-root .navigation-workspace :where(.navigation-properties header small) {
-  color: #879589;
+  color: var(--admin-muted);
   font-size: 10px;
 }
 .admin-root .navigation-workspace :where(.navigation-add-actions) {
@@ -187,20 +187,20 @@
   gap: 7px;
   min-height: 37px;
   padding: 7px 10px;
-  border: 1px solid #dfe8dd;
+  border: 1px solid var(--admin-line);
   border-radius: 6px;
-  color: #587b5b;
-  background: #f8faf7;
+  color: var(--admin-ink);
+  background: var(--admin-bg);
   font-size: 11px;
 }
 .admin-root .navigation-workspace :where(.navigation-add-actions button:hover) {
-  background: #edf5ed;
+  background: var(--admin-soft);
 }
 .admin-root
   .navigation-workspace
   :where(.navigation-add-actions button > span) {
   margin-left: auto;
-  color: #91a793;
+  color: var(--admin-muted);
   font-size: 17px;
   line-height: 1;
 }
@@ -208,18 +208,18 @@
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
-  color: #7b997e;
+  color: var(--admin-accent);
 }
 .admin-root .navigation-workspace :where(.navigation-icon.group) {
   color: #a39064;
 }
 .admin-root .navigation-workspace :where(.navigation-icon.link) {
-  color: #6c8da1;
+  color: var(--admin-accent);
 }
 .admin-root .navigation-workspace :where(.navigation-tree-hint) {
   padding: 0 21px 13px;
   font-size: 10px;
-  color: #92a093;
+  color: var(--admin-muted);
 }
 .admin-root .navigation-workspace :where(.navigation-tree-scroll) {
   min-height: 330px;
@@ -237,7 +237,7 @@
   :where(.navigation-tree-level .navigation-tree-level) {
   margin-left: 16px;
   padding-left: 8px;
-  border-left: 1px solid #e7eee5;
+  border-left: 1px solid var(--admin-line);
 }
 .admin-root .navigation-workspace :where(.navigation-node) {
   display: flex;
@@ -249,11 +249,11 @@
   border-radius: 6px;
 }
 .admin-root .navigation-workspace :where(.navigation-node:hover) {
-  background: #f7faf5;
+  background: var(--admin-soft);
 }
 .admin-root .navigation-workspace :where(.navigation-node.selected) {
-  border-color: #d7e8d7;
-  background: #edf5e9;
+  border-color: var(--admin-line);
+  background: var(--admin-soft);
 }
 .admin-root .navigation-workspace :where(.navigation-expand),
 .admin-root .navigation-workspace :where(.navigation-expand-spacer) {
@@ -267,7 +267,7 @@
   align-self: stretch;
   border: 0;
   background: transparent;
-  color: #7b8c78;
+  color: var(--admin-muted);
   font-size: 19px;
 }
 .admin-root .navigation-workspace :where(.navigation-node-select) {
@@ -280,7 +280,7 @@
   padding: 8px 9px 8px 0;
   border: 0;
   background: transparent;
-  color: #53684e;
+  color: var(--admin-ink);
   text-align: left;
   font-size: 12px;
 }
@@ -297,19 +297,19 @@
 }
 .admin-root .navigation-workspace :where(.navigation-badge) {
   flex: 0 0 auto;
-  border: 1px solid #e0e9dc;
+  border: 1px solid var(--admin-line);
   border-radius: 4px;
   padding: 1px 6px;
-  background: #f3f7ef;
-  color: #718367;
+  background: var(--admin-bg);
+  color: var(--admin-muted);
   font-size: 9px;
   font-weight: 400;
   line-height: 1.8;
 }
 .admin-root .navigation-workspace :where(.navigation-badge.warning) {
-  color: #9b793d;
-  background: #fcf7e9;
-  border-color: #eee3c7;
+  color: var(--admin-warning-ink);
+  background: var(--admin-bg);
+  border-color: var(--admin-line);
 }
 .admin-root .navigation-workspace :where(.navigation-empty) {
   display: flex;
@@ -320,15 +320,15 @@
   min-height: 285px;
   padding: 30px;
   text-align: center;
-  color: #91a18e;
+  color: var(--admin-muted);
 }
 .admin-root .navigation-workspace :where(.navigation-empty > .navigation-icon) {
   width: 38px;
   height: 38px;
-  color: #b5c4ae;
+  color: var(--admin-accent);
 }
 .admin-root .navigation-workspace :where(.navigation-empty h3) {
-  color: #647b5f;
+  color: var(--admin-ink);
   font-size: 14px;
 }
 .admin-root .navigation-workspace :where(.navigation-empty p) {
@@ -356,14 +356,14 @@
   .navigation-workspace
   :where(.navigation-properties-form .admin-field > span small) {
   font-weight: 400;
-  color: #8a9886;
+  color: var(--admin-muted);
 }
 .admin-root
   .navigation-workspace
   :where(.navigation-properties-form .admin-field small) {
   font-size: 10px;
   line-height: 1.8;
-  color: #85927e;
+  color: var(--admin-muted);
 }
 .admin-root .navigation-workspace :where(.navigation-properties-form input) {
   font-size: 12px;
@@ -378,17 +378,17 @@
   align-items: flex-start;
   gap: 7px;
   margin-bottom: 22px;
-  border: 1px solid #e2eade;
+  border: 1px solid var(--admin-line);
   border-radius: 7px;
   padding: 14px;
-  background: #f9fbf6;
+  background: var(--admin-bg);
   overflow-wrap: anywhere;
 }
 .admin-root
   .navigation-workspace
   :where(.navigation-reference > span:first-child) {
   font-size: 10px;
-  color: #94a08f;
+  color: var(--admin-muted);
 }
 .admin-root .navigation-workspace :where(.navigation-reference strong) {
   font-size: 12px;
@@ -399,7 +399,7 @@
   font:
     10px / 1.7 ui-monospace,
     monospace;
-  color: #85977c;
+  color: var(--admin-muted);
 }
 .admin-root .navigation-workspace :where(.navigation-reference .admin-button) {
   min-height: 30px;
@@ -424,18 +424,18 @@
 }
 .admin-root .navigation-workspace :where(.navigation-order-controls button) {
   min-height: 36px;
-  border: 1px solid #dce5d8;
+  border: 1px solid var(--admin-line);
   border-radius: 5px;
-  background: #fff;
-  color: #738269;
+  background: var(--admin-panel);
+  color: var(--admin-muted);
   font-size: 10px;
   padding: 6px;
 }
 .admin-root
   .navigation-workspace
   :where(.navigation-order-controls button:hover:not(:disabled)) {
-  background: #f0f6ed;
-  border-color: #b6ceb0;
+  background: var(--admin-soft);
+  border-color: var(--admin-accent);
 }
 .admin-root
   .navigation-workspace
@@ -444,21 +444,21 @@
   opacity: 0.4;
 }
 .admin-root .navigation-workspace :where(.navigation-order-controls small) {
-  color: #8c9a85;
+  color: var(--admin-muted);
   font-size: 10px;
 }
 .admin-root .navigation-workspace :where(.navigation-delete-button) {
   margin-top: 19px;
   padding: 5px 0;
   border: 0;
-  color: #ad6660;
+  color: var(--admin-danger-ink);
   background: transparent;
   font-size: 11px;
 }
 .admin-root .navigation-workspace :where(.navigation-delete-note) {
   display: block;
   margin-top: 5px;
-  color: #929c8e;
+  color: var(--admin-muted);
   font-size: 10px;
 }
 .admin-root .navigation-workspace :where(.navigation-preview) {
@@ -484,12 +484,12 @@
 }
 .admin-root .navigation-workspace :where(.navigation-preview-sidebar) {
   padding: 30px 25px;
-  background: #fafcf7;
-  border-right: 1px solid #e5ecdf;
+  background: var(--admin-bg);
+  border-right: 1px solid var(--admin-line);
   min-width: 0;
 }
 .admin-root .navigation-workspace :where(.navigation-preview-brand) {
-  color: #29432d;
+  color: var(--admin-ink);
   font-size: 21px;
   margin-bottom: 23px;
 }
@@ -499,7 +499,7 @@
 .admin-root .navigation-workspace :where(.navigation-preview-brand small) {
   display: block;
   margin-top: 6px;
-  color: #91a486;
+  color: var(--admin-muted);
   letter-spacing: 1.3px;
   font-size: 8px;
 }
@@ -511,19 +511,19 @@
 .admin-root .navigation-workspace :where(.navigation-preview-sidebar ul ul) {
   padding: 6px 0 0 13px;
   margin: 0 0 8px 3px;
-  border-left: 1px solid #dae7d2;
+  border-left: 1px solid var(--admin-line);
 }
 .admin-root .navigation-workspace :where(.navigation-preview-sidebar li) {
   padding: 7px 0;
   font-size: 11px;
-  color: #6e8761;
+  color: var(--admin-muted);
   overflow-wrap: anywhere;
 }
 .admin-root
   .navigation-workspace
   :where(.navigation-preview-sidebar li > strong) {
   font-weight: 600;
-  color: #536c47;
+  color: var(--admin-ink);
 }
 .admin-root .navigation-workspace :where(.navigation-preview-sidebar a:hover) {
   color: var(--admin-accent);
@@ -541,12 +541,12 @@
   margin-top: 15px;
   font-size: 20px;
   font-weight: 500;
-  color: #62795b;
+  color: var(--admin-ink);
 }
 .admin-root .navigation-workspace :where(.navigation-preview-note p) {
   max-width: 410px;
   margin-top: 17px;
-  color: #8a9a80;
+  color: var(--admin-muted);
   font-size: 12px;
   line-height: 1.9;
 }
@@ -557,9 +557,9 @@
   width: min(580px, calc(100vw - 32px));
   max-height: calc(100dvh - 40px);
   padding: 28px;
-  border: 1px solid #dce5d8;
+  border: 1px solid var(--admin-line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--admin-panel);
   color: var(--admin-ink);
   box-shadow: 0 24px 100px #10281126;
   overflow-y: auto;
@@ -615,7 +615,7 @@
   border-block: 1px solid var(--admin-line);
 }
 .admin-root .navigation-workspace :where(.navigation-picker-list li + li) {
-  border-top: 1px solid #eff2ec;
+  border-top: 1px solid var(--admin-line);
 }
 .admin-root .navigation-workspace :where(.navigation-picker-list button) {
   display: flex;
@@ -624,12 +624,12 @@
   gap: 12px;
   padding: 14px 8px;
   border: 0;
-  background: #fff;
+  background: var(--admin-panel);
   color: var(--admin-ink);
   text-align: left;
 }
 .admin-root .navigation-workspace :where(.navigation-picker-list button:hover) {
-  background: #f4f8f0;
+  background: var(--admin-soft);
 }
 .admin-root
   .navigation-workspace
@@ -645,7 +645,7 @@
 }
 .admin-root .navigation-workspace :where(.navigation-picker-list small) {
   display: block;
-  color: #8f9a8a;
+  color: var(--admin-muted);
   font:
     10px / 1.7 ui-monospace,
     monospace;
@@ -727,7 +727,7 @@
   }
   .admin-root .navigation-workspace :where(.navigation-preview-sidebar) {
     border-right: 0;
-    border-bottom: 1px solid #e5ecdf;
+    border-bottom: 1px solid var(--admin-line);
   }
   .admin-root .navigation-workspace :where(.navigation-preview-note) {
     padding: 26px;

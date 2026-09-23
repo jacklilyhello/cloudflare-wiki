@@ -6,6 +6,7 @@ export type AdminRoute =
         | "pages"
         | "navigation"
         | "redirects"
+        | "settings"
         | "audit"
         | "not-found";
     }
@@ -21,6 +22,7 @@ export function parseAdminRoute(pathname: string): AdminRoute {
   if (path === "/admin/pages") return { page: "pages" };
   if (path === "/admin/navigation") return { page: "navigation" };
   if (path === "/admin/redirects") return { page: "redirects" };
+  if (path === "/admin/settings") return { page: "settings" };
   if (path === "/admin/audit") return { page: "audit" };
   if (path === "/admin/pages/new") return { page: "editor" };
   const match = /^\/admin\/pages\/([^/]+)\/(edit|history)$/.exec(path);

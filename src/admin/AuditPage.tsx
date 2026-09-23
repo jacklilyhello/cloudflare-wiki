@@ -11,6 +11,7 @@ import {
 } from "../../shared/audit";
 import type { AuthSession } from "../../shared/auth";
 import type { Language } from "../../shared/contracts";
+import type { SettingsField } from "../../shared/settings";
 import { ApiError, request } from "./api";
 import "./audit.css";
 
@@ -47,8 +48,19 @@ const ACTION_LABELS: Record<AuditAction, [string, string]> = {
   "redirect.create": ["创建重定向", "Redirect created"],
   "redirect.update": ["更新重定向", "Redirect updated"],
   "redirect.delete": ["删除重定向", "Redirect deleted"],
+  "settings.update": ["更新站点设置", "Site settings updated"],
   "administrator.initialize": ["初始化管理员", "Administrator initialized"],
   "administrator.credentials": ["更新管理员凭据", "Credentials updated"],
+};
+const SETTINGS_LABELS: Record<SettingsField, [string, string]> = {
+  "zh.name": ["中文站点名称", "Chinese site name"],
+  "zh.description": ["中文站点描述", "Chinese site description"],
+  "en.name": ["英文站点名称", "English site name"],
+  "en.description": ["英文站点描述", "English site description"],
+  defaultLanguage: ["默认语言", "Default language"],
+  theme: ["默认主题", "Default theme"],
+  accent: ["强调色", "Accent color"],
+  logo: ["站点标志", "Site logo"],
 };
 function categoryLabel(category: AuditCategory, zh: boolean) {
   return (
@@ -56,6 +68,7 @@ function categoryLabel(category: AuditCategory, zh: boolean) {
       page: ["页面", "Pages"],
       navigation: ["导航", "Navigation"],
       redirect: ["重定向", "Redirects"],
+      settings: ["站点设置", "Site settings"],
       administrator: ["管理员", "Administrator"],
     } as const
   )[category][zh ? 0 : 1];
@@ -283,6 +296,16 @@ function RecordDetails({
             </div>
           </>
         )}
+        {record.category === "settings" && (
+          <div>
+            <dt>{zh ? "更改的设置" : "Changed settings"}</dt>
+            <dd>
+              {record.details.changedFields
+                .map((field) => SETTINGS_LABELS[field][zh ? 0 : 1])
+                .join(zh ? "、" : ", ")}
+            </dd>
+          </div>
+        )}
         {record.category === "administrator" && record.details && (
           <>
             <div>
@@ -352,6 +375,12 @@ function RecordDetails({
             <span aria-hidden="true">↗</span>
           </a>
         )}
+        {record.category === "settings" && (
+          <a className="admin-button secondary" href="/admin/settings">
+            {zh ? "管理站点设置" : "Manage site settings"}
+            <span aria-hidden="true">↗</span>
+          </a>
+        )}
       </div>
     </div>
   );
@@ -374,13 +403,17 @@ function AuditEntry({
         ? `${languageLabel(record.language, zh)}${zh ? "导航" : " navigation"}`
         : record.category === "redirect"
           ? `${languageLabel(record.language, zh)}${zh ? "重定向" : " redirects"}`
-          : record.category === "administrator"
+          : record.category === "settings"
             ? zh
-              ? "管理员账户"
-              : "Administrator account"
-            : zh
-              ? "其他记录"
-              : "Other activity";
+              ? "站点设置与外观"
+              : "Site settings and appearance"
+            : record.category === "administrator"
+              ? zh
+                ? "管理员账户"
+                : "Administrator account"
+              : zh
+                ? "其他记录"
+                : "Other activity";
   const path =
     record.category === "page"
       ? (record.details.toPath ?? record.details.fromPath)
@@ -615,8 +648,8 @@ export function AuditPage({
           </h1>
           <p>
             {zh
-              ? "查看页面、导航、重定向和管理员账户的变更，最新记录显示在前。"
-              : "Review changes to pages, navigation, redirects and the administrator account, newest first."}
+              ? "查看内容、站点设置和管理员账户的变更，最新记录显示在前。"
+              : "Review changes to content, site settings and the administrator account, newest first."}
           </p>
         </div>
         <button

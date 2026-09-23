@@ -1,9 +1,11 @@
 import type { Language } from "./contracts";
+import type { SettingsField } from "./settings";
 
 export const AUDIT_CATEGORIES = [
   "page",
   "navigation",
   "redirect",
+  "settings",
   "administrator",
 ] as const;
 export const AUDIT_ACTIONS = [
@@ -19,6 +21,7 @@ export const AUDIT_ACTIONS = [
   "redirect.create",
   "redirect.update",
   "redirect.delete",
+  "settings.update",
   "administrator.initialize",
   "administrator.credentials",
 ] as const;
@@ -81,6 +84,13 @@ export type AuditRecord = AuditBase &
         action: Extract<AuditAction, `redirect.${string}`>;
         language: Language;
         details: RedirectAuditDetails;
+        pageTitle: null;
+      }
+    | {
+        category: "settings";
+        action: "settings.update";
+        language: null;
+        details: { changedFields: SettingsField[] };
         pageTitle: null;
       }
     | {

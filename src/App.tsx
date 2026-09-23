@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { publicPath } from "../shared/paths";
 import type { NavigationEntry, ReaderData, WikiPage } from "../shared/reader";
+import { SiteLogo } from "./components/SiteLogo";
+import { applySiteAppearance, effectiveTheme } from "./site-appearance";
 
 type IconName =
   | "search"
@@ -44,21 +46,6 @@ function Icon({
       focusable="false"
     >
       <path d={paths[name]} />
-    </svg>
-  );
-}
-
-function Logo() {
-  return (
-    <svg
-      className="site-mark"
-      viewBox="0 0 36 36"
-      fill="none"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <rect width="36" height="36" rx="10" fill="currentColor" />
-      <path d="M10 10h16v4H14v2h10v4H14v2h12v4H10V10Z" fill="var(--logo-ink)" />
     </svg>
   );
 }
@@ -152,6 +139,7 @@ function formatUpdated(page: WikiPage, zh: boolean): string {
 
 export function App({ data }: { data: ReaderData }) {
   const zh = data.language === "zh";
+  const identity = data.settings.locales[data.language];
   const home = `/${data.language}/home`;
   const currentPath = data.page
     ? publicPath(data.page.language, data.page.path)
@@ -169,7 +157,6 @@ export function App({ data }: { data: ReaderData }) {
   const breadcrumb = navigationBreadcrumb.length
     ? navigationBreadcrumb
     : [title];
-  const [theme, setTheme] = useState<"light" | "dark" | null>(null);
   const [activeHeading, setActiveHeading] = useState(
     data.rendered?.toc[0]?.id ?? "",
   );
@@ -185,26 +172,14 @@ export function App({ data }: { data: ReaderData }) {
   const next = currentIndex >= 0 ? pages[currentIndex + 1] : undefined;
 
   useEffect(() => {
-    const preference = window.matchMedia("(prefers-color-scheme: dark)");
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem("wiki-theme");
-    } catch {
-      /* Theme still works when browser storage is unavailable. */
-    }
-    if (saved === "light" || saved === "dark")
-      document.documentElement.dataset.theme = saved;
-    const update = () =>
-      setTheme(
-        document.documentElement.dataset.theme === "dark" ||
-          (!document.documentElement.dataset.theme && preference.matches)
-          ? "dark"
-          : "light",
-      );
-    update();
-    preference.addEventListener("change", update);
-    return () => preference.removeEventListener("change", update);
-  }, []);
+    applySiteAppearance(data.settings);
+    const update = (event: StorageEvent) => {
+      if (event.key === "wiki-theme" || event.key === null)
+        applySiteAppearance(data.settings);
+    };
+    window.addEventListener("storage", update);
+    return () => window.removeEventListener("storage", update);
+  }, [data.settings]);
 
   useEffect(() => {
     if (!articleRef.current || !("IntersectionObserver" in window)) return;
@@ -296,8 +271,12 @@ export function App({ data }: { data: ReaderData }) {
   }, [selectedImage]);
 
   function toggleTheme() {
+    const theme = effectiveTheme(
+      data.settings.theme,
+      document.documentElement.dataset.theme,
+      window.matchMedia("(prefers-color-scheme: dark)").matches,
+    );
     const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
     try {
       localStorage.setItem("wiki-theme", nextTheme);
@@ -316,14 +295,12 @@ export function App({ data }: { data: ReaderData }) {
           <a
             className="site-brand"
             href={home}
-            aria-label={zh ? "Emby Wiki 首页" : "Emby Wiki home"}
+            aria-label={`${identity.name}${zh ? " 首页" : " home"}`}
           >
-            <Logo />
+            <SiteLogo logo={data.settings.logo} className="site-mark" />
             <span>
-              Emby <strong>Wiki</strong>
-              <small>
-                {zh ? "知识，在这里连接" : "A connected knowledge base"}
-              </small>
+              <strong>{identity.name}</strong>
+              <small>{identity.description}</small>
             </span>
           </a>
           <search className="header-search">
@@ -388,7 +365,8 @@ export function App({ data }: { data: ReaderData }) {
               aria-label={zh ? "切换明暗主题" : "Switch color theme"}
               title={zh ? "切换明暗主题" : "Switch color theme"}
             >
-              <Icon name={theme === "dark" ? "moon" : "sun"} />
+              <Icon name="moon" className="theme-moon" />
+              <Icon name="sun" className="theme-sun" />
             </button>
           </div>
         </div>
@@ -454,10 +432,12 @@ export function App({ data }: { data: ReaderData }) {
               <article>
                 <header className="article-header">
                   <p className="article-kicker">
-                    {zh ? "EMBY WIKI · 文档" : "EMBY WIKI · DOCUMENTATION"}
+                    {identity.name} · {zh ? "文档" : "DOCUMENTATION"}
                   </p>
                   <h1>{data.page.title}</h1>
-                  <p className="article-description">{data.page.description}</p>
+                  <p className="article-description">
+                    {data.page.description || identity.description}
+                  </p>
                   <div className="article-meta">
                     <span>
                       <Icon name="clock" />
@@ -602,12 +582,8 @@ export function App({ data }: { data: ReaderData }) {
               </section>
             )}
             <footer className="site-footer">
-              <span>Emby Wiki</span>
-              <span>
-                {zh
-                  ? "让知识清晰，让阅读简单。"
-                  : "Clear knowledge. Considered reading."}
-              </span>
+              <span>{identity.name}</span>
+              <span>{identity.description}</span>
             </footer>
           </main>
         </div>

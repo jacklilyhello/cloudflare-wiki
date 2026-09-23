@@ -17,6 +17,7 @@ import {
   methodNotAllowed,
   securityHeaders,
 } from "./security";
+import { getSiteSettings } from "./settings/service";
 
 const canonicalOrigin = "https://cf.emby.wiki";
 
@@ -42,11 +43,14 @@ function contentUnavailable(request: Request) {
 export async function publicSearch(request: Request, env: Env) {
   if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed();
   const url = new URL(request.url);
-  const language = url.searchParams.get("lang") ?? "zh";
+  const requestedLanguage = url.searchParams.get("lang");
   const query = url.searchParams.get("q") ?? "";
-  if (!isLanguage(language)) return jsonError("Unsupported language", 400);
+  if (requestedLanguage !== null && !isLanguage(requestedLanguage))
+    return jsonError("Unsupported language", 400);
   if (query.length > 200) return jsonError("Search query is too long", 400);
   try {
+    const language =
+      requestedLanguage ?? (await getSiteSettings(env.DB)).defaultLanguage;
     const results = await searchPages(env.DB, language, query);
     return new Response(
       request.method === "HEAD" ? null : JSON.stringify({ results }),
@@ -107,8 +111,16 @@ async function renderReaderDocument(
   env: Env,
 ): Promise<Response> {
   const url = new URL(request.url);
+  const {
+    version: _version,
+    updatedAt: _updatedAt,
+    ...settings
+  } = await getSiteSettings(env.DB);
   const segments = url.pathname.split("/").filter(Boolean);
-  const language = isLanguage(segments[0]) ? segments[0] : "zh";
+  const language = isLanguage(segments[0])
+    ? segments[0]
+    : settings.defaultLanguage;
+  const identity = settings.locales[language];
   const validLanguage = url.pathname === "/" || isLanguage(segments[0]);
   let decodedSegments: string[];
   try {
@@ -145,6 +157,7 @@ async function renderReaderDocument(
     });
   }
   const data: ReaderData = {
+    settings,
     language,
     page,
     rendered: page ? await renderMarkdown(page.markdown, language) : null,
@@ -169,9 +182,7 @@ async function renderReaderDocument(
       : language === "zh"
         ? "找不到页面"
         : "Page not found");
-  const description =
-    page?.description ??
-    (language === "zh" ? "Emby Wiki 技术文档" : "Emby Wiki documentation");
+  const description = page?.description || identity.description;
   const canonical =
     canonicalOrigin +
     publicPath(language, page?.path ?? (search ? "search" : "home"));
@@ -181,7 +192,7 @@ async function renderReaderDocument(
         `<link rel="alternate" hreflang="${lang}" href="${escapeHtml(canonicalOrigin + path)}">`,
     )
     .join("");
-  const metadata = `<meta name="description" content="${escapeHtml(description)}"><meta property="og:title" content="${escapeHtml(title)} · Emby Wiki"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:type" content="article"><meta property="og:site_name" content="Emby Wiki"><meta property="og:url" content="${escapeHtml(canonical)}">${page ? `<link rel="canonical" href="${escapeHtml(canonical)}">` : ""}${alternateLinks}`;
+  const metadata = `<meta name="description" content="${escapeHtml(description)}"><meta property="og:title" content="${escapeHtml(`${title} · ${identity.name}`)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:type" content="article"><meta property="og:site_name" content="${escapeHtml(identity.name)}"><meta property="og:url" content="${escapeHtml(canonical)}">${page ? `<link rel="canonical" href="${escapeHtml(canonical)}">` : ""}${alternateLinks}`;
   // Inert JSON cannot close its script element; no executable inline code or
   // user-provided HTML crosses this boundary except the sanitized renderer output.
   const serialized = JSON.stringify(data)
@@ -199,15 +210,20 @@ async function renderReaderDocument(
     .on("html", {
       element(element) {
         element.setAttribute("lang", language);
+        element.setAttribute("data-theme", settings.theme);
+        element.setAttribute("data-accent", settings.accent);
       },
     })
     .on("title", {
       element(element) {
-        element.setInnerContent(`${title} · Emby Wiki`);
+        element.setInnerContent(`${title} · ${identity.name}`);
       },
     })
     .on("head", {
       element(element) {
+        element.prepend('<script src="/assets/site-appearance.js"></script>', {
+          html: true,
+        });
         element.append(metadata, { html: true });
       },
     })

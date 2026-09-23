@@ -2,10 +2,12 @@ import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { NavigationEntry, ReaderData } from "../shared/reader";
+import { INITIAL_SITE_SETTINGS } from "../shared/settings";
 import { App } from "../src/App";
 
 function render(navigation: NavigationEntry[]) {
   const data: ReaderData = {
+    settings: INITIAL_SITE_SETTINGS,
     language: "en",
     page: {
       id: "current-en",

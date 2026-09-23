@@ -38,6 +38,135 @@ function checkReaderHeaders(response) {
   checkSecurityHeaders(response);
 }
 
+function inertData(html, id) {
+  const match = new RegExp(
+    `<script id="${id}" type="application/json">([\\s\\S]*?)</script>`,
+  ).exec(html);
+  assert.ok(match, "Document must include its inert hydration data");
+  return JSON.parse(match[1]);
+}
+
+function escapeHtml(value) {
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character],
+  );
+}
+
+function checkTitle(html, expected) {
+  const title = /<title>([^<]*)<\/title>/.exec(html)?.[1];
+  const decoded = title?.replace(
+    /&(amp|lt|gt|quot|#39|#x27);/g,
+    (_, entity) =>
+      ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", "#x27": "'" })[
+        entity
+      ],
+  );
+  assert.ok(
+    decoded === expected,
+    "Document title must use its localized site name",
+  );
+}
+
+function checkSettings(settings, html) {
+  assert.deepEqual(Object.keys(settings).sort(), [
+    "accent",
+    "defaultLanguage",
+    "locales",
+    "logo",
+    "theme",
+  ]);
+  assert.ok(["zh", "en"].includes(settings.defaultLanguage));
+  assert.ok(["system", "light", "dark"].includes(settings.theme));
+  assert.ok(["forest", "ocean", "plum"].includes(settings.accent));
+  assert.ok(["emby", "book", "none"].includes(settings.logo));
+  assert.deepEqual(Object.keys(settings.locales).sort(), ["en", "zh"]);
+  for (const identity of Object.values(settings.locales)) {
+    assert.deepEqual(Object.keys(identity).sort(), ["description", "name"]);
+    assert.equal(typeof identity.name, "string");
+    assert.ok(identity.name.length > 0 && identity.name.length <= 80);
+    assert.equal(typeof identity.description, "string");
+    assert.ok(identity.description.length <= 300);
+  }
+  const documentTag = /<html\b[^>]*>/.exec(html)?.[0] ?? "";
+  assert.ok(documentTag.includes(`data-theme="${settings.theme}"`));
+  assert.ok(documentTag.includes(`data-accent="${settings.accent}"`));
+  assert.ok(
+    html.includes('<script src="/assets/site-appearance.js"></script>'),
+  );
+}
+
+export async function checkHome(response, explicitLanguage) {
+  assert.equal(response.status, 200, "Homepage HTTP status");
+  checkReaderHeaders(response);
+  const html = await response.text();
+  const data = inertData(html, "reader-data");
+  checkSettings(data.settings, html);
+  const language = explicitLanguage ?? data.settings.defaultLanguage;
+  assert.ok(["zh", "en"].includes(language));
+  assert.equal(
+    data.language,
+    language,
+    "Homepage follows its selected language",
+  );
+  assert.equal(data.page?.language, language);
+  assert.equal(data.page?.path, "home");
+  assert.equal(data.mode, "article");
+  assert.match(html, new RegExp(`<html\\b[^>]*\\blang="${language}"`));
+  assert.match(
+    html,
+    /<article\b/,
+    "Homepage must contain server-rendered article content",
+  );
+  assert.match(
+    html,
+    /<h1\b[^>]*>[^<]+/,
+    "Homepage must contain its article title",
+  );
+  assert.match(html, /href="#[^"]+"/, "Article must contain heading links");
+  assert.ok(
+    html.includes(
+      `<link rel="canonical" href="https://cf.emby.wiki/${language}/home">`,
+    ),
+    "Canonical URL remains the selected language on the test Custom Domain",
+  );
+  const identity = data.settings.locales[language];
+  checkTitle(html, `${data.page.title} · ${identity.name}`);
+  assert.ok(
+    html.includes(
+      `<meta property="og:site_name" content="${escapeHtml(identity.name)}">`,
+    ),
+  );
+  assert.ok(
+    html.includes(
+      `<meta property="og:title" content="${escapeHtml(`${data.page.title} · ${identity.name}`)}">`,
+    ),
+  );
+  assert.ok(
+    html.includes(
+      `<meta name="description" content="${escapeHtml(data.page.description || identity.description)}">`,
+    ),
+  );
+  assert.ok(
+    html.includes(
+      '<link rel="alternate" hreflang="zh" href="https://cf.emby.wiki/zh/home">',
+    ),
+  );
+  assert.ok(
+    html.includes(
+      '<link rel="alternate" hreflang="en" href="https://cf.emby.wiki/en/home">',
+    ),
+  );
+  return html;
+}
+
 // Anonymous GETs only: deployment smoke must never initialize an account,
 // consume a setup token, create a session or change authentication state.
 export async function checkAdmin(getResponse) {
@@ -45,13 +174,15 @@ export async function checkAdmin(getResponse) {
   assert.equal(page.status, 200, "Administrator shell HTTP status");
   checkReaderHeaders(page);
   const html = await page.text();
-  assert.ok(
-    /<title>Administration · Emby Wiki<\/title>/.test(html),
-    "Administrator shell title",
+  const settings = inertData(html, "site-settings");
+  checkSettings(settings, html);
+  checkTitle(
+    html,
+    `Administration · ${settings.locales[settings.defaultLanguage].name}`,
   );
   assert.ok(/<div\b[^>]*id="root"/.test(html), "Administrator mount point");
   assert.ok(
-    /src="\/assets\/[^"]+\.js"/.test(html),
+    /src="\/assets\/(?!site-appearance\.js)[^"]+\.js"/.test(html),
     "Administrator entry asset",
   );
 
@@ -65,6 +196,7 @@ export async function checkAdmin(getResponse) {
     "/api/admin/navigation/zh",
     "/api/admin/redirects/zh",
     "/api/admin/redirects/en",
+    "/api/admin/settings",
     "/api/admin/audit",
   ]) {
     const response = await getResponse(path);
@@ -130,34 +262,23 @@ export async function checkAdmin(getResponse) {
 
 async function check() {
   const page = await get("/");
-  assert.equal(page.status, 200, "Homepage HTTP status");
-  checkReaderHeaders(page);
-  const html = await page.text();
-  assert.match(html, /Emby Wiki/);
-  assert.match(html, /<html[^>]*lang="zh"/);
-  assert.match(
-    html,
-    /<article\b/,
-    "Homepage must contain server-rendered article content",
+  const html = await checkHome(page);
+  for (const language of ["zh", "en"])
+    await checkHome(await get(`/${language}/home`), language);
+  const script = html.match(
+    /src="(\/assets\/(?!site-appearance\.js)[^"]+\.js)"/,
   );
-  assert.match(
-    html,
-    /<h1\b[^>]*>[^<]+/,
-    "Homepage must contain its article title",
-  );
-  assert.match(html, /href="#[^"]+"/, "Article must contain heading links");
-  assert.match(
-    html,
-    /<link\b[^>]*rel="canonical"[^>]*href="https:\/\/cf\.emby\.wiki\/zh\/home"/,
-    "Canonical URL remains the test Custom Domain even on workers.dev",
-  );
-  assert.match(html, /<meta\b[^>]*name="description"[^>]*content="[^"]+"/);
-  assert.match(html, /<meta\b[^>]*property="og:title"[^>]*content="[^"]+"/);
-  const script = html.match(/src="(\/assets\/[^"]+\.js)"/);
   assert.ok(script, "Homepage must load a built JavaScript asset");
   const asset = await get(script[1]);
   assert.equal(asset.status, 200, "JavaScript asset HTTP status");
   assert.match(asset.headers.get("content-type") ?? "", /javascript/);
+  const appearance = await get("/assets/site-appearance.js");
+  assert.equal(
+    appearance.status,
+    200,
+    "First-paint appearance asset HTTP status",
+  );
+  assert.match(appearance.headers.get("content-type") ?? "", /javascript/);
   const health = await get("/health", {
     headers: { "Sec-Fetch-Mode": "navigate" },
   });
@@ -175,13 +296,6 @@ async function check() {
   });
   assert.equal(missing.status, 404, "API must not fall back to SPA HTML");
   assert.deepEqual(await missing.json(), { error: "Not found" });
-  const english = await get("/en/home");
-  assert.equal(english.status, 200, "English article HTTP status");
-  checkReaderHeaders(english);
-  const englishHtml = await english.text();
-  assert.match(englishHtml, /<html[^>]*lang="en"/);
-  assert.match(englishHtml, /<article\b/);
-
   for (const language of ["zh", "en"]) {
     const search = await get(`/api/public/search?lang=${language}&q=Markdown`);
     assert.equal(search.status, 200, `${language} search HTTP status`);
@@ -241,7 +355,7 @@ async function check() {
     );
   }
   console.log(
-    `Smoke passed: ${base} SSR articles and search zh/en; metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API and reader 404; admin shell; anonymous content/revision/event/navigation/redirect/audit APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
+    `Smoke passed: ${base} configured homepage and explicit articles/search zh/en; localized metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API and reader 404; admin shell; anonymous content/revision/event/navigation/redirect/settings/audit APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
   );
 }
 if (

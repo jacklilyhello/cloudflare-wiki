@@ -1,4 +1,5 @@
 import type { Language } from "./contracts";
+import type { SiteSettingsValues } from "./settings";
 
 export interface WikiPage {
   id: string;
@@ -41,6 +42,7 @@ export interface SearchResult {
 }
 
 export interface ReaderData {
+  settings: SiteSettingsValues;
   language: Language;
   page: WikiPage | null;
   rendered: RenderedMarkdown | null;
