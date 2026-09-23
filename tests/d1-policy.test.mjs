@@ -10,7 +10,7 @@ import {
   validateMigrationNames,
   verifyWorkerD1Binding,
 } from "../scripts/d1-policy.mjs";
-import { provisionD1 } from "../scripts/d1-provision.mjs";
+import { inspectD1, provisionD1 } from "../scripts/d1-provision.mjs";
 
 const databaseId = "11111111-2222-4333-8444-555555555555";
 const database = { name: D1_NAME, uuid: databaseId };
@@ -92,6 +92,158 @@ function harness(options = {}) {
   };
   return { calls, writes, commands, dependencies };
 }
+
+function assertInspectionOnly(h) {
+  assert.equal(h.writes.length + h.commands.length, 0);
+  assert.ok(
+    h.calls.every(
+      (call) =>
+        call.method === "GET" ||
+        (call.method === "POST" &&
+          call.url.pathname.endsWith("/query") &&
+          call.body.sql.startsWith("SELECT ")),
+    ),
+  );
+}
+
+test("inspection reports an absent database without creating it or writing configuration", async () => {
+  const h = harness({ databases: [] });
+  assert.deepEqual(await inspectD1(input, h.dependencies), {
+    state: "absent",
+    appliedCount: 0,
+    expectedNames: migrations,
+  });
+  assert.equal(h.calls.length, 1);
+  assert.equal(h.calls[0].method, "GET");
+  assertInspectionOnly(h);
+});
+
+for (const ledger of [[migrations[0]], migrations]) {
+  test(`inspection verifies an owned database with ${ledger.length} applied migrations without applying pending ones`, async () => {
+    const h = harness({ ledger });
+    assert.deepEqual(await inspectD1(input, h.dependencies), {
+      state: "owned",
+      databaseId,
+      appliedCount: ledger.length,
+      expectedNames: migrations,
+    });
+    assert.equal(h.calls.length, 4);
+    assert.ok(h.calls.at(-1).body.sql.includes("FROM d1_migrations"));
+    assertInspectionOnly(h);
+  });
+}
+
+for (const [label, options, expected] of [
+  ["absent ownership marker", { marker: null }, /ownership marker/],
+  [
+    "foreign ownership marker",
+    { marker: [{ ...D1_MARKER, app_id: "other/project" }] },
+    /ownership marker/,
+  ],
+  ["empty migration ledger", { ledger: [] }, /bootstrap migration/],
+  ["non-prefix migration ledger", { ledger: [migrations[1]] }, /ledger/],
+  ["ambiguous lookup", { databases: [database, database] }, /ambiguous/],
+  [
+    "invalid database identifier",
+    { databases: [{ ...database, uuid: LOCAL_D1_ID }] },
+    /identifier/,
+  ],
+]) {
+  test(`inspection rejects ${label} without any mutation`, async () => {
+    const h = harness(options);
+    await assert.rejects(inspectD1(input, h.dependencies), expected);
+    assertInspectionOnly(h);
+  });
+}
+
+test("inspection checks deployment and source configuration before requesting the account", async () => {
+  for (const override of [
+    { env: { ...env, GITHUB_ACTIONS: "false" } },
+    { config: { ...config, name: "other-worker" } },
+    { configPath: "wrangler.json" },
+    { migrationsDirectory: "migrations" },
+    { migrationNames: ["0002_content.sql"] },
+  ]) {
+    const h = harness();
+    await assert.rejects(inspectD1({ ...input, ...override }, h.dependencies));
+    assert.equal(h.calls.length, 0);
+    assertInspectionOnly(h);
+  }
+});
+
+test("inspection refuses to replace a conflicting Worker binding for absent or owned databases", async () => {
+  for (const databases of [[], [database]]) {
+    const h = harness({ databases });
+    await assert.rejects(
+      inspectD1(
+        {
+          ...input,
+          workerSettings: {
+            bindings: [
+              {
+                type: "d1",
+                name: "DB",
+                database_id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+              },
+            ],
+          },
+        },
+        h.dependencies,
+      ),
+      /Worker DB binding/,
+    );
+    assert.equal(h.calls.length, 1);
+    assertInspectionOnly(h);
+  }
+});
+
+test("provisioning looks up again and adopts only verified ownership after an earlier absent inspection", async () => {
+  let lookups = 0;
+  const h = harness({
+    onRequest: (call) => {
+      if (call.method === "GET")
+        return new Response(
+          JSON.stringify({
+            success: true,
+            result: ++lookups === 1 ? [] : [database],
+          }),
+        );
+    },
+  });
+  assert.equal((await inspectD1(input, h.dependencies)).state, "absent");
+  const result = await provisionD1(input, h.dependencies);
+  assert.equal(result.databaseId, databaseId);
+  assert.equal(lookups, 2);
+  assert.equal(h.calls.filter((call) => call.body?.name).length, 0);
+  assert.equal(h.writes.length, 1);
+  assert.equal(h.commands.length, 0);
+});
+
+test("provisioning rechecks ownership instead of trusting an earlier successful inspection", async () => {
+  let markerChanged = false;
+  const h = harness({
+    ledger: [migrations[0]],
+    onRequest: (call) => {
+      if (markerChanged && call.body?.sql.includes("FROM project_metadata"))
+        return new Response(
+          JSON.stringify({
+            success: true,
+            result: [
+              {
+                success: true,
+                results: [{ ...D1_MARKER, app_id: "other/project" }],
+              },
+            ],
+          }),
+        );
+    },
+  });
+  assert.equal((await inspectD1(input, h.dependencies)).state, "owned");
+  markerChanged = true;
+  await assert.rejects(provisionD1(input, h.dependencies), /ownership marker/);
+  assert.equal(h.calls.filter((call) => call.method === "GET").length, 2);
+  assertInspectionOnly(h);
+});
 
 test("creates and migrates one fixed database after a conclusive empty lookup", async () => {
   const h = harness({ databases: [], marker: null, ledger: [] });

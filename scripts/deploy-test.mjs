@@ -4,8 +4,9 @@ import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { bootstrapAdmin, prepareAdminBootstrap } from "./admin-bootstrap.mjs";
 import { verifyWorkerD1Binding } from "./d1-policy.mjs";
-import { provisionD1 } from "./d1-provision.mjs";
 import { buildDeploymentConfig, validateDeployment } from "./deploy-policy.mjs";
+import { provisionStorage } from "./provision-storage.mjs";
+import { verifyWorkerR2Binding } from "./r2-provision.mjs";
 import { workersDevBaseUrl } from "./smoke-policy.mjs";
 
 const env = { ...process.env };
@@ -121,7 +122,7 @@ const migrationNames = (
 )
   .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
   .map((entry) => entry.name);
-const { databaseId } = await provisionD1(
+const { databaseId } = await provisionStorage(
   {
     env,
     config,
@@ -160,6 +161,7 @@ async function verifyDeploymentReadback() {
       cf(`${account}/workers/scripts/${env.CLOUDFLARE_WORKER_NAME}/settings`),
     ]);
   verifyWorkerD1Binding(deployedSettings, databaseId);
+  verifyWorkerR2Binding(deployedSettings);
   if (
     !deployedDomains.some(
       (domain) =>

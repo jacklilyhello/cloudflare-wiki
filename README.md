@@ -1,6 +1,6 @@
 # Cloudflare Wiki / Emby Wiki
 
-A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls, revision history, visual navigation and redirect management, an administrator audit trail, and bilingual site settings with appearance controls. D1 stores published content, drafts, immutable revisions, a bilingual full-text index, navigation, route aliases, site settings and authentication state. R2/file management remains future work. No code/data is inherited from Cloudflare-Native-Wiki.
+A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls, revision history, visual navigation and redirect management, an administrator audit trail, and bilingual site settings with appearance controls. D1 stores published content, drafts, immutable revisions, a bilingual full-text index, navigation, route aliases, site settings and authentication state. Private R2 storage is configured for the upcoming File Manager; file APIs and UI remain future work. No code/data is inherited from Cloudflare-Native-Wiki.
 
 - Test: <https://cf.emby.wiki>
 - Future production: `emby.wiki` — not configured or deployed here.
@@ -51,7 +51,7 @@ The content APIs under `/api/admin/pages` provide bounded page lists, draft deta
 
 Monaco and its diff editor load only for the editor/history workspace. These documents require a valid administrator session before the Worker returns the shell; anonymous requests return to sign-in. Navigation into them loads a new document with a fresh style nonce. Monaco's dynamic style elements use that nonce, while only these authenticated documents permit inline style attributes for editor layout. Scripts remain same-origin, `unsafe-eval` is disallowed and editor workers are bundled on the same origin. The reader and other admin documents keep their stricter style policy.
 
-`scripts/monaco-csp.ts` adapts the pinned Monaco sources using exact source hashes and single-constructor checks; changes to a matched source fail the build until reviewed. It also replaces Monaco's embedded sanitizer with the pinned DOMPurify dependency in an isolated instance, so hooks are not shared with Mermaid. The Markdown sanitizer still strips author styles and unsafe HTML. R2/file management is not implemented yet.
+`scripts/monaco-csp.ts` adapts the pinned Monaco sources using exact source hashes and single-constructor checks; changes to a matched source fail the build until reviewed. It also replaces Monaco's embedded sanitizer with the pinned DOMPurify dependency in an isolated instance, so hooks are not shared with Mermaid. The Markdown sanitizer still strips author styles and unsafe HTML. File APIs and the File Manager are not implemented yet.
 
 ## Visual navigation
 
@@ -154,7 +154,7 @@ After CI exists, import `.github/rulesets/main.json` through **Settings → Rule
 
 ## Read-only R2 readiness
 
-The manual **R2 Readiness** Actions workflow inspects the planned `cloudflare-wiki-assets-test` bucket using the existing deployment secret without copying it locally. Run it on current main:
+The manual **R2 Readiness** Actions workflow inspects the fixed `cloudflare-wiki-assets-test` bucket using the existing deployment secret without copying it locally. Run it on current main:
 
 ```sh
 gh workflow run r2-readiness.yml --ref main
@@ -162,11 +162,19 @@ gh workflow run r2-readiness.yml --ref main
 
 It makes GET requests only: bounded bucket inventory, the existing Worker settings, and—if the bucket exists—its project ownership marker and public-domain state. It shares the deployment concurrency lock, rejects stale/non-main runs, and prints only a fixed status or sanitized failure. An existing bucket must have the exact project marker, use the default jurisdiction, have its managed public domain disabled and have no custom domains. Missing/incorrect markers or conflicting bindings stop the check; nothing is adopted, repaired or deleted.
 
-A successful inventory read establishes visibility, not write permission or permission to enable a subscription. The workflow does not inspect token policies or billing, create resources, upload objects, change bindings, migrate D1 or deploy. R2/file management is still unimplemented. Missing permissions or subscription access require an owner decision; no permission expansion or paid activation happens automatically.
+A successful inventory read establishes visibility, not write permission or permission to enable a subscription. The workflow does not inspect token policies or billing, create resources, upload objects, change bindings, migrate D1 or deploy. File APIs and the File Manager are still unimplemented. Missing permissions or subscription access require an owner decision; no permission expansion or paid activation happens automatically.
+
+## Private file storage
+
+The Worker has one `MEDIA` binding to `cloudflare-wiki-assets-test`. Its local `remote: false` configuration uses emulated R2 without credentials. The bucket uses default jurisdiction, with no managed public domain or custom domain. Creation explicitly requests Standard storage; a returned non-Standard storage class is rejected. Omitted storage-class metadata is accepted without treating it as proof of the existing class. This is the storage foundation: upload/download APIs, file metadata and the File Manager are separate follow-up work. No bucket URL is exposed to readers.
+
+Actions first inspects D1 ownership and its migration ledger without mutation, then ensures the fixed R2 bucket, then reinspects D1 before creation/migrations and deployment. R2 failure stops before D1 mutation. Existing buckets require the exact `__cloudflare_wiki_owner_v1.json` marker and private-domain checks; unmarked, conflicting or public buckets are never adopted, repaired or deleted. A conclusively absent bucket is created once, marked once in the same invocation, and read back before proceeding. Ambiguous creation or marker-upload outcomes stop without retry or cleanup and require an explicit recovery decision. The marker is an ownership consistency check, not authentication.
+
+The existing Actions credential must permit R2 resource inspection/creation and marker-object access; the workflow never expands permissions or activates subscriptions. A missing-permission or account-enablement failure stops delivery. There are no local Cloudflare writes, separate S3 credentials, new public storage domains or live user-file smoke writes. Post-deployment readback checks the exact `MEDIA` binding alongside the D1 binding.
 
 ## Deployment and health
 
-Only Worker `cloudflare-wiki`, Custom Domain `cf.emby.wiki` and D1 database `cloudflare-wiki-test` are provisioned and reused. R2 and KV are not provisioned yet. Actions locates the exact D1 name, validates the project ownership marker and migration ledger, applies pending reviewed migrations, and verifies the Worker DB binding after deployment. An existing unmarked database is never adopted or replaced. If creation succeeds but initialization fails before the marker is committed, the workflow stops for explicit recovery; it does not retry creation or delete the resource. Wrangler automatic resource provisioning is disabled. Database creation and remote SQL never run locally. Its stable `cloudflare-wiki.<account-subdomain>.workers.dev` address is enabled only for GitHub Actions post-deploy smoke tests; the deployment script reads the account subdomain through Cloudflare's API and publishes the exact URL as a step output. `cf.emby.wiki` remains the actual test Custom Domain. Versioned and aliased Preview URLs remain disabled.
+Actions manages only Worker `cloudflare-wiki`, Custom Domain `cf.emby.wiki`, D1 database `cloudflare-wiki-test` and private R2 bucket `cloudflare-wiki-assets-test`. KV is not provisioned. Actions locates the exact D1 name, validates the project ownership marker and migration ledger, applies pending reviewed migrations, and verifies the Worker DB binding after deployment. An existing unmarked database is never adopted or replaced. If creation succeeds but initialization fails before the marker is committed, the workflow stops for explicit recovery; it does not retry creation or delete the resource. Wrangler automatic resource provisioning is disabled. Database creation and remote SQL never run locally. Its stable `cloudflare-wiki.<account-subdomain>.workers.dev` address is enabled only for GitHub Actions post-deploy smoke tests; the deployment script reads the account subdomain through Cloudflare's API and publishes the exact URL as a step output. `cf.emby.wiki` remains the actual test Custom Domain. Versioned and aliased Preview URLs remain disabled.
 
 `GET /health` returns uncached public liveness metadata:
 
