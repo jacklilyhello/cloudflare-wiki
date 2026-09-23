@@ -3,6 +3,7 @@ import type { Language } from "./contracts";
 export const AUDIT_CATEGORIES = [
   "page",
   "navigation",
+  "redirect",
   "administrator",
 ] as const;
 export const AUDIT_ACTIONS = [
@@ -15,6 +16,9 @@ export const AUDIT_ACTIONS = [
   "page.restore_revision",
   "page.restore_deleted",
   "navigation.save",
+  "redirect.create",
+  "redirect.update",
+  "redirect.delete",
   "administrator.initialize",
   "administrator.credentials",
 ] as const;
@@ -43,6 +47,12 @@ export interface AdministratorAuditDetails {
   usernameChanged: boolean;
   passwordChanged: boolean;
 }
+export interface RedirectAuditDetails {
+  sourcePath: string | null;
+  previousPath: string | null;
+  targetTranslationId: string | null;
+  previousTarget: string | null;
+}
 interface AuditBase {
   seq: number;
   subjectId: string;
@@ -64,6 +74,13 @@ export type AuditRecord = AuditBase &
         action: "navigation.save";
         language: Language;
         details: NavigationAuditDetails;
+        pageTitle: null;
+      }
+    | {
+        category: "redirect";
+        action: Extract<AuditAction, `redirect.${string}`>;
+        language: Language;
+        details: RedirectAuditDetails;
         pageTitle: null;
       }
     | {

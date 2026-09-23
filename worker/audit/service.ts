@@ -208,6 +208,53 @@ function record(row: Row): AuditRecord {
       pageTitle: null,
     };
   }
+  if (row.category === "redirect") {
+    if (
+      !["redirect.create", "redirect.update", "redirect.delete"].includes(
+        row.action,
+      ) ||
+      (row.language !== "zh" && row.language !== "en") ||
+      row.subject_id !== row.language ||
+      !exactObject(details, [
+        "sourcePath",
+        "previousPath",
+        "targetTranslationId",
+        "previousTarget",
+      ]) ||
+      !nullableString(details.sourcePath) ||
+      !nullableString(details.previousPath) ||
+      !nullableString(details.targetTranslationId) ||
+      !nullableString(details.previousTarget) ||
+      (row.action === "redirect.create"
+        ? details.previousPath !== null ||
+          details.previousTarget !== null ||
+          typeof details.sourcePath !== "string" ||
+          typeof details.targetTranslationId !== "string"
+        : row.action === "redirect.delete"
+          ? details.sourcePath !== null ||
+            details.targetTranslationId !== null ||
+            typeof details.previousPath !== "string" ||
+            typeof details.previousTarget !== "string"
+          : typeof details.sourcePath !== "string" ||
+            typeof details.targetTranslationId !== "string" ||
+            typeof details.previousPath !== "string" ||
+            typeof details.previousTarget !== "string")
+    )
+      storageFailure();
+    return {
+      ...base,
+      category: "redirect",
+      action: row.action as Extract<AuditAction, `redirect.${string}`>,
+      language: row.language,
+      details: {
+        sourcePath: details.sourcePath,
+        previousPath: details.previousPath,
+        targetTranslationId: details.targetTranslationId,
+        previousTarget: details.previousTarget,
+      },
+      pageTitle: null,
+    };
+  }
   if (
     row.category !== "administrator" ||
     row.language !== null ||

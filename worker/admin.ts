@@ -8,11 +8,13 @@ import { adminAudit } from "./admin-audit";
 import { adminContent } from "./admin-content";
 import { adminHeaders, csrf, json, readJson, sameOrigin } from "./admin-http";
 import { adminNavigation } from "./admin-navigation";
+import { adminRedirects } from "./admin-redirects";
 import { AuditError } from "./audit/service";
 import { AuthError, AuthService } from "./auth/service";
 import { ContentError } from "./content/service";
 import { editorPolicy } from "./editor-policy";
 import { NavigationError } from "./navigation/service";
+import { RedirectError } from "./redirects/service";
 
 const cookieName = "__Host-wiki_session";
 const encoder = new TextEncoder();
@@ -191,6 +193,13 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       rawToken,
     );
     if (navigationResponse) return navigationResponse;
+    const redirectResponse = await adminRedirects(
+      request,
+      env,
+      session,
+      rawToken,
+    );
+    if (redirectResponse) return redirectResponse;
     const auditResponse = await adminAudit(request, env, session, rawToken);
     return auditResponse ?? json({ error: "Not found" }, 404);
   } catch (error) {
@@ -198,7 +207,8 @@ export async function adminApi(request: Request, env: Env): Promise<Response> {
       error instanceof AuthError ||
       error instanceof AuditError ||
       error instanceof ContentError ||
-      error instanceof NavigationError
+      error instanceof NavigationError ||
+      error instanceof RedirectError
     )
       return json(
         { error: error.message },

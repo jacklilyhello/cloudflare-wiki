@@ -1,0 +1,671 @@
+.admin-root .redirect-workspace {
+  min-width: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-page-heading) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 29px;
+}
+.admin-root .redirect-workspace :where(.redirect-page-heading > div) {
+  min-width: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-page-heading h1) {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(22px, 2.5vw, 29px);
+  font-weight: 550;
+  line-height: 1.45;
+  letter-spacing: -0.6px;
+}
+.admin-root .redirect-workspace :where(.redirect-page-heading p) {
+  margin-top: 9px;
+  color: var(--admin-muted);
+  font-size: 12px;
+}
+.admin-root .redirect-workspace :where(.redirect-page-heading > button) {
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+.admin-root .redirect-workspace :where(.redirect-icon) {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+.admin-root .redirect-workspace :where(.redirect-list-panel) {
+  overflow: hidden;
+}
+.admin-root .redirect-workspace :where(.redirect-toolbar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 23px 24px;
+}
+.admin-root .redirect-workspace :where(.redirect-search) {
+  display: flex;
+  width: min(440px, 100%);
+  align-items: center;
+  border: 1px solid #dfe6dd;
+  border-radius: 6px;
+  background: #fbfcf9;
+}
+.admin-root .redirect-workspace :where(.redirect-search label) {
+  flex: 1;
+  min-width: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-search input) {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 11px 12px;
+  background: transparent;
+  color: var(--admin-ink);
+  font-size: 12px;
+}
+.admin-root .redirect-workspace :where(.redirect-search button) {
+  border: 0;
+  border-left: 1px solid #dfe6dd;
+  background: transparent;
+  color: #68865c;
+  padding: 5px 13px;
+  font-size: 11px;
+}
+.admin-root .redirect-workspace :where(.redirect-language) {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #819176;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.admin-root .redirect-workspace :where(.redirect-language select) {
+  border: 1px solid #dfe6dd;
+  border-radius: 5px;
+  padding: 9px 26px 9px 10px;
+  background: #fff;
+  color: #607650;
+  font: inherit;
+}
+.admin-root .redirect-workspace :where(.redirect-filterbar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-bottom: 1px solid var(--admin-line);
+  padding: 0 24px;
+}
+.admin-root .redirect-workspace :where(.redirect-filterbar fieldset) {
+  display: flex;
+  align-items: center;
+  gap: 23px;
+  overflow-x: auto;
+}
+.admin-root .redirect-workspace :where(.redirect-filterbar fieldset button) {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 4px 1px 13px;
+  background: transparent;
+  color: #8c9984;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.admin-root
+  .redirect-workspace
+  :where(.redirect-filterbar button[aria-pressed="true"]) {
+  border-bottom-color: #619657;
+  color: #518246;
+  font-weight: 600;
+}
+.admin-root .redirect-workspace :where(.redirect-text-button) {
+  border: 0;
+  padding: 5px 0;
+  background: transparent;
+  color: #739766;
+  font-size: 11px;
+}
+.admin-root
+  .redirect-workspace
+  :where(.redirect-filterbar > .redirect-text-button) {
+  margin-bottom: 7px;
+}
+.admin-root .redirect-workspace :where(.redirect-list) {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-list > li) {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px;
+}
+.admin-root .redirect-workspace :where(.redirect-list > li + li) {
+  border-top: 1px solid #edf1e9;
+}
+.admin-root .redirect-workspace :where(.redirect-list > li:hover) {
+  background: #fcfdf9;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-icon) {
+  display: grid;
+  place-items: center;
+  flex: 0 0 37px;
+  height: 40px;
+  border: 1px solid #e1e9d9;
+  border-radius: 7px;
+  color: #82a073;
+  background: #f3f7ed;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-main) {
+  flex: 1;
+  min-width: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-source) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-source code) {
+  font:
+    12px / 1.7 ui-monospace,
+    monospace;
+  color: #4e7144;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-origin) {
+  display: inline-block;
+  border: 1px solid #e2e9dc;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: #8b9b80;
+  font-size: 9px;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-target) {
+  display: flex;
+  gap: 10px;
+  margin-top: 9px;
+  color: #9daf90;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-target > div) {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  min-width: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-target strong) {
+  font-size: 11px;
+  font-weight: 500;
+  color: #7c916e;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-target code) {
+  font:
+    10px / 1.7 ui-monospace,
+    monospace;
+  color: #9cab8d;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-status) {
+  display: inline-block;
+  margin-top: 9px;
+  color: #69945a;
+  font-size: 9px;
+}
+.admin-root
+  .redirect-workspace
+  :where(.redirect-status.draft, .redirect-status.deleted) {
+  color: #a58c58;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 9px;
+  max-width: 165px;
+  padding-top: 2px;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-actions button) {
+  border: 1px solid #dee8d7;
+  border-radius: 5px;
+  padding: 5px 9px;
+  background: #fff;
+  color: #7d976c;
+  font-size: 10px;
+}
+.admin-root .redirect-workspace :where(.redirect-entry-actions button.danger) {
+  color: #ac7770;
+  border-color: #ebdfdc;
+}
+.admin-root .redirect-workspace :where(.redirect-test-link) {
+  flex-basis: 100%;
+  text-align: right;
+  margin-bottom: 5px;
+  color: #92a582;
+  font-size: 10px;
+}
+.admin-root .redirect-workspace :where(.redirect-test-link:hover) {
+  color: var(--admin-accent);
+  text-decoration: underline;
+}
+.admin-root .redirect-workspace :where(.redirect-list-footer) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 18px 24px;
+  border-top: 1px solid var(--admin-line);
+  background: #fafcf7;
+  color: #8da17e;
+  font-size: 10px;
+}
+.admin-root .redirect-workspace :where(.redirect-list-footer .admin-button) {
+  min-height: 34px;
+  padding: 7px 13px;
+  font-size: 10px;
+}
+.admin-root .redirect-workspace :where(.redirect-empty) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 15px;
+  min-height: 270px;
+  padding: 40px 22px;
+  text-align: center;
+  color: #9aaa8d;
+}
+.admin-root .redirect-workspace :where(.redirect-empty .redirect-icon) {
+  width: 35px;
+  height: 35px;
+  color: #b0c09f;
+}
+.admin-root .redirect-workspace :where(.redirect-empty h2) {
+  font-size: 15px;
+  font-weight: 500;
+  color: #7a926c;
+}
+.admin-root .redirect-workspace :where(.redirect-empty p) {
+  max-width: 430px;
+  font-size: 11px;
+}
+.admin-root .redirect-workspace :where(.redirect-note) {
+  margin: 18px 4px 0;
+  font-size: 10px;
+  color: #94a389;
+  line-height: 1.9;
+}
+.admin-root .redirect-workspace :where(.redirect-list-notice) {
+  margin: 18px 22px;
+}
+.admin-root .redirect-workspace :where(.redirect-list-notice.success) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog) {
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  padding: 27px;
+  border: 1px solid #dce5d8;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--admin-ink);
+  box-shadow: 0 24px 100px #10281126;
+  overflow-y: auto;
+}
+.admin-root .redirect-workspace .redirect-dialog::backdrop {
+  background: #14241ac4;
+  backdrop-filter: blur(3px);
+}
+.admin-root .redirect-workspace :where(.redirect-dialog-heading) {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog-symbol) {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 49px;
+  border: 1px solid #dce9d1;
+  border-radius: 9px;
+  background: #f3f8ed;
+  color: #7c9e66;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog-symbol.danger) {
+  border-color: #eddeda;
+  background: #fcf4f1;
+  color: #bb8176;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog h2) {
+  margin-top: 3px;
+  font-size: 21px;
+  font-weight: 550;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog-description) {
+  margin-bottom: 22px;
+  font-size: 12px;
+  color: #829575;
+  line-height: 1.9;
+}
+.admin-root .redirect-workspace :where(.redirect-original) {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid #e5ecd9;
+  border-radius: 7px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  background: #fafcf6;
+  color: #90a37e;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-original code) {
+  font:
+    11px / 1.7 ui-monospace,
+    monospace;
+  color: #7a9665;
+}
+.admin-root .redirect-workspace :where(.redirect-original small) {
+  margin-top: 5px;
+  color: #a3b394;
+  font-size: 9px;
+}
+.admin-root .redirect-workspace :where(.redirect-form-fields) {
+  margin-top: 23px;
+}
+.admin-root .redirect-workspace :where(.redirect-path-input) {
+  display: flex;
+  align-items: center;
+  border: 1px solid #dce5d8;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.admin-root .redirect-workspace :where(.redirect-path-input > span) {
+  padding: 10px 0 10px 12px;
+  color: #92a283;
+  font:
+    12px / 1.7 ui-monospace,
+    monospace;
+}
+.admin-root .redirect-workspace :where(.redirect-path-input input) {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding-left: 3px;
+  border-radius: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-path-input:focus-within) {
+  outline: 2px solid #80a86c;
+  outline-offset: 2px;
+}
+.admin-root .redirect-workspace :where(.admin-field small) {
+  color: #91a081;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.admin-root .redirect-workspace :where(.redirect-target-heading) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-root .redirect-workspace :where(.redirect-target-card) {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 14px 16px;
+  border: 1px solid #dce7d0;
+  border-radius: 7px;
+  background: #f6f9ef;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-target-card strong) {
+  font-size: 12px;
+  font-weight: 550;
+  color: #6c8955;
+}
+.admin-root .redirect-workspace :where(.redirect-target-card code) {
+  font:
+    10px / 1.8 ui-monospace,
+    monospace;
+  color: #90a679;
+}
+.admin-root .redirect-workspace :where(.redirect-target-card .redirect-status) {
+  margin-top: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-picker) {
+  margin-top: 16px;
+  border: 1px solid #e4ebdd;
+  border-radius: 8px;
+  padding: 14px;
+}
+.admin-root .redirect-workspace :where(.redirect-picker .admin-field) {
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+.admin-root .redirect-workspace :where(.redirect-picker input) {
+  height: 36px;
+  font-size: 11px;
+}
+.admin-root .redirect-workspace :where(.redirect-picker ul) {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.admin-root .redirect-workspace :where(.redirect-picker li + li) {
+  border-top: 1px solid #edf2e6;
+}
+.admin-root .redirect-workspace :where(.redirect-picker li button) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 12px;
+  padding: 11px 7px;
+  border: 0;
+  background: #fff;
+  color: #698852;
+  text-align: left;
+}
+.admin-root
+  .redirect-workspace
+  :where(
+    .redirect-picker li button:hover,
+    .redirect-picker li button[aria-pressed="true"]
+  ) {
+  background: #f2f8e9;
+}
+.admin-root .redirect-workspace :where(.redirect-picker li span) {
+  min-width: 0;
+}
+.admin-root .redirect-workspace :where(.redirect-picker strong) {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-picker code) {
+  display: block;
+  margin-top: 4px;
+  font:
+    10px / 1.7 ui-monospace,
+    monospace;
+  color: #97ab84;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-picker small) {
+  flex: 0 0 auto;
+  color: #a0b38c;
+  font-size: 9px;
+}
+.admin-root .redirect-workspace :where(.redirect-picker-message) {
+  margin: 10px 0;
+  font-size: 10px;
+  color: #9aa98b;
+}
+.admin-root .redirect-workspace :where(.redirect-picker-message button) {
+  border: 0;
+  color: var(--admin-accent);
+  background: none;
+}
+.admin-root .redirect-workspace :where(.redirect-change-warning) {
+  margin: 14px 0;
+  padding: 11px 13px;
+  border-radius: 5px;
+  background: #fcf8eb;
+  color: #a39059;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.admin-root
+  .redirect-workspace
+  :where(.redirect-dialog-actions, .redirect-close-confirm > div) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 25px;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog .admin-button) {
+  font-size: 11px;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog .admin-button.danger) {
+  color: #fff;
+  border-color: #ae7369;
+  background: #ae7369;
+}
+.admin-root .redirect-workspace :where(.redirect-dialog-footnote) {
+  margin-top: 17px;
+  color: #a2b293;
+  font-size: 9px;
+  line-height: 1.9;
+}
+.admin-root .redirect-workspace :where(.redirect-close-confirm) {
+  margin-top: 22px;
+  border-top: 1px solid #ebdfd7;
+  padding-top: 17px;
+  color: #a98667;
+  font-size: 12px;
+}
+.admin-root .redirect-workspace :where(.redirect-close-confirm > div) {
+  margin-top: 13px;
+}
+.admin-root .redirect-workspace :where(.redirect-latest) {
+  padding: 13px 15px;
+  border: 1px solid #dce8ce;
+  border-radius: 6px;
+  background: #f7faef;
+  font-size: 11px;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+}
+.admin-root .redirect-workspace :where(.redirect-latest strong) {
+  font-weight: 500;
+  color: #7e9b60;
+}
+.admin-root .redirect-workspace :where(.redirect-latest p) {
+  margin-top: 5px;
+  color: #97aa7d;
+  font-size: 10px;
+}
+.admin-root .redirect-workspace :where(.redirect-latest code) {
+  display: block;
+  margin-top: 8px;
+  font:
+    10px / 1.8 ui-monospace,
+    monospace;
+  color: #869f6b;
+}
+.admin-root .redirect-workspace :where(.redirect-sr-only) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 850px) {
+  .admin-root .redirect-workspace :where(.redirect-toolbar) {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-search) {
+    width: 100%;
+  }
+  .admin-root .redirect-workspace :where(.redirect-entry-actions) {
+    max-width: 130px;
+  }
+}
+@media (max-width: 650px) {
+  .admin-root .redirect-workspace :where(.redirect-page-heading) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 17px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-page-heading > button) {
+    display: inline-flex;
+  }
+  .admin-root .redirect-workspace :where(.redirect-toolbar) {
+    padding: 20px 18px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-filterbar) {
+    padding-inline: 18px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-filterbar fieldset) {
+    gap: 19px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-list > li) {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    padding: 22px 18px;
+    gap: 11px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-entry-icon) {
+    width: 30px;
+    height: 35px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-entry-actions) {
+    grid-column: 2;
+    max-width: none;
+    justify-content: flex-start;
+  }
+  .admin-root .redirect-workspace :where(.redirect-test-link) {
+    flex-basis: auto;
+    text-align: left;
+    margin-bottom: 0;
+    margin-right: 5px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-list-footer) {
+    padding: 17px 18px;
+  }
+  .admin-root .redirect-workspace :where(.redirect-dialog) {
+    padding: 23px 18px;
+  }
+  .admin-root
+    .redirect-workspace
+    :where(.redirect-dialog-actions, .redirect-close-confirm > div) {
+    flex-wrap: wrap;
+  }
+  .admin-root .redirect-workspace :where(.redirect-dialog .admin-button) {
+    white-space: normal;
+  }
+}
