@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { publicPath } from "../shared/paths";
 import type { NavigationEntry, ReaderData, WikiPage } from "../shared/reader";
 import { SiteLogo } from "./components/SiteLogo";
+import { enhanceTabsets } from "./reader/tabs";
 import { applySiteAppearance, effectiveTheme } from "./site-appearance";
 
 type IconName =
@@ -180,6 +181,11 @@ export function App({ data }: { data: ReaderData }) {
     window.addEventListener("storage", update);
     return () => window.removeEventListener("storage", update);
   }, [data.settings]);
+
+  useEffect(() => {
+    const article = articleRef.current;
+    if (article) return enhanceTabsets(article, data.language);
+  }, [data.language]);
 
   useEffect(() => {
     if (!articleRef.current || !("IntersectionObserver" in window)) return;
@@ -515,8 +521,8 @@ export function App({ data }: { data: ReaderData }) {
                 {data.searchQuery && (
                   <p className="search-result-count">
                     {zh
-                      ? `找到 ${data.searchResults.length} 篇文档`
-                      : `${data.searchResults.length} ${data.searchResults.length === 1 ? "document" : "documents"} found`}
+                      ? `显示 ${data.searchResults.length} 篇匹配文档（最多 30 篇）`
+                      : `Showing ${data.searchResults.length} matching ${data.searchResults.length === 1 ? "document" : "documents"} (up to 30)`}
                   </p>
                 )}
                 <ul className="search-results">

@@ -89,6 +89,46 @@ const value = 42;
     expect(toc).toEqual([]);
   });
 
+  it.each(["嵌套目标", "%E5%B5%8C%E5%A5%97%E7%9B%AE%E6%A0%87"])(
+    "connects Unicode heading links after URL encoding: %s",
+    async (fragment) => {
+      const { html, toc } = await renderMarkdown(
+        `[跳到嵌套目标](#${fragment})\n\n#### 嵌套目标`,
+        "zh",
+      );
+      expect(html).toContain(
+        'href="#user-content-wikih-嵌套目标">跳到嵌套目标</a>',
+      );
+      expect(html).toContain('id="user-content-wikih-嵌套目标"');
+      expect(toc).toEqual([
+        { id: "user-content-wikih-嵌套目标", text: "嵌套目标", depth: 4 },
+      ]);
+    },
+  );
+
+  it("preserves already prefixed fragments and malformed escapes without decoding twice", async () => {
+    const { html } = await renderMarkdown(
+      `[Ready](#user-content-wikih-target)
+[Encoded ready](#user-content-wikih-%E7%9B%AE%E6%A0%87)
+[Malformed](#%E0%A4%A)
+[Double encoded](#%25E7%259B%25AE%25E6%25A0%2587)
+
+## Target
+
+## 目标`,
+      "en",
+    );
+    expect(html).toContain('href="#user-content-wikih-target">Ready</a>');
+    expect(html).toContain(
+      'href="#user-content-wikih-%E7%9B%AE%E6%A0%87">Encoded ready</a>',
+    );
+    expect(html).toContain('href="#%E0%A4%25A">Malformed</a>');
+    expect(html).toContain(
+      'href="#%25E7%259B%25AE%25E6%25A0%2587">Double encoded</a>',
+    );
+    expect(html).not.toContain("user-content-user-content-");
+  });
+
   it("resolves internal links in the current language without touching code or existing links", async () => {
     const { html } = await renderMarkdown(
       "[[guide/install|Install]] [[中文/指南|中文]] [[#Hello|Jump]] [[guide/install#Step 1|Step]]\n\n`[[guide/install]]` [existing [[label]]](https://example.com)",

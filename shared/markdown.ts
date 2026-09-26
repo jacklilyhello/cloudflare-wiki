@@ -661,7 +661,17 @@ export async function renderMarkdown(
       visit(tree, "element", (node) => {
         const href = node.properties.href;
         if (typeof href === "string" && href.startsWith("#")) {
-          const mapped = fragmentIds.get(href.slice(1));
+          const fragment = href.slice(1);
+          let mapped = fragmentIds.get(fragment);
+          if (!mapped) {
+            try {
+              // Markdown links encode Unicode, but heading IDs retain Unicode.
+              // Decode once for lookup only; preserve unknown/malformed URLs.
+              mapped = fragmentIds.get(decodeURIComponent(fragment));
+            } catch {
+              // A malformed fragment is inert and must not fail the document.
+            }
+          }
           if (mapped) node.properties.href = `#${mapped}`;
         }
       });

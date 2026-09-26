@@ -14,6 +14,7 @@ import "monaco-editor/features/tokenization/register";
 import "monaco-editor/features/wordOperations/register";
 import "monaco-editor/features/codicon/register";
 import "monaco-editor/languages/definitions/markdown/register";
+import { createMonacoThemeBinding } from "./monaco-theme";
 
 // A bundled same-origin worker; never a CDN, blob loader, or eval fallback.
 self.MonacoEnvironment = { getWorker: () => new EditorWorker() };
@@ -31,5 +32,51 @@ monaco.editor.defineTheme("wiki-paper", {
     "editor.lineHighlightBackground": "#f7faf7",
   },
 });
+
+monaco.editor.defineTheme("wiki-night", {
+  base: "vs-dark",
+  inherit: true,
+  rules: [],
+  colors: {
+    "editor.background": "#202824",
+    "editor.foreground": "#e2e9e3",
+    "editorLineNumber.foreground": "#84958a",
+    "editorLineNumber.activeForeground": "#8ccca7",
+    "editor.selectionBackground": "#365443",
+    "editor.inactiveSelectionBackground": "#2b4033",
+    "editor.lineHighlightBackground": "#253029",
+    "editorCursor.foreground": "#cce6d5",
+    "editorGutter.background": "#202824",
+    "editorWidget.background": "#1c2320",
+    "editorWidget.border": "#303b34",
+  },
+});
+
+export const retainMonacoTheme = createMonacoThemeBinding(
+  {
+    theme: () => document.documentElement.dataset.theme,
+    systemDark: () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+    observe(changed) {
+      const preference = window.matchMedia("(prefers-color-scheme: dark)");
+      const observer = new MutationObserver(changed);
+      const dispose = () => {
+        observer.disconnect();
+        preference.removeEventListener("change", changed);
+      };
+      try {
+        observer.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["data-theme"],
+        });
+        preference.addEventListener("change", changed);
+      } catch (error) {
+        dispose();
+        throw error;
+      }
+      return dispose;
+    },
+  },
+  (theme) => monaco.editor.setTheme(theme),
+);
 
 export { monaco };

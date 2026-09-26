@@ -746,6 +746,12 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
 
   useEffect(() => {
     applySiteAppearance(siteSettings);
+    const update = (event: StorageEvent) => {
+      if (event.key === "wiki-theme" || event.key === null)
+        applySiteAppearance(siteSettings);
+    };
+    window.addEventListener("storage", update);
+    return () => window.removeEventListener("storage", update);
   }, [siteSettings]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: attempt deliberately repeats session discovery after a manual retry.

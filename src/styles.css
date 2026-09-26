@@ -857,6 +857,56 @@
   .markdown-content .wiki-tab > :last-child {
     margin-bottom: 17px;
   }
+  .markdown-content .wiki-tab-list {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 6px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .markdown-content .wiki-tab-trigger {
+    flex: 0 0 auto;
+    max-width: 280px;
+    min-height: 40px;
+    padding: 8px 15px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 3px 3px 0 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+  .markdown-content .wiki-tab-trigger:hover {
+    color: var(--ink);
+    background: var(--accent-soft);
+  }
+  .markdown-content .wiki-tab-trigger[aria-selected="true"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--page);
+  }
+  .markdown-content .wiki-tab-trigger:focus-visible,
+  .markdown-content .wiki-tab-panel:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .markdown-content .wiki-tab-panel {
+    padding: 18px;
+  }
+  .markdown-content .wiki-tab-panel[hidden] {
+    display: none;
+  }
+  .markdown-content .wiki-tab-panel > :where(:first-child) {
+    margin-top: 0;
+  }
+  .markdown-content .wiki-tab-panel > :where(:last-child) {
+    margin-bottom: 0;
+  }
   .markdown-content .footnotes {
     margin-top: 40px;
     padding-top: 20px;
@@ -1413,6 +1463,19 @@
     }
   }
   @media print {
+    .markdown-content .wiki-tab-list {
+      display: none;
+    }
+    .markdown-content .wiki-tab-panel,
+    .markdown-content .wiki-tab-panel[hidden] {
+      display: block;
+    }
+    .markdown-content .wiki-tab-panel::before {
+      content: attr(data-tab-label);
+      display: block;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
     .site-header,
     .desktop-navigation,
     .table-of-contents,

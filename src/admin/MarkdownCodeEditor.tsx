@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Language } from "../../shared/contracts";
-import { monaco } from "./monaco";
+import { monaco, retainMonacoTheme } from "./monaco";
 
 export type EditorHandle = monaco.editor.IStandaloneCodeEditor;
 
@@ -24,34 +24,63 @@ export function MarkdownCodeEditor({
   const initialValue = useRef(value);
   useEffect(() => {
     if (!element.current) return;
-    const model = monaco.editor.createModel(initialValue.current, "markdown");
-    const instance = monaco.editor.create(element.current, {
-      model,
-      theme: "wiki-paper",
-      automaticLayout: true,
-      minimap: { enabled: false },
-      wordWrap: "on",
-      fontSize: 14,
-      lineHeight: 24,
-      scrollBeyondLastLine: false,
-      lineNumbersMinChars: 3,
-      padding: { top: 16, bottom: 24 },
-      links: false,
-      renderWhitespace: "selection",
-      tabSize: 2,
-      stickyScroll: { enabled: false },
-    });
-    editor.current = instance;
-    const listener = model.onDidChangeContent(() =>
-      callbacks.current.onChange(model.getValue()),
-    );
-    callbacks.current.onReady(instance);
-    return () => {
-      callbacks.current.onReady(null);
-      listener.dispose();
-      instance.dispose();
-      model.dispose();
+    let model: monaco.editor.ITextModel | undefined;
+    let instance: EditorHandle | undefined;
+    let listener: monaco.IDisposable | undefined;
+    let releaseTheme: (() => void) | undefined;
+    const dispose = () => {
       editor.current = null;
+      try {
+        listener?.dispose();
+      } finally {
+        try {
+          instance?.dispose();
+        } finally {
+          try {
+            model?.dispose();
+          } finally {
+            releaseTheme?.();
+          }
+        }
+      }
+    };
+    try {
+      releaseTheme = retainMonacoTheme();
+      const ownedModel = monaco.editor.createModel(
+        initialValue.current,
+        "markdown",
+      );
+      model = ownedModel;
+      instance = monaco.editor.create(element.current, {
+        model,
+        automaticLayout: true,
+        minimap: { enabled: false },
+        wordWrap: "on",
+        fontSize: 14,
+        lineHeight: 24,
+        scrollBeyondLastLine: false,
+        lineNumbersMinChars: 3,
+        padding: { top: 16, bottom: 24 },
+        links: false,
+        renderWhitespace: "selection",
+        tabSize: 2,
+        stickyScroll: { enabled: false },
+      });
+      editor.current = instance;
+      listener = ownedModel.onDidChangeContent(() =>
+        callbacks.current.onChange(ownedModel.getValue()),
+      );
+      callbacks.current.onReady(instance);
+    } catch (error) {
+      dispose();
+      throw error;
+    }
+    return () => {
+      try {
+        callbacks.current.onReady(null);
+      } finally {
+        dispose();
+      }
     };
   }, []);
   useEffect(() => {

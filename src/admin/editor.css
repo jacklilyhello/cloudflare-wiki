@@ -167,32 +167,21 @@
   min-height: 480px;
   overflow: auto;
   padding: 15px 27px 30px;
-  background: #fff;
-  color: #25382e;
+  background: var(--page);
+  color: var(--ink);
 }
 .wiki-preview .markdown-content {
   font-size: 14px;
-  --ink: #25382e;
-  --muted: #687a6d;
-  --faint: #6f7b73;
-  --line: #dce7dd;
-  --page: #fff;
-  --surface: #f6f8f6;
-  --surface-raised: #fff;
-  --code: #f3f6f2;
-  --accent: #267349;
-  --accent-bright: #319462;
-  --accent-soft: #eaf3ed;
 }
 .wiki-preview-status {
   font-size: 10px;
   line-height: 1.6;
-  color: #839187;
+  color: var(--muted);
   margin: 0 0 18px;
   min-height: 16px;
 }
 .wiki-preview-status.error {
-  color: #9d3f31;
+  color: var(--admin-danger-ink);
 }
 .wiki-writing-footer {
   display: flex;
