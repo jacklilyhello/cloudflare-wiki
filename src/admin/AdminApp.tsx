@@ -669,13 +669,13 @@ function SignOutDialog({
         </span>
         <h2 id="signout-title">
           {zh
-            ? "丢弃未保存的修改并退出？"
-            : "Discard unsaved changes and sign out?"}
+            ? "丢弃本标签页的工作并退出？"
+            : "Discard this tab’s work and sign out?"}
         </h2>
         <p id="signout-description">
           {zh
-            ? "当前工作区有尚未保存的修改。退出会丢弃这些修改；取消可继续编辑并保存。"
-            : "This workspace contains unsaved changes. Signing out discards them. Cancel to keep editing and save your work."}
+            ? "当前工作区有未保存的输入或待核对操作。退出会丢弃本标签页的输入和核对记录，但不会撤销已发送的服务器请求。取消可继续保存或核对。"
+            : "This workspace has unsaved input or unverified operations. Signing out discards this tab’s input and comparison records; it does not undo requests already sent to the server. Cancel to save or review your work."}
         </p>
         {error && (
           <div className="admin-notice error" role="alert">
@@ -1415,7 +1415,6 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
                 language={language}
                 session={session}
                 translationId={route.translationId}
-                onExpired={onExpired}
                 onSessionChange={setSession}
               />
             ) : route.page === "dashboard" ? (

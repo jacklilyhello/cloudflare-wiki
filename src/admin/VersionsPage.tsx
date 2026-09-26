@@ -1,7 +1,7 @@
 import {
-  type FormEvent,
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -16,7 +16,13 @@ import type {
   RevisionSummary,
 } from "../../shared/content";
 import type { Language } from "../../shared/contracts";
-import { ApiError, mutation, request } from "./api";
+import { ApiError, request } from "./api";
+import { readPageSession } from "./page-action-recovery";
+import { RevisionRestoreDialog } from "./RevisionRestoreDialog";
+import {
+  RevisionRestoreController,
+  readRestoreRevision,
+} from "./revision-restore-recovery";
 import "./versions.css";
 
 const MarkdownPreview = lazy(() =>
@@ -65,228 +71,6 @@ function dateLabel(value: string, language: Language) {
         dateStyle: "medium",
         timeStyle: "short",
       }).format(date);
-}
-
-function RestoreDialog({
-  revision,
-  detail,
-  language,
-  session,
-  onClose,
-  onDone,
-  onSessionChange,
-}: {
-  revision: ContentRevision;
-  detail: ContentDetail;
-  language: Language;
-  session: AuthSession;
-  onSessionChange: (session: AuthSession) => void;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const zh = language === "zh";
-  const dialog = useRef<HTMLDialogElement>(null);
-  const reconnectController = useRef<AbortController | null>(null);
-  const [current, setCurrent] = useState(detail.translation);
-  const [activeSession, setActiveSession] = useState(session);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<unknown>(null);
-  const [refreshed, setRefreshed] = useState(false);
-  const [reconnected, setReconnected] = useState(false);
-  useEffect(() => {
-    dialog.current?.showModal();
-    return () => reconnectController.current?.abort();
-  }, []);
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setFailure(null);
-    try {
-      await request(
-        `pages/${encodeURIComponent(current.id)}/revisions/${encodeURIComponent(revision.id)}/restore`,
-        mutation(
-          "POST",
-          { expectedVersion: current.version, changeNote: note },
-          activeSession.csrfToken,
-        ),
-      );
-      onDone();
-    } catch (error) {
-      setFailure(error);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function latest() {
-    setBusy(true);
-    setFailure(null);
-    try {
-      const result = await request<ContentDetail>(
-        `pages/${encodeURIComponent(current.id)}`,
-      );
-      setCurrent(result.translation);
-      setRefreshed(true);
-    } catch (error) {
-      setFailure(error);
-    } finally {
-      setBusy(false);
-    }
-  }
-  async function reconnect() {
-    if (busy || reconnectController.current) return;
-    const controller = new AbortController();
-    reconnectController.current = controller;
-    setBusy(true);
-    setReconnected(false);
-    try {
-      const result = await request<{ session: AuthSession }>("session", {
-        signal: controller.signal,
-      });
-      if (controller.signal.aborted) return;
-      setActiveSession(result.session);
-      onSessionChange(result.session);
-      setFailure(null);
-      setReconnected(true);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      setFailure(error);
-    } finally {
-      if (reconnectController.current === controller)
-        reconnectController.current = null;
-      if (!controller.signal.aborted) setBusy(false);
-    }
-  }
-  const needsReconnect =
-    failure instanceof ApiError &&
-    (failure.status === 401 || failure.status === 403);
-  return (
-    <dialog
-      ref={dialog}
-      className="history-restore-dialog"
-      aria-labelledby="restore-title"
-      aria-describedby="restore-description"
-      onCancel={(event) => {
-        if (busy) event.preventDefault();
-        else onClose();
-      }}
-      onClose={onClose}
-    >
-      <form onSubmit={(event) => void submit(event)}>
-        <p className="admin-eyebrow">
-          {zh ? "安全恢复" : "RESTORE A SNAPSHOT"}
-        </p>
-        <h2 id="restore-title">
-          {zh
-            ? `将版本 ${revision.revisionNo} 恢复为新草稿`
-            : `Restore revision ${revision.revisionNo} as a new draft`}
-        </h2>
-        <p id="restore-description">
-          {zh
-            ? "标题、描述、标签和 Markdown 会复制到一个新版本。当前公开页面不会变化，旧版本与现有草稿也会保留在历史中。页面路径和语言关系不会改变。"
-            : "The title, description, tags and Markdown are copied into a new revision. The published page stays unchanged, and earlier drafts remain in history. The page path and translation links do not change."}
-        </p>
-        {reconnected && (
-          <div className="admin-notice success" role="status">
-            {zh
-              ? "已重新连接。恢复说明已保留，请确认后再次提交。"
-              : "Reconnected. Your change note is preserved; review it and submit again."}
-          </div>
-        )}
-        {failure !== null && (
-          <div
-            className={`admin-notice error${needsReconnect ? " content-session-notice" : ""}`}
-            role="alert"
-          >
-            <span>
-              {needsReconnect
-                ? zh
-                  ? "登录状态已变化。请在新窗口登录，再重新连接；恢复说明已保留。"
-                  : "Your session has changed. Sign in in a new tab, then reconnect. Your change note is preserved."
-                : message(failure, zh)}
-            </span>
-            {needsReconnect && (
-              <span className="content-session-actions">
-                <a href="/admin" target="_blank" rel="noopener noreferrer">
-                  {zh ? "新窗口登录" : "Sign in in new tab"}
-                </a>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void reconnect()}
-                >
-                  {zh ? "重新连接" : "Reconnect"}
-                </button>
-              </span>
-            )}
-            {failure instanceof ApiError && failure.status === 412 && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void latest()}
-              >
-                {zh ? "读取最新状态" : "Load latest"}
-              </button>
-            )}
-          </div>
-        )}
-        {refreshed && (
-          <div className="admin-notice success" role="status">
-            {zh
-              ? "已读取最新状态。请确认仍要从此历史版本创建新草稿。"
-              : "Latest state loaded. Confirm that you still want a new draft from this revision."}
-          </div>
-        )}
-        {current.deletedAt && (
-          <div className="admin-notice error" role="alert">
-            {zh
-              ? "页面已删除，请先在页面列表中恢复页面。"
-              : "This page is deleted. Restore it from the page list first."}
-          </div>
-        )}
-        <fieldset disabled={busy}>
-          <label className="admin-field" htmlFor="restore-note">
-            <span>{zh ? "变更说明（可选）" : "Change note (optional)"}</span>
-            <textarea
-              id="restore-note"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              maxLength={500}
-              rows={3}
-              placeholder={
-                zh
-                  ? "记录这次恢复的原因…"
-                  : "Why are you restoring this revision?"
-              }
-            />
-          </label>
-          <div className="history-dialog-actions">
-            <button
-              className="admin-button secondary"
-              type="button"
-              onClick={onClose}
-            >
-              {zh ? "取消" : "Cancel"}
-            </button>
-            <button
-              className="admin-button"
-              type="submit"
-              disabled={Boolean(current.deletedAt)}
-            >
-              {busy
-                ? zh
-                  ? "正在恢复…"
-                  : "Restoring…"
-                : zh
-                  ? "恢复为新草稿"
-                  : "Restore as draft"}
-            </button>
-          </div>
-        </fieldset>
-      </form>
-    </dialog>
-  );
 }
 
 function MetadataDiff({
@@ -345,13 +129,11 @@ export function VersionsPage({
   language,
   session,
   translationId,
-  onExpired,
   onSessionChange,
 }: {
   language: Language;
   session: AuthSession;
   translationId: string;
-  onExpired: () => void;
   onSessionChange: (session: AuthSession) => void;
 }) {
   const zh = language === "zh";
@@ -381,13 +163,173 @@ export function VersionsPage({
   const [moreFailure, setMoreFailure] = useState<unknown>(null);
   const [refresh, setRefresh] = useState(0);
   const [panelAttempt, setPanelAttempt] = useState(0);
-  const [restore, setRestore] = useState(false);
-  const [restored, setRestored] = useState(false);
+  const [restoreWork, setRestoreWork] =
+    useState<RevisionRestoreController | null>(null);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const [discardRestore, setDiscardRestore] = useState(false);
+  const [restored, setRestored] = useState<"verified" | "observed" | null>(
+    null,
+  );
+  const [activeSession, setActiveSession] = useState(session);
+  const [sessionBlocked, setSessionBlocked] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+  const [, renderRestore] = useState(0);
+  const workRef = useRef(restoreWork);
+  workRef.current = restoreWork;
+  const sessionRef = useRef(activeSession);
+  sessionRef.current = activeSession;
+  const historyReads = useRef(new Set<AbortController>());
+  const moreOperation = useRef<AbortController | null>(null);
+  const reconnectOperation = useRef<AbortController | null>(null);
+  const guarded = useRef(false);
+  guarded.current = Boolean(
+    restoreWork &&
+      (restoreWork.state.busy ||
+        restoreWork.state.attempt ||
+        restoreWork.state.note),
+  );
+  const invalidateReads = useCallback(() => {
+    for (const read of historyReads.current) read.abort();
+    historyReads.current.clear();
+    moreOperation.current = null;
+    setMore(null);
+  }, []);
+  const beginRead = useCallback(() => {
+    const controller = new AbortController();
+    historyReads.current.add(controller);
+    return controller;
+  }, []);
+  const endRead = useCallback((controller: AbortController) => {
+    controller.abort();
+    historyReads.current.delete(controller);
+  }, []);
+  const sessionRequired = useCallback(() => {
+    setSessionBlocked(true);
+    workRef.current?.context(sessionRef.current, true);
+    invalidateReads();
+    setLoading(false);
+  }, [invalidateReads]);
+  const updateSession = useCallback(
+    (next: AuthSession) => {
+      invalidateReads();
+      sessionRef.current = next;
+      setActiveSession(next);
+      setSessionBlocked(false);
+      onSessionChange(next);
+      setRefresh((value) => value + 1);
+      setPanelAttempt((value) => value + 1);
+    },
+    [invalidateReads, onSessionChange],
+  );
+  useEffect(() => {
+    if (!restoreWork) return;
+    restoreWork.activate();
+    const unsubscribe = restoreWork.subscribe(() => {
+      guarded.current = Boolean(
+        restoreWork.state.busy ||
+          restoreWork.state.attempt ||
+          restoreWork.state.note,
+      );
+      renderRestore((value) => value + 1);
+    });
+    return () => {
+      unsubscribe();
+      restoreWork.dispose();
+    };
+  }, [restoreWork]);
+  useEffect(() => {
+    restoreWork?.context(activeSession, sessionBlocked);
+  }, [restoreWork, activeSession, sessionBlocked]);
+  useEffect(() => {
+    const unload = (event: BeforeUnloadEvent) => {
+      if (guarded.current) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+    const signout = (event: Event) => {
+      if (guarded.current) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", unload);
+    window.addEventListener("wiki:before-signout", signout);
+    return () => {
+      reconnectOperation.current?.abort();
+      invalidateReads();
+      window.removeEventListener("beforeunload", unload);
+      window.removeEventListener("wiki:before-signout", signout);
+    };
+  }, [invalidateReads]);
+  function reload() {
+    invalidateReads();
+    setRefresh((value) => value + 1);
+    setPanelAttempt((value) => value + 1);
+  }
+  async function reconnect() {
+    if (restoreWork) {
+      await restoreWork.reconnect();
+      return;
+    }
+    if (reconnectOperation.current) return;
+    const controller = new AbortController();
+    reconnectOperation.current = controller;
+    setReconnecting(true);
+    setFailure(null);
+    try {
+      const next = readPageSession(
+        await request<unknown>("session", { signal: controller.signal }),
+      );
+      if (
+        !controller.signal.aborted &&
+        reconnectOperation.current === controller
+      )
+        updateSession(next);
+    } catch (error) {
+      if (
+        !controller.signal.aborted &&
+        reconnectOperation.current === controller
+      )
+        setFailure(error);
+    } finally {
+      if (reconnectOperation.current === controller) {
+        reconnectOperation.current = null;
+        if (!controller.signal.aborted) setReconnecting(false);
+      }
+    }
+  }
+  function startRestore() {
+    if (restoreWork || sessionBlocked || !selected || !detail) return;
+    try {
+      const work = new RevisionRestoreController({
+        source: selected,
+        before: detail.translation,
+        session: activeSession,
+        sessionBlocked,
+        onSessionRequired: sessionRequired,
+        onSessionChange: updateSession,
+        onDone: (outcome) => {
+          setRestoreOpen(false);
+          setRestoreWork(null);
+          setRestored(outcome);
+          invalidateReads();
+          setRefresh((value) => value + 1);
+          setPanelAttempt((value) => value + 1);
+        },
+      });
+      workRef.current = work;
+      setRestoreWork(work);
+      setRestoreOpen(true);
+      setRestored(null);
+    } catch (error) {
+      setPanelFailure(error);
+    }
+  }
   // biome-ignore lint/correctness/useExhaustiveDependencies: refresh deliberately reloads the current publication pointer and history after restoring.
   useEffect(() => {
-    const controller = new AbortController();
+    if (sessionBlocked) return;
+    const controller = beginRead();
     setLoading(true);
     setFailure(null);
+    setMoreFailure(null);
     void Promise.all([
       request<ContentDetail>(base, { signal: controller.signal }),
       request<Revisions>(`${base}/revisions?limit=20`, {
@@ -412,18 +354,20 @@ export function VersionsPage({
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        if (error instanceof ApiError && error.status === 401) onExpired();
-        else setFailure(error);
+        setFailure(error);
+        if (error instanceof ApiError && [401, 403].includes(error.status))
+          sessionRequired();
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
-    return () => controller.abort();
-  }, [base, refresh, onExpired]);
+    return () => endRead(controller);
+  }, [base, refresh, sessionBlocked, beginRead, endRead, sessionRequired]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: panelAttempt retries a failed immutable revision read without changing the selection.
   useEffect(() => {
     if (!selectedId) return;
-    const controller = new AbortController();
+    if (sessionBlocked) return;
+    const controller = beginRead();
     setSelected(null);
     setPanelFailure(null);
     void request<{ revision: ContentRevision }>(
@@ -431,19 +375,33 @@ export function VersionsPage({
       { signal: controller.signal },
     )
       .then((value) => {
-        if (!controller.signal.aborted) setSelected(value.revision);
+        if (!controller.signal.aborted)
+          setSelected(
+            readRestoreRevision(value.revision, translationId, selectedId),
+          );
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        if (error instanceof ApiError && error.status === 401) onExpired();
-        else setPanelFailure(error);
+        setPanelFailure(error);
+        if (error instanceof ApiError && [401, 403].includes(error.status))
+          sessionRequired();
       });
-    return () => controller.abort();
-  }, [base, selectedId, panelAttempt, onExpired]);
+    return () => endRead(controller);
+  }, [
+    base,
+    selectedId,
+    panelAttempt,
+    sessionBlocked,
+    beginRead,
+    endRead,
+    sessionRequired,
+    translationId,
+  ]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: panelAttempt retries the same explicitly selected comparison.
   useEffect(() => {
     if (mode !== "compare" || !originalId || !modifiedId) return;
-    const controller = new AbortController();
+    if (sessionBlocked) return;
+    const controller = beginRead();
     setComparison(null);
     setPanelFailure(null);
     void Promise.all([
@@ -459,26 +417,50 @@ export function VersionsPage({
       .then(([original, modified]) => {
         if (!controller.signal.aborted)
           setComparison({
-            original: original.revision,
-            modified: modified.revision,
+            original: readRestoreRevision(
+              original.revision,
+              translationId,
+              originalId,
+            ),
+            modified: readRestoreRevision(
+              modified.revision,
+              translationId,
+              modifiedId,
+            ),
           });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
-        if (error instanceof ApiError && error.status === 401) onExpired();
-        else setPanelFailure(error);
+        setPanelFailure(error);
+        if (error instanceof ApiError && [401, 403].includes(error.status))
+          sessionRequired();
       });
-    return () => controller.abort();
-  }, [base, mode, originalId, modifiedId, panelAttempt, onExpired]);
+    return () => endRead(controller);
+  }, [
+    base,
+    mode,
+    originalId,
+    modifiedId,
+    panelAttempt,
+    sessionBlocked,
+    beginRead,
+    endRead,
+    sessionRequired,
+    translationId,
+  ]);
   async function loadMore(kind: "revisions" | "events") {
-    if (more) return;
+    if (moreOperation.current || sessionBlocked || loading) return;
+    const controller = beginRead();
+    moreOperation.current = controller;
     setMore(kind);
     setMoreFailure(null);
     try {
       if (kind === "revisions" && revisions.nextBeforeRevision !== null) {
         const page = await request<Revisions>(
           `${base}/revisions?${new URLSearchParams({ beforeRevision: String(revisions.nextBeforeRevision), limit: "20" })}`,
+          { signal: controller.signal },
         );
+        if (controller.signal.aborted) return;
         setRevisions((value) => ({
           revisions: [
             ...value.revisions,
@@ -491,7 +473,9 @@ export function VersionsPage({
       } else if (kind === "events" && events.nextCursor) {
         const page = await request<ContentPage<ContentEvent>>(
           `${base}/events?${new URLSearchParams({ cursor: events.nextCursor, limit: "20" })}`,
+          { signal: controller.signal },
         );
+        if (controller.signal.aborted) return;
         setEvents((value) => ({
           items: [
             ...value.items,
@@ -503,10 +487,16 @@ export function VersionsPage({
         }));
       }
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) onExpired();
-      else setMoreFailure(error);
+      if (controller.signal.aborted) return;
+      setMoreFailure(error);
+      if (error instanceof ApiError && [401, 403].includes(error.status))
+        sessionRequired();
     } finally {
-      setMore(null);
+      if (moreOperation.current === controller) {
+        moreOperation.current = null;
+        if (!controller.signal.aborted) setMore(null);
+      }
+      endRead(controller);
     }
   }
   const eventLabels: Record<ContentEventType, string> = {
@@ -519,419 +509,523 @@ export function VersionsPage({
     restore_revision: zh ? "恢复历史版本为草稿" : "Revision restored as draft",
     restore_deleted: zh ? "恢复已删除页面" : "Deleted page restored",
   };
-  if (loading)
-    return (
-      <div className="admin-panel admin-loading" role="status">
-        <span className="admin-spinner" />
-        {zh ? "正在读取版本记录…" : "Loading revision history…"}
-      </div>
-    );
-  if (failure !== null || !detail)
-    return (
-      <div className="admin-panel history-load-error">
-        <div className="admin-notice error" role="alert">
-          {message(failure, zh)}
-        </div>
-        <button
-          className="admin-button secondary"
-          type="button"
-          onClick={() => setRefresh((value) => value + 1)}
-        >
-          {zh ? "重试" : "Try again"}
-        </button>
-        <a href="/admin/pages">{zh ? "返回页面列表" : "Back to pages"}</a>
-      </div>
-    );
   const entryUrl = `/admin/pages/${encodeURIComponent(translationId)}`;
   return (
     <>
-      <a className="history-back" href="/admin/pages">
-        ← {zh ? "所有页面" : "All pages"}
-      </a>
-      <div className="admin-page-heading history-heading">
-        <div>
-          <p className="admin-eyebrow">
-            {zh ? "版本与变更记录" : "VERSIONS & ACTIVITY"}
-          </p>
-          <h1>{detail.draft.title}</h1>
-          <p>
-            <code>
-              /{detail.translation.language}/{detail.translation.path}
-            </code>
-            <span className="history-heading-separator">·</span>
-            {zh
-              ? `${detail.translation.revisionSeq} 个版本`
-              : `${detail.translation.revisionSeq} revisions`}
-          </p>
-        </div>
-        {!detail.translation.deletedAt && (
-          <a
-            className="admin-button secondary history-edit-button"
-            href={`${entryUrl}/edit`}
-          >
-            {zh ? "返回编辑" : "Back to editor"}{" "}
-            <span aria-hidden="true">↗</span>
-          </a>
-        )}
-      </div>
-      {restored && (
-        <div className="admin-notice success" role="status">
+      {sessionBlocked && !restoreOpen && (
+        <div className="admin-notice error content-session-notice" role="alert">
           <span>
             {zh
-              ? "已创建新的恢复草稿，公开页面保持不变。"
-              : "A new draft was created. The published page is unchanged."}
+              ? "会话需要重新验证。恢复说明和待核对请求已保留。"
+              : "Your session needs verification. Restore notes and unconfirmed requests are retained."}
           </span>
-          <a href={`${entryUrl}/edit`}>{zh ? "查看草稿" : "Open draft"} →</a>
-        </div>
-      )}
-      {detail.translation.deletedAt && (
-        <div className="history-deleted-notice">
-          {zh
-            ? "此页面已删除，历史记录仍然保留。请先从页面列表恢复页面，再恢复历史内容。"
-            : "This page is deleted; its history is retained. Restore the page from the page list before restoring content."}
-        </div>
-      )}
-      <div className="history-workspace">
-        <aside className="admin-panel history-revisions">
-          <header>
-            <h2>{zh ? "历史版本" : "Revisions"}</h2>
-            <span>{detail.translation.revisionSeq}</span>
-          </header>
-          <ol>
-            {revisions.revisions.map((revision) => (
-              <li key={revision.id}>
-                <button
-                  type="button"
-                  className={selectedId === revision.id ? "selected" : ""}
-                  aria-pressed={selectedId === revision.id}
-                  onClick={() => {
-                    setSelectedId(revision.id);
-                    setMode("preview");
-                  }}
-                >
-                  <span className="history-revision-title">
-                    <strong>
-                      {zh ? "版本" : "Revision"} {revision.revisionNo}
-                    </strong>
-                    <span className="history-revision-flags">
-                      {revision.id ===
-                        detail.translation.publishedRevisionId && (
-                        <span>{zh ? "已发布" : "Published"}</span>
-                      )}
-                      {revision.id === detail.translation.draftRevisionId && (
-                        <span>{zh ? "当前草稿" : "Current draft"}</span>
-                      )}
-                    </span>
-                  </span>
-                  <time dateTime={revision.createdAt}>
-                    {dateLabel(revision.createdAt, language)}
-                  </time>
-                  <p>
-                    {revision.changeNote ||
-                      (revision.restoredFromRevisionId
-                        ? zh
-                          ? "从历史版本恢复"
-                          : "Restored from history"
-                        : zh
-                          ? "未填写变更说明"
-                          : "No change note")}
-                  </p>
-                </button>
-              </li>
-            ))}
-          </ol>
-          {revisions.nextBeforeRevision !== null && (
+          <span className="content-session-actions">
+            <a href="/admin" target="_blank" rel="noopener noreferrer">
+              {zh ? "在新标签页登录" : "Sign in in a new tab"}
+            </a>
             <button
-              className="history-load-more"
               type="button"
-              disabled={more !== null}
-              onClick={() => void loadMore("revisions")}
+              disabled={reconnecting || Boolean(restoreWork?.state.busy)}
+              onClick={() => void reconnect()}
             >
-              {more === "revisions"
-                ? zh
-                  ? "读取中…"
-                  : "Loading…"
-                : zh
-                  ? "更早的版本"
-                  : "Older revisions"}
+              {zh ? "重新验证会话" : "Verify session"}
             </button>
-          )}
-        </aside>
-        <section className="admin-panel history-viewer">
-          <div className="history-viewer-toolbar">
-            <div className="history-view-tabs">
-              {(
-                [
-                  { mode: "preview", label: zh ? "预览" : "Preview" },
-                  { mode: "source", label: "Markdown" },
-                  { mode: "compare", label: zh ? "比较版本" : "Compare" },
-                ] as const
-              ).map((tab) => (
-                <button
-                  type="button"
-                  key={tab.mode}
-                  aria-pressed={mode === tab.mode}
-                  onClick={() => {
-                    setMode(tab.mode);
-                    setPanelFailure(null);
-                  }}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-            {selected &&
-              mode !== "compare" &&
-              !detail.translation.deletedAt && (
-                <button
-                  className="history-restore-button"
-                  type="button"
-                  disabled={selected.id === detail.translation.draftRevisionId}
-                  onClick={() => setRestore(true)}
-                >
-                  {selected.id === detail.translation.draftRevisionId
-                    ? zh
-                      ? "当前草稿"
-                      : "Current draft"
-                    : zh
-                      ? `恢复版本 ${selected.revisionNo}`
-                      : `Restore revision ${selected.revisionNo}`}
-                </button>
-              )}
-          </div>
-          {mode === "compare" ? (
-            <div className="history-comparison">
-              <div className="history-compare-pickers">
-                <label htmlFor="original-revision">
-                  <span>{zh ? "原版本" : "Original"}</span>
-                  <select
-                    id="original-revision"
-                    value={originalId}
-                    onChange={(event) => setOriginalId(event.target.value)}
-                  >
-                    {revisions.revisions.map((revision) => (
-                      <option key={revision.id} value={revision.id}>
-                        {zh ? "版本" : "Revision"} {revision.revisionNo} ·{" "}
-                        {revision.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <span aria-hidden="true">→</span>
-                <label htmlFor="modified-revision">
-                  <span>{zh ? "目标版本" : "Modified"}</span>
-                  <select
-                    id="modified-revision"
-                    value={modifiedId}
-                    onChange={(event) => setModifiedId(event.target.value)}
-                  >
-                    {revisions.revisions.map((revision) => (
-                      <option key={revision.id} value={revision.id}>
-                        {zh ? "版本" : "Revision"} {revision.revisionNo} ·{" "}
-                        {revision.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              {comparison && panelFailure === null && (
-                <>
-                  <MetadataDiff
-                    original={comparison.original}
-                    modified={comparison.modified}
-                    zh={zh}
-                  />
-                  <div className="history-diff-legend">
-                    <span>{zh ? "删除" : "Removed"}</span>
-                    <span>{zh ? "新增" : "Added"}</span>
-                    <small>{zh ? "只读比较" : "Read-only comparison"}</small>
-                  </div>
-                  <Suspense
-                    fallback={
-                      <div className="admin-loading" role="status">
-                        {zh ? "正在加载差异视图…" : "Loading comparison…"}
-                      </div>
-                    }
-                  >
-                    <MarkdownDiff
-                      original={comparison.original.markdown}
-                      modified={comparison.modified.markdown}
-                      language={language}
-                    />
-                  </Suspense>
-                </>
-              )}
-            </div>
-          ) : (
-            selected && (
-              <>
-                <div className="history-snapshot-metadata">
-                  <div>
-                    <p className="admin-eyebrow">
-                      {zh ? "版本" : "REVISION"} {selected.revisionNo}
-                    </p>
-                    <h2>{selected.title}</h2>
-                    <p>
-                      {selected.description ||
-                        (zh ? "没有页面描述。" : "No description.")}
-                    </p>
-                  </div>
-                  <div className="history-snapshot-meta">
-                    <time dateTime={selected.createdAt}>
-                      {dateLabel(selected.createdAt, language)}
-                    </time>
-                    {selected.tags.length > 0 && (
-                      <div>
-                        {selected.tags.map((tag) => (
-                          <span key={tag}>#{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {selected.changeNote && (
-                    <blockquote>{selected.changeNote}</blockquote>
-                  )}
-                </div>
-                {mode === "source" ? (
-                  <pre className="history-markdown-source">
-                    <code>{selected.markdown}</code>
-                  </pre>
-                ) : (
-                  panelFailure === null && (
-                    <div className="history-preview">
-                      <Suspense
-                        fallback={
-                          <div className="admin-loading" role="status">
-                            {zh ? "正在加载预览…" : "Loading preview…"}
-                          </div>
-                        }
-                      >
-                        <MarkdownPreview
-                          markdown={selected.markdown}
-                          language={detail.translation.language}
-                          session={session}
-                          onExpired={onExpired}
-                        />
-                      </Suspense>
-                    </div>
-                  )
-                )}
-              </>
-            )
-          )}
-          {panelFailure !== null ? (
-            <div className="history-panel-error">
-              <div className="admin-notice error" role="alert">
-                {message(panelFailure, zh)}
-              </div>
+          </span>
+        </div>
+      )}
+      {restoreWork && !restoreOpen && (
+        <section
+          className="admin-notice history-retained-restore"
+          aria-label={zh ? "保留的恢复操作" : "Retained restoration"}
+        >
+          <p>
+            {zh
+              ? `版本 ${restoreWork.state.source.revisionNo} 的恢复操作已保留在本标签页。`
+              : `Restoration of revision ${restoreWork.state.source.revisionNo} is retained in this tab.`}
+          </p>
+          <p>
+            {restoreWork.state.attempt
+              ? zh
+                ? "提交结果尚未确认。离开或退出会丢弃本地核对记录，但不会撤销服务器请求。"
+                : "The submission is unconfirmed. Leaving or signing out discards the local comparison record, but does not undo the server request."
+              : zh
+                ? "恢复说明已保留。请继续或明确丢弃后再选择其他版本。"
+                : "Your note is retained. Continue or explicitly discard this work before choosing another revision."}
+          </p>
+          <div className="content-session-actions">
+            <button
+              type="button"
+              className="admin-button secondary"
+              onClick={() => {
+                setDiscardRestore(false);
+                setRestoreOpen(true);
+              }}
+            >
+              {zh ? "继续核对恢复" : "Continue restoration"}
+            </button>
+            {!restoreWork.state.attempt && !restoreWork.state.busy && (
               <button
                 type="button"
                 className="admin-button secondary"
-                onClick={() => setPanelAttempt((value) => value + 1)}
+                onClick={() => setDiscardRestore(true)}
               >
-                {zh ? "重试" : "Try again"}
+                {zh ? "丢弃恢复操作" : "Discard restoration work"}
               </button>
-            </div>
-          ) : (
-            ((mode === "compare" && !comparison) ||
-              (mode !== "compare" && !selected)) && (
-              <div className="admin-loading" role="status">
-                <span className="admin-spinner" />
-                {zh ? "正在读取版本内容…" : "Loading revision content…"}
-              </div>
-            )
-          )}
-        </section>
-      </div>
-      {moreFailure !== null && (
-        <div className="admin-notice error" role="alert">
-          {message(moreFailure, zh)}
-        </div>
-      )}
-      <section className="admin-panel history-events">
-        <header className="admin-panel-heading">
-          <div>
-            <h2>{zh ? "页面活动" : "Page activity"}</h2>
-            <p>
-              {zh
-                ? "保存、发布、移动与恢复的完整轨迹。"
-                : "A record of saves, publication, moves and restores."}
-            </p>
+            )}
           </div>
-        </header>
-        <ol>
-          {events.items.map((event) => (
-            <li key={event.id}>
-              <span
-                className={`history-event-dot ${event.type}`}
-                aria-hidden="true"
-              />
-              <div>
-                <div className="history-event-heading">
-                  <strong>{eventLabels[event.type]}</strong>
-                  <time dateTime={event.createdAt}>
-                    {dateLabel(event.createdAt, language)}
-                  </time>
-                </div>
-                {event.type === "move" && (
-                  <p className="history-event-path">
-                    <code>{event.fromPath}</code>
-                    <span aria-hidden="true">→</span>
-                    <code>{event.toPath}</code>
-                  </p>
-                )}
-                {event.changeNote && <p>{event.changeNote}</p>}
-                {event.revisionId && (
+          {discardRestore &&
+            !restoreWork.state.attempt &&
+            !restoreWork.state.busy && (
+              <div role="alert">
+                <p>
+                  {zh
+                    ? "确认丢弃此恢复说明和未提交的操作？"
+                    : "Discard this note and the unsubmitted restoration?"}
+                </p>
+                <div className="content-session-actions">
                   <button
                     type="button"
+                    className="admin-button secondary"
+                    onClick={() => setDiscardRestore(false)}
+                  >
+                    {zh ? "保留" : "Keep it"}
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-button secondary"
                     onClick={() => {
-                      setSelectedId(event.revisionId ?? "");
-                      setMode("preview");
-                      document
-                        .querySelector(".history-viewer")
-                        ?.scrollIntoView({
-                          behavior: "smooth",
-                          block: "start",
-                        });
+                      restoreWork.dispose();
+                      workRef.current = null;
+                      guarded.current = false;
+                      setRestoreWork(null);
+                      setDiscardRestore(false);
                     }}
                   >
-                    {zh ? "查看关联版本" : "View revision"} ↗
+                    {zh ? "确认丢弃" : "Confirm discard"}
                   </button>
-                )}
+                </div>
               </div>
-            </li>
-          ))}
-        </ol>
-        {events.nextCursor && (
+            )}
+        </section>
+      )}
+      {loading ? (
+        <div className="admin-panel admin-loading" role="status">
+          <span className="admin-spinner" />
+          {zh ? "正在读取版本记录…" : "Loading revision history…"}
+        </div>
+      ) : failure !== null || !detail ? (
+        <div className="admin-panel history-load-error">
+          <div className="admin-notice error" role="alert">
+            {message(failure, zh)}
+          </div>
           <button
-            className="history-load-more"
+            className="admin-button secondary"
             type="button"
-            disabled={more !== null}
-            onClick={() => void loadMore("events")}
+            disabled={sessionBlocked}
+            onClick={reload}
           >
-            {more === "events"
-              ? zh
-                ? "读取中…"
-                : "Loading…"
-              : zh
-                ? "更早的活动"
-                : "Earlier activity"}
+            {zh ? "重试" : "Try again"}
           </button>
-        )}
-      </section>
-      {restore && selected && (
-        <RestoreDialog
-          revision={selected}
-          detail={detail}
+          <a href="/admin/pages">{zh ? "返回页面列表" : "Back to pages"}</a>
+        </div>
+      ) : (
+        <>
+          <a className="history-back" href="/admin/pages">
+            ← {zh ? "所有页面" : "All pages"}
+          </a>
+          <div className="admin-page-heading history-heading">
+            <div>
+              <p className="admin-eyebrow">
+                {zh ? "版本与变更记录" : "VERSIONS & ACTIVITY"}
+              </p>
+              <h1>{detail.draft.title}</h1>
+              <p>
+                <code>
+                  /{detail.translation.language}/{detail.translation.path}
+                </code>
+                <span className="history-heading-separator">·</span>
+                {zh
+                  ? `${detail.translation.revisionSeq} 个版本`
+                  : `${detail.translation.revisionSeq} revisions`}
+              </p>
+            </div>
+            {!detail.translation.deletedAt && (
+              <a
+                className="admin-button secondary history-edit-button"
+                href={`${entryUrl}/edit`}
+              >
+                {zh ? "返回编辑" : "Back to editor"}{" "}
+                <span aria-hidden="true">↗</span>
+              </a>
+            )}
+          </div>
+          {restored && (
+            <div className="admin-notice success" role="status">
+              <span>
+                {restored === "verified"
+                  ? zh
+                    ? "已验证新的恢复草稿，恢复操作未改变公开页面。"
+                    : "The new restoration draft was verified. Restoring did not change the published page."
+                  : zh
+                    ? "已核对服务器上的恢复草稿。请查看最新内容。"
+                    : "The restoration draft observed on the server has been reviewed. Open the latest content."}
+              </span>
+              <a href={`${entryUrl}/edit`}>
+                {zh ? "查看草稿" : "Open draft"} →
+              </a>
+            </div>
+          )}
+          {detail.translation.deletedAt && (
+            <div className="history-deleted-notice">
+              {zh
+                ? "此页面已删除，历史记录仍然保留。请先从页面列表恢复页面，再恢复历史内容。"
+                : "This page is deleted; its history is retained. Restore the page from the page list before restoring content."}
+            </div>
+          )}
+          <div className="history-workspace">
+            <aside className="admin-panel history-revisions">
+              <header>
+                <h2>{zh ? "历史版本" : "Revisions"}</h2>
+                <span>{detail.translation.revisionSeq}</span>
+              </header>
+              <ol>
+                {revisions.revisions.map((revision) => (
+                  <li key={revision.id}>
+                    <button
+                      type="button"
+                      className={selectedId === revision.id ? "selected" : ""}
+                      aria-pressed={selectedId === revision.id}
+                      onClick={() => {
+                        setSelectedId(revision.id);
+                        setMode("preview");
+                      }}
+                    >
+                      <span className="history-revision-title">
+                        <strong>
+                          {zh ? "版本" : "Revision"} {revision.revisionNo}
+                        </strong>
+                        <span className="history-revision-flags">
+                          {revision.id ===
+                            detail.translation.publishedRevisionId && (
+                            <span>{zh ? "已发布" : "Published"}</span>
+                          )}
+                          {revision.id ===
+                            detail.translation.draftRevisionId && (
+                            <span>{zh ? "当前草稿" : "Current draft"}</span>
+                          )}
+                        </span>
+                      </span>
+                      <time dateTime={revision.createdAt}>
+                        {dateLabel(revision.createdAt, language)}
+                      </time>
+                      <p>
+                        {revision.changeNote ||
+                          (revision.restoredFromRevisionId
+                            ? zh
+                              ? "从历史版本恢复"
+                              : "Restored from history"
+                            : zh
+                              ? "未填写变更说明"
+                              : "No change note")}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              {revisions.nextBeforeRevision !== null && (
+                <button
+                  className="history-load-more"
+                  type="button"
+                  disabled={more !== null || sessionBlocked}
+                  onClick={() => void loadMore("revisions")}
+                >
+                  {more === "revisions"
+                    ? zh
+                      ? "读取中…"
+                      : "Loading…"
+                    : zh
+                      ? "更早的版本"
+                      : "Older revisions"}
+                </button>
+              )}
+            </aside>
+            <section className="admin-panel history-viewer">
+              <div className="history-viewer-toolbar">
+                <div className="history-view-tabs">
+                  {(
+                    [
+                      { mode: "preview", label: zh ? "预览" : "Preview" },
+                      { mode: "source", label: "Markdown" },
+                      { mode: "compare", label: zh ? "比较版本" : "Compare" },
+                    ] as const
+                  ).map((tab) => (
+                    <button
+                      type="button"
+                      key={tab.mode}
+                      aria-pressed={mode === tab.mode}
+                      onClick={() => {
+                        setMode(tab.mode);
+                        setPanelFailure(null);
+                      }}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                {selected &&
+                  mode !== "compare" &&
+                  !detail.translation.deletedAt && (
+                    <button
+                      className="history-restore-button"
+                      type="button"
+                      disabled={
+                        sessionBlocked ||
+                        Boolean(restoreWork) ||
+                        selected.id === detail.translation.draftRevisionId
+                      }
+                      onClick={startRestore}
+                    >
+                      {selected.id === detail.translation.draftRevisionId
+                        ? zh
+                          ? "当前草稿"
+                          : "Current draft"
+                        : zh
+                          ? `恢复版本 ${selected.revisionNo}`
+                          : `Restore revision ${selected.revisionNo}`}
+                    </button>
+                  )}
+              </div>
+              {mode === "compare" ? (
+                <div className="history-comparison">
+                  <div className="history-compare-pickers">
+                    <label htmlFor="original-revision">
+                      <span>{zh ? "原版本" : "Original"}</span>
+                      <select
+                        id="original-revision"
+                        value={originalId}
+                        onChange={(event) => setOriginalId(event.target.value)}
+                      >
+                        {revisions.revisions.map((revision) => (
+                          <option key={revision.id} value={revision.id}>
+                            {zh ? "版本" : "Revision"} {revision.revisionNo} ·{" "}
+                            {revision.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <span aria-hidden="true">→</span>
+                    <label htmlFor="modified-revision">
+                      <span>{zh ? "目标版本" : "Modified"}</span>
+                      <select
+                        id="modified-revision"
+                        value={modifiedId}
+                        onChange={(event) => setModifiedId(event.target.value)}
+                      >
+                        {revisions.revisions.map((revision) => (
+                          <option key={revision.id} value={revision.id}>
+                            {zh ? "版本" : "Revision"} {revision.revisionNo} ·{" "}
+                            {revision.title}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {comparison && panelFailure === null && (
+                    <>
+                      <MetadataDiff
+                        original={comparison.original}
+                        modified={comparison.modified}
+                        zh={zh}
+                      />
+                      <div className="history-diff-legend">
+                        <span>{zh ? "删除" : "Removed"}</span>
+                        <span>{zh ? "新增" : "Added"}</span>
+                        <small>
+                          {zh ? "只读比较" : "Read-only comparison"}
+                        </small>
+                      </div>
+                      <Suspense
+                        fallback={
+                          <div className="admin-loading" role="status">
+                            {zh ? "正在加载差异视图…" : "Loading comparison…"}
+                          </div>
+                        }
+                      >
+                        <MarkdownDiff
+                          original={comparison.original.markdown}
+                          modified={comparison.modified.markdown}
+                          language={language}
+                        />
+                      </Suspense>
+                    </>
+                  )}
+                </div>
+              ) : (
+                selected && (
+                  <>
+                    <div className="history-snapshot-metadata">
+                      <div>
+                        <p className="admin-eyebrow">
+                          {zh ? "版本" : "REVISION"} {selected.revisionNo}
+                        </p>
+                        <h2>{selected.title}</h2>
+                        <p>
+                          {selected.description ||
+                            (zh ? "没有页面描述。" : "No description.")}
+                        </p>
+                      </div>
+                      <div className="history-snapshot-meta">
+                        <time dateTime={selected.createdAt}>
+                          {dateLabel(selected.createdAt, language)}
+                        </time>
+                        {selected.tags.length > 0 && (
+                          <div>
+                            {selected.tags.map((tag) => (
+                              <span key={tag}>#{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      {selected.changeNote && (
+                        <blockquote>{selected.changeNote}</blockquote>
+                      )}
+                    </div>
+                    {mode === "source" ? (
+                      <pre className="history-markdown-source">
+                        <code>{selected.markdown}</code>
+                      </pre>
+                    ) : (
+                      panelFailure === null &&
+                      !sessionBlocked && (
+                        <div className="history-preview">
+                          <Suspense
+                            fallback={
+                              <div className="admin-loading" role="status">
+                                {zh ? "正在加载预览…" : "Loading preview…"}
+                              </div>
+                            }
+                          >
+                            <MarkdownPreview
+                              markdown={selected.markdown}
+                              language={detail.translation.language}
+                              session={activeSession}
+                              onExpired={sessionRequired}
+                            />
+                          </Suspense>
+                        </div>
+                      )
+                    )}
+                  </>
+                )
+              )}
+              {panelFailure !== null ? (
+                <div className="history-panel-error">
+                  <div className="admin-notice error" role="alert">
+                    {message(panelFailure, zh)}
+                  </div>
+                  <button
+                    type="button"
+                    className="admin-button secondary"
+                    disabled={sessionBlocked}
+                    onClick={() => setPanelAttempt((value) => value + 1)}
+                  >
+                    {zh ? "重试" : "Try again"}
+                  </button>
+                </div>
+              ) : (
+                ((mode === "compare" && !comparison) ||
+                  (mode !== "compare" && !selected)) && (
+                  <div className="admin-loading" role="status">
+                    <span className="admin-spinner" />
+                    {zh ? "正在读取版本内容…" : "Loading revision content…"}
+                  </div>
+                )
+              )}
+            </section>
+          </div>
+          {moreFailure !== null && (
+            <div className="admin-notice error" role="alert">
+              {message(moreFailure, zh)}
+            </div>
+          )}
+          <section className="admin-panel history-events">
+            <header className="admin-panel-heading">
+              <div>
+                <h2>{zh ? "页面活动" : "Page activity"}</h2>
+                <p>
+                  {zh
+                    ? "保存、发布、移动与恢复的完整轨迹。"
+                    : "A record of saves, publication, moves and restores."}
+                </p>
+              </div>
+            </header>
+            <ol>
+              {events.items.map((event) => (
+                <li key={event.id}>
+                  <span
+                    className={`history-event-dot ${event.type}`}
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <div className="history-event-heading">
+                      <strong>{eventLabels[event.type]}</strong>
+                      <time dateTime={event.createdAt}>
+                        {dateLabel(event.createdAt, language)}
+                      </time>
+                    </div>
+                    {event.type === "move" && (
+                      <p className="history-event-path">
+                        <code>{event.fromPath}</code>
+                        <span aria-hidden="true">→</span>
+                        <code>{event.toPath}</code>
+                      </p>
+                    )}
+                    {event.changeNote && <p>{event.changeNote}</p>}
+                    {event.revisionId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedId(event.revisionId ?? "");
+                          setMode("preview");
+                          document
+                            .querySelector(".history-viewer")
+                            ?.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                        }}
+                      >
+                        {zh ? "查看关联版本" : "View revision"} ↗
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+            {events.nextCursor && (
+              <button
+                className="history-load-more"
+                type="button"
+                disabled={more !== null || sessionBlocked}
+                onClick={() => void loadMore("events")}
+              >
+                {more === "events"
+                  ? zh
+                    ? "读取中…"
+                    : "Loading…"
+                  : zh
+                    ? "更早的活动"
+                    : "Earlier activity"}
+              </button>
+            )}
+          </section>
+        </>
+      )}
+      {restoreWork && restoreOpen && (
+        <RevisionRestoreDialog
+          controller={restoreWork}
           language={language}
-          session={session}
-          onSessionChange={onSessionChange}
-          onClose={() => setRestore(false)}
-          onDone={() => {
-            setRestore(false);
-            setRestored(true);
-            setRefresh((value) => value + 1);
-          }}
+          onClose={() => setRestoreOpen(false)}
         />
       )}
     </>
