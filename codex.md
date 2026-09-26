@@ -28,7 +28,7 @@ Excluded: ordinary accounts/login, registration, groups, RBAC, comments, watches
 
 ### Chinese and English only
 
-The closed language union is `zh | en` in `shared/contracts.ts`. Articles have stable identities with Chinese and English versions and language-specific slugs. Translation relationships must survive moves/renames. Navigation is separate per language; search ranks the current language first. Missing translations must be explicit. Do not build a general dozens-of-locales platform. The final header offers `中文 | English`.
+The closed language union is `zh | en` in `shared/contracts.ts`. Articles have stable identities with Chinese and English versions and language-specific slugs. Translation relationships must survive moves/renames. Navigation is separate per language; search returns published results only in the selected language. Missing translations must be explicit. Do not build a general dozens-of-locales platform. The final header offers `中文 | English`.
 
 ### Markdown only
 
@@ -118,7 +118,9 @@ Reader and admin shells serialize only public settings values as escaped inert J
 
 `PageDirectoryBrowser` renders language-scoped direct children and landing pages with version-checked pagination. The page workspace retains pending single-page or directory operations outside their dialogs, latches authentication failures, and warns before leaving with unfinished work. `DirectoryMoveDialog` submits only the exact explicitly reviewed manifest; uncertain outcomes use two complete page-state reads fenced by registry versions, followed by an explicit acknowledgement. Readback never retries a mutation. A new move always needs a fresh preview. `PageActionDialog` similarly requires fresh comparison/adoption after uncertainty or stale versions and preserves requested paths. Shared canonical path validation also protects the new-page directory prefix and the bounded closed login-return query.
 
-Markdown tabsets currently use native disclosure fallback; progressive accessible tab selection remains a product gap. Deliberate caching is an optional future optimization. Keep storage in Worker-side repositories with portable domain contracts. Do not expose a new privileged operation without both HTTP access checks and the service's SQL session/version guards.
+Markdown tabsets progressively enhance the shared renderer's trusted disclosure nodes into ARIA tabs in both the reader and preview. Direct-child groups, nested selection, roving keyboard focus and fragment reveal use existing DOM nodes; cleanup restores only the owned old nodes so a preview refresh cannot overwrite newer HTML. Native disclosures remain the no-script fallback, while print styles expose all enhanced panels. Monaco editor/diff instances share a disposable appearance watcher and change theme without replacing their models. No sanitizer or CSP allowance is added.
+
+Deliberate caching is an optional future optimization. Keep storage in Worker-side repositories with portable domain contracts. Do not expose a new privileged operation without both HTTP access checks and the service's SQL session/version guards.
 
 D1 stores articles, translations, revisions, route aliases, audit events, publication search, navigation, the audit trail, site settings and authentication state. Private R2 stores immutable file objects with authoritative D1 metadata and explicit publication; the File Manager controls metadata and publication. KV is optional for explicitly eventually consistent cases, not the authoritative database by default. Cache API may serve published content with language/version keys and deliberate invalidation. Queues, Workflows, Durable Objects, Images, Access, Workers AI, Vectorize, Browser Rendering and Containers are allowed only with concrete need. Provision none speculatively. Remote migrations must be reviewed/repeatable and run in Actions, with recovery planning before destructive changes.
 

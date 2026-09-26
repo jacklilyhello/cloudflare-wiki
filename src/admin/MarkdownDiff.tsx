@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Language } from "../../shared/contracts";
-import { monaco } from "./monaco";
+import { monaco, retainMonacoTheme } from "./monaco";
 import "./editor.css";
 
 export function MarkdownDiff({
@@ -16,12 +16,30 @@ export function MarkdownDiff({
   const [error, setError] = useState(false);
   useEffect(() => {
     if (!container.current) return;
-    const left = monaco.editor.createModel(original, "markdown");
-    const right = monaco.editor.createModel(modified, "markdown");
+    let left: monaco.editor.ITextModel | undefined;
+    let right: monaco.editor.ITextModel | undefined;
     let instance: monaco.editor.IStandaloneDiffEditor | undefined;
+    let releaseTheme: (() => void) | undefined;
+    const dispose = () => {
+      try {
+        instance?.dispose();
+      } finally {
+        try {
+          left?.dispose();
+        } finally {
+          try {
+            right?.dispose();
+          } finally {
+            releaseTheme?.();
+          }
+        }
+      }
+    };
     try {
+      releaseTheme = retainMonacoTheme();
+      left = monaco.editor.createModel(original, "markdown");
+      right = monaco.editor.createModel(modified, "markdown");
       instance = monaco.editor.createDiffEditor(container.current, {
-        theme: "wiki-paper",
         readOnly: true,
         originalEditable: false,
         automaticLayout: true,
@@ -41,13 +59,11 @@ export function MarkdownDiff({
       instance.setModel({ original: left, modified: right });
       setError(false);
     } catch {
+      dispose();
       setError(true);
+      return;
     }
-    return () => {
-      instance?.dispose();
-      left.dispose();
-      right.dispose();
-    };
+    return dispose;
   }, [original, modified, language]);
   return (
     <>

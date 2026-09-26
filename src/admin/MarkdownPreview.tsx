@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AuthSession } from "../../shared/auth";
 import type { Language } from "../../shared/contracts";
+import { enhanceTabsets } from "../reader/tabs";
 import { ApiError, mutation, request } from "./api";
 import "./editor.css";
 
@@ -48,6 +49,7 @@ export function MarkdownPreview({
   useEffect(() => {
     const node = container.current;
     if (!node || !html) return;
+    const restoreTabs = enhanceTabsets(node, language, { preview: true });
     let disposed = false;
     void import("../reader/diagrams")
       .then(({ enhanceDiagrams }) => {
@@ -94,6 +96,7 @@ export function MarkdownPreview({
       disposed = true;
       controller.abort();
       for (const button of buttons) button.remove();
+      restoreTabs();
     };
   }, [html, language]);
   return (
