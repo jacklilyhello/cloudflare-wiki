@@ -41,6 +41,7 @@ export interface AdminTranslation {
 }
 
 export interface ContentRevision {
+  linkBasePath?: string;
   id: string;
   translationId: string;
   revisionNo: number;

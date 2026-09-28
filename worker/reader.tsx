@@ -152,7 +152,7 @@ async function renderReaderDocument(
       status: 301,
       headers: {
         ...securityHeaders,
-        Location: publicPath(page.language, page.path),
+        Location: publicPath(page.language, page.path) + url.search,
       },
     });
   }
@@ -160,7 +160,9 @@ async function renderReaderDocument(
     settings,
     language,
     page,
-    rendered: page ? await renderMarkdown(page.markdown, language) : null,
+    rendered: page
+      ? await renderMarkdown(page.markdown, language, page.linkBasePath)
+      : null,
     navigation,
     translations: search
       ? {

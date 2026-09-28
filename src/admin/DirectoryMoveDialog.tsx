@@ -1,3 +1,4 @@
+import { MoveLinks } from "./MoveLinks";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import type { AuthSession } from "../../shared/auth";
 import type { ContentDetail } from "../../shared/content";
@@ -302,8 +303,8 @@ export function DirectoryMoveDialog({
       </div>
       <p className="directory-move-explanation">
         {zh
-          ? "原路径会保留为旧别名；回收站中的页面保持原位。正文不会改写，普通相对链接可能改变含义。已被别名占用的旧目录不能直接移回。"
-          : "Previous paths remain aliases; pages in Trash stay in place. Markdown is unchanged, so ordinary relative links may resolve differently. An old directory reserved by aliases cannot be reused directly."}
+          ? "原路径会保留为旧别名；回收站中的页面保持原位。相对链接保留原解析基准，正文和历史版本保持不变。已被别名占用的旧目录不能直接移回。"
+          : "Previous paths remain aliases; pages in Trash stay in place. Relative links keep their original resolution base. An old directory reserved by aliases cannot be reused directly."}
       </p>
       {sessionBlocked && (
         <div className="admin-notice error content-session-notice" role="alert">
@@ -482,6 +483,7 @@ export function DirectoryMoveDialog({
                     <code>
                       /{contentLanguage}/{member.toPath}
                     </code>
+                    <MoveLinks links={member.links ?? []} zh={zh} />
                   </li>
                 ))}
               </ol>

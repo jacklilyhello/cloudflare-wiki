@@ -906,6 +906,7 @@ export function VersionsPage({
                             }
                           >
                             <MarkdownPreview
+                              linkBasePath={selected.linkBasePath}
                               markdown={selected.markdown}
                               language={detail.translation.language}
                               session={activeSession}

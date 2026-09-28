@@ -52,7 +52,15 @@ async function location(path: string, expected: string) {
       method,
     );
     expect(response.status).toBe(301);
-    expect(response.headers.get("Location")).toBe(expected);
+    expect(response.headers.get("Location")).toBe(
+      `${expected}?next=https://outside.example`,
+    );
+    expect(
+      new URL(
+        response.headers.get("Location") ?? "",
+        "https://untrusted-host.example",
+      ).origin,
+    ).toBe("https://untrusted-host.example");
     expect(response.headers.get("Cache-Control")).toBe("no-store");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(await response.text()).toBe("");

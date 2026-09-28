@@ -8,7 +8,7 @@ import type { ContentWriteAccess } from "../worker/auth/access";
 import { getPage } from "../worker/content/public";
 import { ContentService } from "../worker/content/service";
 import { RedirectService } from "../worker/redirects/service";
-import { contentFixture } from "./content-fixture";
+import { contentFixture, legacyMoveDraft } from "./content-fixture";
 
 const migrations = (env as Env & { TEST_MIGRATIONS: D1Migration[] })
   .TEST_MIGRATIONS;
@@ -107,11 +107,13 @@ describe("redirect routes and migration compatibility", () => {
     content = fixture.service;
     access = fixture.access;
     const initial = await page();
-    const moved = await content.move(
+    await legacyMoveDraft(
+      env.DB,
       initial.id,
       initial.version,
       "existing-history",
     );
+    const moved = await content.getAdminTranslation(initial.id);
     const oldAudit = (
       await env.DB.prepare("SELECT * FROM audit_records ORDER BY seq").all()
     ).results;

@@ -8,7 +8,11 @@ import type { Language } from "../shared/contracts";
 import { MarkdownLimitError, renderMarkdown } from "../shared/markdown";
 import { csrf, json, readJson, sameOrigin } from "./admin-http";
 import { sha256 } from "./auth/crypto";
-import { ContentError, ContentService } from "./content/service";
+import {
+  ContentError,
+  ContentService,
+  validateContentPath,
+} from "./content/service";
 
 const bodyLimit = 1024 * 1024;
 const draftFields = ["title", "description", "markdown", "tags"];
@@ -132,10 +136,16 @@ export async function adminContent(
     if (denied) return denied;
     query(url.searchParams, []);
     const input = await body(request, session);
-    shape(input, ["language", "markdown"]);
+    shape(input, ["language", "markdown"], ["linkBasePath"]);
     try {
       return json(
-        await renderMarkdown(text(input, "markdown"), language(input.language)),
+        await renderMarkdown(
+          text(input, "markdown"),
+          language(input.language),
+          input.linkBasePath === undefined
+            ? undefined
+            : validateContentPath(text(input, "linkBasePath")),
+        ),
       );
     } catch (error) {
       if (error instanceof MarkdownLimitError)
@@ -161,6 +171,7 @@ export async function adminContent(
               "publish",
               "unpublish",
               "move",
+              "move-preview",
               "restore",
               "revisions",
               "events",
@@ -302,6 +313,16 @@ export async function adminContent(
         identifier(text(input, "revisionId")),
       ),
     });
+  }
+  if (route === "move-preview") {
+    shape(input, ["expectedVersion", "path"]);
+    return json(
+      await service.previewMove(
+        translationId,
+        version(input),
+        text(input, "path"),
+      ),
+    );
   }
   if (route === "move") {
     shape(input, ["expectedVersion", "path"]);

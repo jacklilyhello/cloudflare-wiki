@@ -1,4 +1,5 @@
 import type { AdminTranslation, PageSummary } from "./content";
+import type { MoveLinkImpact } from "./relative-links";
 import type { Language } from "./contracts";
 
 export const DIRECTORY_LIMITS = {
@@ -35,6 +36,7 @@ export interface DirectoryMoveInput {
   toPath: string;
 }
 export interface DirectoryMoveMember {
+  links?: MoveLinkImpact[];
   id: string;
   version: number;
   fromPath: string;

@@ -17,6 +17,7 @@ import type { Language } from "../../shared/contracts";
 import { MarkdownLimitError, renderMarkdown } from "../../shared/markdown";
 import { contentPathIssue, isContentPath } from "../../shared/page-path";
 import { indexSearchText, markdownText } from "../../shared/search";
+import { moveLinks } from "./move-links";
 import { type ContentWriteAccess, sessionGuard } from "../auth/access";
 
 type SqlValue = string | number | null;
@@ -39,6 +40,7 @@ type RevisionRow = {
   id: string;
   translation_id: string;
   revision_no: number;
+  link_base_path?: string;
   title: string;
   description: string;
   markdown: string;
@@ -78,6 +80,7 @@ function revision(row: RevisionRow): ContentRevision {
     id: row.id,
     translationId: row.translation_id,
     revisionNo: row.revision_no,
+    linkBasePath: row.link_base_path,
     title: row.title,
     description: row.description,
     markdown: row.markdown,
@@ -521,6 +524,19 @@ export class ContentService {
       ),
     ]);
   }
+  async previewMove(id: string, expectedVersion: number, newPath: string) {
+    const state = await this.current(id, expectedVersion);
+    const path = validateContentPath(newPath);
+    const links = await moveLinks(this.db, this.access, state.language, [
+      { id, version: state.version, fromPath: state.path, toPath: path },
+    ]);
+    return {
+      version: state.version,
+      fromPath: state.path,
+      toPath: path,
+      links: links.get(id) ?? [],
+    };
+  }
   async move(
     id: string,
     expectedVersion: number,
@@ -528,6 +544,7 @@ export class ContentService {
   ): Promise<AdminTranslation> {
     const state = await this.current(id, expectedVersion);
     const path = validateContentPath(newPath);
+    await this.previewMove(id, expectedVersion, path);
     const guard = this.guard(id, expectedVersion);
     const now = new Date().toISOString();
     const statements = [
@@ -687,11 +704,11 @@ export class ContentService {
     const guard = this.session();
     const [draftResult, publishedResult, relatedResult] = await this.db.batch([
       this.statement(
-        `SELECT * FROM page_revisions WHERE translation_id=? AND id=? AND ${guard.sql}`,
+        `SELECT *, (SELECT path FROM revision_link_bases WHERE revision_id=page_revisions.id) AS link_base_path FROM page_revisions WHERE translation_id=? AND id=? AND ${guard.sql}`,
         [id, state.draftRevisionId, ...guard.values],
       ),
       this.statement(
-        `SELECT * FROM page_revisions WHERE translation_id=? AND id=? AND ${guard.sql}`,
+        `SELECT *, (SELECT path FROM revision_link_bases WHERE revision_id=page_revisions.id) AS link_base_path FROM page_revisions WHERE translation_id=? AND id=? AND ${guard.sql}`,
         [id, state.publishedRevisionId, ...guard.values],
       ),
       this.statement(
@@ -770,7 +787,7 @@ export class ContentService {
   async getRevision(id: string, revisionId: string): Promise<ContentRevision> {
     const guard = this.session();
     const row = await this.statement(
-      `SELECT * FROM page_revisions WHERE translation_id=? AND id=? AND ${guard.sql}`,
+      `SELECT *, (SELECT path FROM revision_link_bases WHERE revision_id=page_revisions.id) AS link_base_path FROM page_revisions WHERE translation_id=? AND id=? AND ${guard.sql}`,
       [identifier(id), identifier(revisionId), ...guard.values],
     ).first<RevisionRow>();
     if (!row) {

@@ -2,7 +2,9 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import type { AuthSession } from "../../shared/auth";
 import type { Language } from "../../shared/contracts";
 import { isContentPath } from "../../shared/page-path";
-import { ApiError } from "./api";
+import { ApiError, request, mutation } from "./api";
+import type { MoveLinkImpact } from "../../shared/relative-links";
+import { MoveLinks } from "./MoveLinks";
 import {
   type PageAction,
   type PageActionAttempt,
@@ -75,6 +77,75 @@ export function PageActionDialog(props: PageActionDialogProps) {
   const [state, setState] = useState(controller.state);
   const [discard, setDiscard] = useState(false);
   const kind = controller.kind;
+  const [movePreview, setMovePreview] = useState<{
+    path: string;
+    version: number;
+    links: MoveLinkImpact[];
+  } | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  useEffect(() => {
+    setMovePreview(null);
+    setPreviewError(null);
+    if (
+      kind !== "move" ||
+      !isContentPath(state.path) ||
+      state.path === state.page.path ||
+      state.blocked ||
+      sessionBlocked
+    )
+      return;
+    const pending = new AbortController();
+    const timer = setTimeout(() => {
+      void request<{ version: number; links: MoveLinkImpact[] }>(
+        `pages/${encodeURIComponent(state.page.id)}/move-preview`,
+        {
+          ...mutation(
+            "POST",
+            { expectedVersion: state.page.version, path: state.path },
+            session.csrfToken,
+          ),
+          signal: pending.signal,
+        },
+      )
+        .then((value) => {
+          if (
+            !pending.signal.aborted &&
+            value.version === state.page.version &&
+            Array.isArray(value.links)
+          )
+            setMovePreview({
+              path: state.path,
+              version: value.version,
+              links: value.links,
+            });
+        })
+        .catch((error: unknown) => {
+          if (pending.signal.aborted) return;
+          if (error instanceof ApiError && [401, 403].includes(error.status))
+            callbacks.current.onSessionRequired();
+          setPreviewError(
+            error instanceof Error ? error.message : "Move preview failed.",
+          );
+        });
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      pending.abort();
+    };
+  }, [
+    kind,
+    state.path,
+    state.page.path,
+    state.page.id,
+    state.page.version,
+    state.blocked,
+    sessionBlocked,
+    session.csrfToken,
+  ]);
+  const reviewedMove =
+    kind !== "move" ||
+    (movePreview?.path === state.path &&
+      movePreview.version === state.page.version);
   const dirty = kind === "move" && state.path !== state.page.path;
   const labels: Record<PageAction, string> = {
     move: zh ? "移动页面" : "Move page",
@@ -142,7 +213,7 @@ export function PageActionDialog(props: PageActionDialogProps) {
       <form
         onSubmit={(event: FormEvent) => {
           event.preventDefault();
-          if (!blocked && !discard) void controller.submit();
+          if (!blocked && !discard && reviewedMove) void controller.submit();
         }}
       >
         <div className="admin-dialog-heading">
@@ -298,6 +369,14 @@ export function PageActionDialog(props: PageActionDialogProps) {
             </button>
           </section>
         )}
+        {kind === "move" && movePreview && (
+          <MoveLinks links={movePreview.links} zh={zh} />
+        )}
+        {previewError && (
+          <p className="admin-notice error" role="alert">
+            {previewError}
+          </p>
+        )}
         {incompatible && (
           <p className="admin-notice error" role="alert">
             {zh
@@ -349,7 +428,9 @@ export function PageActionDialog(props: PageActionDialogProps) {
           <button
             className={`admin-button ${kind === "delete" ? "danger" : ""}`}
             type="submit"
-            disabled={!controller.canSubmit || blocked || discard}
+            disabled={
+              !controller.canSubmit || blocked || discard || !reviewedMove
+            }
           >
             {state.busy ? (zh ? "处理中…" : "Working…") : labels[kind]}
           </button>

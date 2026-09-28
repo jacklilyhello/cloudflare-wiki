@@ -21,6 +21,7 @@ import { unified } from "unified";
 import { SKIP, visit } from "unist-util-visit";
 import type { Language } from "./contracts";
 import type { RenderedMarkdown, TocEntry } from "./reader";
+import { resolveRelativeLink } from "./relative-links";
 
 export const MARKDOWN_LIMITS = {
   sourceBytes: 128_000,
@@ -523,6 +524,8 @@ function markdownExtensions(language: Language) {
 export async function renderMarkdown(
   markdown: string,
   language: Language,
+  linkBasePath?: string,
+  onLink?: (source: string, resolved: string) => void,
 ): Promise<RenderedMarkdown> {
   if (
     markdown.length > MARKDOWN_LIMITS.sourceBytes ||
@@ -677,6 +680,18 @@ export async function renderMarkdown(
       });
     })
     .use(rehypeSanitize, schema)
+    .use(() => (tree: HastRoot) => {
+      if (!linkBasePath) return;
+      visit(tree, "element", (node) => {
+        for (const key of ["href", "src"] as const) {
+          const value = node.properties[key];
+          if (typeof value !== "string") continue;
+          const resolved = resolveRelativeLink(value, language, linkBasePath);
+          if (resolved !== value) onLink?.(value, resolved);
+          node.properties[key] = resolved;
+        }
+      });
+    })
     .use(rehypeStringify);
   try {
     const result = await processor.process(markdown);

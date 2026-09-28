@@ -48,3 +48,47 @@ export async function contentFixture(db: D1Database) {
   const access = await seedContentAccess(db);
   return { access, service: new ContentService(db, access) };
 }
+
+// Compatibility fixtures exercise the SQL emitted by the previous Worker on
+// pre-upgrade schemas. The new Worker intentionally requires its new migration.
+export function legacyRevisionDatabase(db: D1Database): D1Database {
+  return new Proxy(db, {
+    get(target, key) {
+      if (key === "prepare")
+        return (sql: string) =>
+          target.prepare(
+            sql.replace(
+              ", (SELECT path FROM revision_link_bases WHERE revision_id=page_revisions.id) AS link_base_path",
+              "",
+            ),
+          );
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
+export async function legacyMoveDraft(
+  db: D1Database,
+  id: string,
+  version: number,
+  path: string,
+) {
+  const now = new Date().toISOString();
+  await db.batch([
+    db
+      .prepare(
+        "INSERT INTO page_routes(language,path,translation_id,created_at) SELECT language,?,id,? FROM page_translations WHERE id=? AND write_version=?",
+      )
+      .bind(path, now, id, version),
+    db
+      .prepare(
+        "INSERT INTO page_events(id,translation_id,event_type,version,revision_id,from_path,to_path,change_note,created_at) SELECT ?,id,'move',write_version+1,published_revision_id,slug,?,'',? FROM page_translations WHERE id=? AND write_version=?",
+      )
+      .bind(crypto.randomUUID(), path, now, id, version),
+    db
+      .prepare(
+        "UPDATE page_translations SET slug=?,write_version=write_version+1,updated_at=? WHERE id=? AND write_version=?",
+      )
+      .bind(path, now, id, version),
+  ]);
+}
