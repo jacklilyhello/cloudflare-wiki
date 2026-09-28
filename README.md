@@ -233,3 +233,7 @@ SMOKE_BASE_URL=https://cf.emby.wiki EXPECTED_SHA=<main-commit-sha> npm run smoke
 Inspect failed workflow jobs/steps/logs and repair through PR. Never bypass tests or deploy with a local write token. Rollbacks use normal revert/fix PRs and main deployment, not history rewrites or arbitrary old-branch deployment. Applied database migrations are immutable and retained in the ledger: use additive forward migrations for schema repairs. Reverting application behavior must preserve the D1 binding and migration files; do not delete the database or undo stored revisions.
 
 `codex.md` records product constraints, implemented boundaries and remaining module/storage plans. Production needs a separate explicit task.
+
+## Private backups and isolated restore
+
+The main-only **Site Backup** Actions workflow captures application D1 data and private R2 attachment bytes, verifies a fresh local D1/R2 restoration, and stores only a private archive in the existing bucket. It runs daily or manually; `verify-latest` repeats a stored-backup drill. Credentials/sessions are invalidated on restore, and no workflow overwrites live data. See [backup, retention, failure handling and restore instructions](docs/backup-restore.md).
