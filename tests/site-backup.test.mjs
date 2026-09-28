@@ -373,7 +373,7 @@ test("R2 transport rejects incomplete or looping pagination, unsafe keys, oversi
     CLOUDFLARE_API_TOKEN: "fixture-only",
   };
   for (const payload of [
-    { success: true, result: [] },
+    { success: true, result: [], result_info: null },
     {
       success: true,
       result: [],
@@ -407,6 +407,61 @@ test("R2 transport rejects incomplete or looping pagination, unsafe keys, oversi
   assert.equal(requests, 0);
   await r2.get(`files/${randomUUID()}`);
   assert.equal(requests, 1);
+});
+test("R2 accepts terminal short pages without result_info and follows a cursor before them", async () => {
+  const env = {
+    CLOUDFLARE_ACCOUNT_ID: "a".repeat(32),
+    CLOUDFLARE_API_TOKEN: "fixture-only",
+  };
+  const item = () => ({
+    key: `files/${randomUUID()}`,
+    size: 1,
+    etag: "a".repeat(32),
+    last_modified: "2026-09-28T00:00:00Z",
+  });
+  const first = item();
+  const second = item();
+  let requests = 0;
+  const objects = await backupR2(env, async (url) => {
+    requests++;
+    if (requests === 1)
+      return Response.json({
+        success: true,
+        result: [first],
+        result_info: { is_truncated: true, cursor: "next", per_page: 1000 },
+      });
+    assert.equal(new URL(url).searchParams.get("cursor"), "next");
+    return Response.json({ success: true, result: [second] });
+  }).list();
+  assert.equal(requests, 2);
+  assert.equal(objects.length, 2);
+  assert.deepEqual(
+    await backupR2(env, async () =>
+      Response.json({ success: true, result: [] }),
+    ).list(),
+    [],
+  );
+  await assert.rejects(
+    backupR2(env, async () =>
+      Response.json({
+        success: true,
+        result: Array.from({ length: 1000 }, item),
+      }),
+    ).list(),
+    /incomplete/,
+  );
+  for (const info of [
+    { is_truncated: true },
+    { is_truncated: "false" },
+    { per_page: 100 },
+    { is_truncated: false, cursor: "next" },
+    { delimited: ["hidden/"] },
+  ])
+    await assert.rejects(
+      backupR2(env, async () =>
+        Response.json({ success: true, result: [first], result_info: info }),
+      ).list(),
+    );
 });
 test("only the fixed main backup workflow may write private archives; ordinary deployments cannot trigger it", () => {
   const env = {

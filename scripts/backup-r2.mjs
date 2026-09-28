@@ -81,8 +81,22 @@ export function backupR2(env, fetchRequest = fetch) {
           payload.success !== true ||
           !Array.isArray(payload.result) ||
           payload.result.length > 1000 ||
-          !payload.result_info ||
-          typeof payload.result_info.is_truncated !== "boolean"
+          (payload.result_info !== undefined &&
+            (!payload.result_info ||
+              typeof payload.result_info !== "object" ||
+              Array.isArray(payload.result_info)))
+        )
+          fail("R2 pagination is unverified.");
+        const info = payload.result_info ?? {};
+        if (
+          (info.is_truncated !== undefined &&
+            typeof info.is_truncated !== "boolean") ||
+          (info.per_page !== undefined && info.per_page !== 1000) ||
+          (info.cursor !== undefined &&
+            (typeof info.cursor !== "string" || info.cursor.length > 4096)) ||
+          (info.delimited !== undefined &&
+            (!Array.isArray(info.delimited) || info.delimited.length !== 0)) ||
+          (info.is_truncated === false && info.cursor)
         )
           fail("R2 pagination is unverified.");
         for (const item of payload.result) {
@@ -102,9 +116,14 @@ export function backupR2(env, fetchRequest = fetch) {
         }
         if (objects.length > LIMITS.objects + LIMITS.retained)
           fail("R2 inventory exceeds its bounded size.");
-        if (!payload.result_info.is_truncated)
+        // Cloudflare omits result_info on a terminal short page. A full page
+        // without an explicit terminal flag or continuation remains unsafe.
+        if (info.is_truncated !== true && !info.cursor) {
+          if (payload.result.length === 1000 && info.is_truncated !== false)
+            fail("R2 pagination is incomplete.");
           return objects.sort((a, b) => a.key.localeCompare(b.key, "en"));
-        cursor = payload.result_info.cursor;
+        }
+        cursor = info.cursor;
         if (
           typeof cursor !== "string" ||
           !cursor ||
