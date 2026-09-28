@@ -1,7 +1,7 @@
-import { mkdir, readFile, realpath } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { Miniflare, convertV4MiniflareOptions, Log, LogLevel } from "miniflare";
+import { convertV4MiniflareOptions, Log, LogLevel, Miniflare } from "miniflare";
 import {
   backupSchema,
   canonical,
@@ -13,6 +13,11 @@ import {
   sha256,
   snapshotRows,
 } from "./backup-format.mjs";
+import {
+  BRAND_VARIABLES,
+  decodeBranding,
+  MANIFEST_VARIABLE,
+} from "./branding-config.mjs";
 
 export async function isolatedDirectory(output) {
   const root = await realpath(fileURLToPath(new URL("..", import.meta.url)));
@@ -32,7 +37,21 @@ export async function isolatedDirectory(output) {
 export async function restoreBackup(bytes, output, { inspect } = {}) {
   const schema = backupSchema();
   const backup = readArchive(bytes, schema);
+  const branding =
+    backup.version === 2 ? await decodeBranding(backup.payload.branding) : null;
   const directory = await isolatedDirectory(output);
+  if (branding) {
+    const configDirectory = resolve(directory, "deployment-variables");
+    await mkdir(configDirectory, { mode: 0o700 });
+    for (const name of [MANIFEST_VARIABLE, ...Object.values(BRAND_VARIABLES)]) {
+      if (backup.payload.branding[name] !== undefined)
+        await writeFile(
+          resolve(configDirectory, name),
+          backup.payload.branding[name],
+          { mode: 0o600, flag: "wx" },
+        );
+    }
+  }
   const mf = new Miniflare(
     convertV4MiniflareOptions({
       modules: true,
@@ -201,6 +220,8 @@ export async function restoreBackup(bytes, output, { inspect } = {}) {
       search: "rebuilt",
       credentials: "locked",
       sessions: 0,
+      branding: branding ? "verified" : "not included in legacy v1 archive",
+      brandingImages: branding?.files.length ?? 0,
     };
   } finally {
     await mf.dispose();

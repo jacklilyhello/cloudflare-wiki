@@ -1,9 +1,11 @@
 import { renderToString } from "react-dom/server";
+import { brandSettings, parseBranding, publicOrigin } from "../shared/branding";
 import type { Language } from "../shared/contracts";
 import { renderMarkdown } from "../shared/markdown";
 import { publicPath } from "../shared/paths";
 import type { ReaderData } from "../shared/reader";
 import { App } from "../src/App";
+import { brandIcons, brandOpenGraph } from "./branding";
 import {
   getNavigation,
   getPage,
@@ -18,8 +20,6 @@ import {
   securityHeaders,
 } from "./security";
 import { getSiteSettings } from "./settings/service";
-
-const canonicalOrigin = "https://cf.emby.wiki";
 
 function isLanguage(value: string | undefined): value is Language {
   return value === "zh" || value === "en";
@@ -70,6 +70,7 @@ export async function sitemap(request: Request, env: Env) {
   if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed();
   try {
     const pages = await getPublishedPages(env.DB);
+    const canonicalOrigin = publicOrigin(env);
     const entries = pages
       .map(
         (page) =>
@@ -114,8 +115,11 @@ async function renderReaderDocument(
   const {
     version: _version,
     updatedAt: _updatedAt,
-    ...settings
+    ...storedSettings
   } = await getSiteSettings(env.DB);
+  const branding = parseBranding(env.BRANDING_JSON);
+  const settings = brandSettings(storedSettings, branding);
+  const canonicalOrigin = publicOrigin(env);
   const segments = url.pathname.split("/").filter(Boolean);
   const language = isLanguage(segments[0])
     ? segments[0]
@@ -157,6 +161,7 @@ async function renderReaderDocument(
     });
   }
   const data: ReaderData = {
+    branding,
     settings,
     language,
     page,
@@ -226,7 +231,17 @@ async function renderReaderDocument(
         element.prepend('<script src="/assets/site-appearance.js"></script>', {
           html: true,
         });
-        element.append(metadata, { html: true });
+        element.append(
+          metadata +
+            brandIcons(branding) +
+            brandOpenGraph(branding, canonicalOrigin, identity.name),
+          { html: true },
+        );
+      },
+    })
+    .on('link[rel="icon"]', {
+      element(element) {
+        if (branding.assets.favicon) element.remove();
       },
     })
     .on("#root", {

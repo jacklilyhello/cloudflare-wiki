@@ -12,47 +12,18 @@ concurrency:
   group: deploy-cloudflare-wiki-test
   cancel-in-progress: false
 
-env:
-  WRANGLER_SEND_METRICS: "false"
-
 jobs:
   deploy:
-    name: Deploy Test
     if: github.repository == 'jacklilyhello/cloudflare-wiki' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment:
-      name: test
-      url: https://cf.emby.wiki
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - name: Install locked dependencies
-        run: npm ci
-      - name: Validate exact deployment commit
-        run: npm run verify
-      - name: Reject stale main deployments
-        run: |
-          git fetch --no-tags origin main
-          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
-      - name: Preflight and deploy test only
-        id: deploy
-        run: npm run deploy:test
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          ADMIN_SETUP_TOKEN: ${{ secrets.ADMIN_SETUP_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
-          CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
-          TEST_DOMAIN: ${{ vars.TEST_DOMAIN }}
-      - name: Smoke test deployed workers.dev revision
-        run: npm run smoke
-        env:
-          SMOKE_BASE_URL: ${{ steps.deploy.outputs.workers_dev_url }}
-          SMOKE_WORKERS_DEV_SUBDOMAIN: ${{ steps.deploy.outputs.workers_dev_subdomain }}
-          EXPECTED_SHA: ${{ github.sha }}
+    uses: ./.github/workflows/deploy-test-run.yml
+    # Runtime secret arguments mask Repository Variables before the runner logs
+    # step environments. No additional persistent secret or GitHub token is used.
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ADMIN_SETUP_TOKEN: ${{ secrets.ADMIN_SETUP_TOKEN }}
+      WIKI_BRAND_MANIFEST: ${{ vars.WIKI_BRAND_MANIFEST }}
+      WIKI_BRAND_LOGO_LIGHT_B64: ${{ vars.WIKI_BRAND_LOGO_LIGHT_B64 }}
+      WIKI_BRAND_LOGO_DARK_B64: ${{ vars.WIKI_BRAND_LOGO_DARK_B64 }}
+      WIKI_BRAND_FAVICON_B64: ${{ vars.WIKI_BRAND_FAVICON_B64 }}
+      WIKI_BRAND_APPLE_TOUCH_B64: ${{ vars.WIKI_BRAND_APPLE_TOUCH_B64 }}
+      WIKI_BRAND_OG_IMAGE_B64: ${{ vars.WIKI_BRAND_OG_IMAGE_B64 }}

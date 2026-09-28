@@ -1,6 +1,8 @@
 export const TEST_DOMAIN = "cf.emby.wiki";
 export const WORKER_NAME = "cloudflare-wiki";
 
+import { parseBranding } from "../shared/branding.ts";
+
 export function validateDeployment(env) {
   if (
     env.GITHUB_ACTIONS !== "true" ||
@@ -39,6 +41,23 @@ export function validateDeployment(env) {
 export function buildDeploymentConfig(config, env) {
   if (config.name !== WORKER_NAME)
     throw new Error("Unexpected build output Worker.");
+  const branding = JSON.stringify(parseBranding(env.BRANDING_JSON));
+  const vars = {
+    ...config.vars,
+    BUILD_SHA: env.GITHUB_SHA,
+    BRANDING_JSON: branding,
+    PUBLIC_ORIGIN: "https://cf.emby.wiki",
+  };
+  if (
+    Object.values(vars).some(
+      (value) =>
+        Buffer.byteLength(
+          typeof value === "string" ? value : JSON.stringify(value),
+        ) >
+        5 * 1024,
+    )
+  )
+    throw new Error("Worker variable exceeds the 5 KiB limit.");
   return {
     ...config,
     account_id: env.CLOUDFLARE_ACCOUNT_ID,
@@ -51,6 +70,6 @@ export function buildDeploymentConfig(config, env) {
     ],
     workers_dev: true,
     preview_urls: false,
-    vars: { ...config.vars, BUILD_SHA: env.GITHUB_SHA },
+    vars,
   };
 }

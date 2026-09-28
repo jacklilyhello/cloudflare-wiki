@@ -3,6 +3,7 @@ import {
   parseAdminRoute,
 } from "../shared/admin-routes";
 import type { AuthGrant } from "../shared/auth";
+import { brandSettings, parseBranding } from "../shared/branding";
 import type { Language } from "../shared/contracts";
 import { adminAudit } from "./admin-audit";
 import { adminContent } from "./admin-content";
@@ -14,6 +15,7 @@ import { adminRedirects } from "./admin-redirects";
 import { adminSettings } from "./admin-settings";
 import { AuditError } from "./audit/service";
 import { AuthError, AuthService } from "./auth/service";
+import { brandIcons, inertJSON } from "./branding";
 import { ContentError } from "./content/service";
 import { editorPolicy } from "./editor-policy";
 import { FilesError } from "./files/contracts";
@@ -277,6 +279,8 @@ export async function adminShell(
       updatedAt: _updatedAt,
       ...settings
     } = await getSiteSettings(env.DB);
+    const branding = parseBranding(env.BRANDING_JSON);
+    const displaySettings = brandSettings(settings, branding);
     const serialized = JSON.stringify(settings)
       .replace(/</g, "\\u003c")
       .replace(/>/g, "\\u003e")
@@ -300,12 +304,13 @@ export async function adminShell(
       .on("title", {
         element(element) {
           element.setInnerContent(
-            `Administration · ${settings.locales[settings.defaultLanguage].name}`,
+            `Administration · ${displaySettings.locales[settings.defaultLanguage].name}`,
           );
         },
       })
       .on("head", {
         element(element) {
+          element.append(brandIcons(branding), { html: true });
           element.prepend(
             '<script src="/assets/site-appearance.js"></script>',
             { html: true },
@@ -317,10 +322,15 @@ export async function adminShell(
             );
         },
       })
+      .on('link[rel="icon"]', {
+        element(element) {
+          if (branding.assets.favicon) element.remove();
+        },
+      })
       .on("body", {
         element(element) {
           element.append(
-            `<script id="site-settings" type="application/json">${serialized}</script>`,
+            `<script id="site-settings" type="application/json">${serialized}</script><script id="deployment-branding" type="application/json">${inertJSON(branding)}</script>`,
             { html: true },
           );
         },

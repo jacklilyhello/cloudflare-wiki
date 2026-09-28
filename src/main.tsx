@@ -1,10 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
+import { parseBranding } from "../shared/branding";
 import type { ReaderData } from "../shared/reader";
 import { parseSiteSettingsValues } from "../shared/settings";
 import { App } from "./App";
 import { applySiteAppearance } from "./site-appearance";
 import "./styles.css";
+import "./branding.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing application root");
@@ -18,12 +20,15 @@ if (
   const settings = parseSiteSettingsValues(
     JSON.parse(settingsElement.textContent),
   );
+  const branding = parseBranding(
+    document.getElementById("deployment-branding")?.textContent ?? undefined,
+  );
   applySiteAppearance(settings);
   void import("./admin/AdminApp")
     .then(({ AdminApp }) => {
       createRoot(root).render(
         <StrictMode>
-          <AdminApp settings={settings} />
+          <AdminApp settings={settings} branding={branding} />
         </StrictMode>,
       );
     })
@@ -36,6 +41,9 @@ if (
   if (!readerData?.textContent) throw new Error("Missing reader document");
   const data = JSON.parse(readerData.textContent) as ReaderData;
   data.settings = parseSiteSettingsValues(data.settings);
+  data.branding = parseBranding(
+    data.branding ? JSON.stringify(data.branding) : undefined,
+  );
   applySiteAppearance(data.settings);
   hydrateRoot(
     root,

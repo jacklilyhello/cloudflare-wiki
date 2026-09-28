@@ -237,3 +237,7 @@ Inspect failed workflow jobs/steps/logs and repair through PR. Never bypass test
 ## Private backups and isolated restore
 
 The main-only **Site Backup** Actions workflow captures application D1 data and private R2 attachment bytes, verifies a fresh local D1/R2 restoration, and stores only a private archive in the existing bucket. It runs daily or manually; `verify-latest` repeats a stored-backup drill. Credentials/sessions are invalidated on restore, and no workflow overwrites live data. See [backup, retention, failure handling and restore instructions](docs/backup-restore.md).
+
+## Deployment branding
+
+Custom light/dark logos, favicon, Apple Touch Icon, Open Graph image and bilingual footer/copyright use validated GitHub Repository Variables and same-origin deployment assets. Missing configuration keeps the existing built-in appearance. See [branding configuration and private image preparation](docs/branding.md) for formats, limits, previews, precedence and the manual main Deploy Test workflow.

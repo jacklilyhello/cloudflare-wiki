@@ -303,7 +303,11 @@ export function App({ data }: { data: ReaderData }) {
             href={home}
             aria-label={`${identity.name}${zh ? " 首页" : " home"}`}
           >
-            <SiteLogo logo={data.settings.logo} className="site-mark" />
+            <SiteLogo
+              logo={data.settings.logo}
+              className="site-mark"
+              branding={data.branding}
+            />
             <span>
               <strong>{identity.name}</strong>
               <small>{identity.description}</small>
@@ -589,7 +593,13 @@ export function App({ data }: { data: ReaderData }) {
             )}
             <footer className="site-footer">
               <span>{identity.name}</span>
-              <span>{identity.description}</span>
+              <span>
+                {data.branding?.locales[data.language]?.footer ??
+                  identity.description}
+              </span>
+              {data.branding?.locales[data.language]?.copyright && (
+                <span>{data.branding.locales[data.language]?.copyright}</span>
+              )}
             </footer>
           </main>
         </div>

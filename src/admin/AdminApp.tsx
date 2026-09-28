@@ -15,6 +15,11 @@ import {
   type AuthSession,
   type BootstrapStatus,
 } from "../../shared/auth";
+import {
+  type Branding,
+  brandSettings,
+  EMPTY_BRANDING,
+} from "../../shared/branding";
 import type { Language } from "../../shared/contracts";
 import { publicPath } from "../../shared/paths";
 import type { SiteSettingsValues } from "../../shared/settings";
@@ -113,19 +118,27 @@ function Icon({ name }: { name: IconName }) {
 function Brand({
   zh,
   settings,
+  branding,
 }: {
   zh: boolean;
   settings: SiteSettingsValues;
+  branding: Branding;
 }) {
+  const display = brandSettings(settings, branding);
   return (
     <a className="admin-brand" href="/admin">
-      {settings.logo !== "none" && (
-        <span className="admin-mark" aria-hidden="true">
-          <SiteLogo logo={settings.logo} />
+      {(settings.logo !== "none" ||
+        branding.assets.logoLight ||
+        branding.assets.logoDark) && (
+        <span
+          className={`admin-mark ${branding.assets.logoLight || branding.assets.logoDark ? "admin-mark-custom" : ""}`}
+          aria-hidden="true"
+        >
+          <SiteLogo logo={settings.logo} branding={branding} />
         </span>
       )}
       <span>
-        <strong>{settings.locales[zh ? "zh" : "en"].name}</strong>
+        <strong>{display.locales[zh ? "zh" : "en"].name}</strong>
         <small>{zh ? "管理工作空间" : "ADMIN WORKSPACE"}</small>
       </span>
     </a>
@@ -706,7 +719,13 @@ function SignOutDialog({
   );
 }
 
-export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
+export function AdminApp({
+  settings,
+  branding = EMPTY_BRANDING,
+}: {
+  settings: SiteSettingsValues;
+  branding?: Branding;
+}) {
   const [siteSettings, setSiteSettings] = useState(settings);
   const [language, setLanguage] = useState<Language>(() => {
     try {
@@ -1011,7 +1030,7 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
     return (
       <div className="admin-root admin-auth">
         <header className="admin-auth-header">
-          <Brand zh={zh} settings={siteSettings} />
+          <Brand zh={zh} settings={siteSettings} branding={branding} />
           <div>
             {languageSwitch}
             <a className="admin-text-link" href={publicPath(language, "home")}>
@@ -1232,7 +1251,7 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
         {zh ? "跳转到主要内容" : "Skip to content"}
       </a>
       <aside className="admin-sidebar">
-        <Brand zh={zh} settings={siteSettings} />
+        <Brand zh={zh} settings={siteSettings} branding={branding} />
         <p className="admin-nav-label">{zh ? "工作空间" : "WORKSPACE"}</p>
         <nav aria-label={zh ? "管理导航" : "Administration"}>
           <a
@@ -1395,6 +1414,7 @@ export function AdminApp({ settings }: { settings: SiteSettingsValues }) {
               />
             ) : route.page === "settings" ? (
               <SettingsPage
+                branding={branding}
                 language={language}
                 session={session}
                 onSessionChange={setSession}

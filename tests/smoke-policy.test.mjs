@@ -111,7 +111,7 @@ function adminResponses(
     [
       "/admin",
       new Response(
-        `<html data-theme="system" data-accent="forest"><head>${appearanceScript}<title>Administration · Emby Wiki</title></head><body><div id="root"></div><script src="/assets/app.js"></script><script id="site-settings" type="application/json">${JSON.stringify(siteSettings)}</script></body></html>`,
+        `<html data-theme="system" data-accent="forest"><head>${appearanceScript}<title>Administration · Emby Wiki</title></head><body><div id="root"></div><script src="/assets/app.js"></script><script id="site-settings" type="application/json">${JSON.stringify(siteSettings)}</script><script id="deployment-branding" type="application/json">{"version":1,"assets":{},"locales":{}}</script></body></html>`,
         { headers: { ...adminHeaders, "Content-Type": "text/html" } },
       ),
     ],

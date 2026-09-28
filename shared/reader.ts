@@ -1,3 +1,4 @@
+import type { Branding } from "./branding";
 import type { Language } from "./contracts";
 import type { SiteSettingsValues } from "./settings";
 
@@ -43,6 +44,7 @@ export interface SearchResult {
 }
 
 export interface ReaderData {
+  branding?: Branding;
   settings: SiteSettingsValues;
   language: Language;
   page: WikiPage | null;

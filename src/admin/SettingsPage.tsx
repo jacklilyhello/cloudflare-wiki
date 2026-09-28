@@ -1,5 +1,10 @@
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import type { AuthSession } from "../../shared/auth";
+import {
+  BRAND_ROLES,
+  type Branding,
+  EMPTY_BRANDING,
+} from "../../shared/branding";
 import type { Language } from "../../shared/contracts";
 import {
   parseSiteSettingsValues,
@@ -134,11 +139,13 @@ export function SettingsPage({
   session,
   onSessionChange,
   onSaved,
+  branding = EMPTY_BRANDING,
 }: {
   language: Language;
   session: AuthSession;
   onSessionChange: (session: AuthSession) => void;
   onSaved: (settings: SiteSettingsValues) => void;
+  branding?: Branding;
 }) {
   const zh = language === "zh";
   const [baseline, setBaseline] = useState<SiteSettings | null>(null);
@@ -698,14 +705,90 @@ export function SettingsPage({
               </section>
             </div>
             <aside className="settings-preview-column">
+              <section className="settings-preview-card deployment-branding-preview">
+                <header>
+                  <p className="admin-eyebrow">DEPLOYED BRANDING</p>
+                  <h2>{zh ? "已部署的品牌配置" : "Deployed branding"}</h2>
+                </header>
+                <p>
+                  {zh
+                    ? "这里展示当前部署的图片和文字。通过 GitHub Repository Variables 配置，并手动运行 main 的 Deploy Test 发布；本页保存只更新数据库设置。明确配置的品牌名称、描述和图片优先，其余沿用数据库设置。"
+                    : "These images and text belong to the current deployment. Configure GitHub Repository Variables, then run Deploy Test on main. Saving this page updates database settings. Explicit branding names, descriptions and images take precedence; other settings keep their database values."}
+                </p>
+                <div className="deployment-branding-images">
+                  {BRAND_ROLES.map((role) => {
+                    const asset = branding.assets[role];
+                    const labels = {
+                      logoLight: zh ? "浅色 Logo" : "Light logo",
+                      logoDark: zh ? "深色 Logo" : "Dark logo",
+                      favicon: "Favicon",
+                      appleTouch: "Apple Touch Icon",
+                      ogImage: zh ? "分享图片" : "Open Graph image",
+                    };
+                    return (
+                      <figure
+                        key={role}
+                        className={
+                          role === "logoDark"
+                            ? "brand-preview-dark"
+                            : "brand-preview-light"
+                        }
+                      >
+                        {asset ? (
+                          <img
+                            src={asset.path}
+                            width={asset.width}
+                            height={asset.height}
+                            alt={labels[role]}
+                          />
+                        ) : (
+                          <span>
+                            {zh
+                              ? "未配置 · 使用默认值"
+                              : "Not configured · default"}
+                          </span>
+                        )}
+                        <figcaption>{labels[role]}</figcaption>
+                      </figure>
+                    );
+                  })}
+                </div>
+                {(["zh", "en"] as const).map((locale) => (
+                  <div className="deployment-branding-text" key={locale}>
+                    <strong>{locale === "zh" ? "中文" : "English"}</strong>
+                    <p>
+                      {branding.locales[locale]?.name ??
+                        draft.locales[locale].name}
+                    </p>
+                    <p>
+                      {branding.locales[locale]?.description ??
+                        draft.locales[locale].description}
+                    </p>
+                    <p>
+                      {branding.locales[locale]?.footer ??
+                        draft.locales[locale].description}
+                    </p>
+                    <p>{branding.locales[locale]?.copyright ?? ""}</p>
+                  </div>
+                ))}
+                <a
+                  href="https://github.com/jacklilyhello/cloudflare-wiki/blob/main/docs/branding.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {zh
+                    ? "图片格式、容量限制与配置步骤"
+                    : "Image formats, size limits and configuration"}
+                </a>
+              </section>
               <section className="settings-preview-card">
                 <header>
                   <p className="admin-eyebrow">LIVE PREVIEW</p>
                   <h2>{zh ? "看看它的样子" : "A look at your space"}</h2>
                   <span>
                     {zh
-                      ? "预览 · 保存后应用"
-                      : "Preview · applies after saving"}
+                      ? "数据库默认值预览 · 已部署的品牌配置优先"
+                      : "Database defaults preview · deployed branding takes precedence"}
                   </span>
                 </header>
                 <div

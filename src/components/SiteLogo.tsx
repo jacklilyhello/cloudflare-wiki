@@ -1,12 +1,44 @@
+import { useState } from "react";
+import type { Branding } from "../../shared/branding";
 import type { SiteLogo as SiteLogoType } from "../../shared/settings";
 
 export function SiteLogo({
   logo,
   className,
+  branding,
 }: {
   logo: SiteLogoType;
   className?: string;
+  branding?: Branding;
 }) {
+  const [failed, setFailed] = useState<string[]>([]);
+  const light = branding?.assets.logoLight;
+  const dark = branding?.assets.logoDark;
+  const usable = (asset: typeof light) =>
+    asset && !failed.includes(asset.path) ? asset : undefined;
+  const lightAsset = usable(light) ?? usable(dark);
+  const darkAsset = usable(dark) ?? usable(light);
+  if (lightAsset && darkAsset)
+    return (
+      <span className={`brand-logo ${className ?? ""}`} aria-hidden="true">
+        <img
+          className="brand-logo-light"
+          src={lightAsset.path}
+          width={lightAsset.width}
+          height={lightAsset.height}
+          alt=""
+          onError={() => setFailed((values) => [...values, lightAsset.path])}
+        />
+        <img
+          className="brand-logo-dark"
+          src={darkAsset.path}
+          width={darkAsset.width}
+          height={darkAsset.height}
+          alt=""
+          onError={() => setFailed((values) => [...values, darkAsset.path])}
+        />
+      </span>
+    );
   if (logo === "none") return null;
   return (
     <svg

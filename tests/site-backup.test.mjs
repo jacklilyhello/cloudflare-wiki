@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { randomUUID, scryptSync } from "node:crypto";
 import {
   mkdtempSync,
-  readFileSync,
   readdirSync,
+  readFileSync,
   rmSync,
   statSync,
 } from "node:fs";
@@ -11,7 +11,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "node:test";
-import { gzipSync, gunzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
+import { prepareRecovery } from "../scripts/administrator-recovery.mjs";
 import {
   backupSchema,
   canonical,
@@ -22,15 +23,14 @@ import {
   snapshotRows,
 } from "../scripts/backup-format.mjs";
 import { backupR2, boundedBytes } from "../scripts/backup-r2.mjs";
+import { R2_BUCKET, R2_OWNER, R2_OWNER_KEY } from "../scripts/r2-policy.mjs";
 import { restoreBackup } from "../scripts/restore-backup.mjs";
 import {
   captureSnapshot,
-  validateBackupContext,
   runBackup,
+  validateBackupContext,
 } from "../scripts/site-backup.mjs";
-import { R2_OWNER, R2_OWNER_KEY, R2_BUCKET } from "../scripts/r2-policy.mjs";
 import { recoveryStatement } from "../shared/admin-recovery.ts";
-import { prepareRecovery } from "../scripts/administrator-recovery.mjs";
 
 const schema = backupSchema();
 const sourceSha = "a".repeat(40);
@@ -632,4 +632,48 @@ test("Actions backup and verify-latest reuse owned private resources and never m
   isPublic = true;
   await assert.rejects(runBackup(env, { fetch: fetchRequest }));
   assert.equal(writes, 1);
+});
+
+test("v2 backup restores validated branding variables privately and rejects image tampering while accepting legacy archives", async (t) => {
+  const sharp = (await import("sharp")).default;
+  const { encodeBranding, MANIFEST_VARIABLE, BRAND_VARIABLES } = await import(
+    "../scripts/branding-config.mjs"
+  );
+  const bytes = await sharp({
+    create: { width: 32, height: 32, channels: 4, background: "#285ad4" },
+  })
+    .png()
+    .toBuffer();
+  const branding = await encodeBranding(
+    { assets: { favicon: "fixture" }, locales: { zh: { footer: "品牌页脚" } } },
+    async () => bytes,
+  );
+  const f = fixture(t);
+  const archive = createArchive({ ...f, sourceSha, branding }, schema);
+  assert.equal(readArchive(archive, schema).version, 2);
+  const output = privateDirectory(t);
+  const report = await restoreBackup(archive, output);
+  assert.equal(report.branding, "verified");
+  assert.equal(report.brandingImages, 1);
+  const restoredVariables = join(output, "deployment-variables");
+  assert.equal(statSync(restoredVariables).mode & 0o777, 0o700);
+  for (const [name, value] of Object.entries(branding)) {
+    assert.equal(readFileSync(join(restoredVariables, name), "utf8"), value);
+    assert.equal(statSync(join(restoredVariables, name)).mode & 0o777, 0o600);
+  }
+  const bad = {
+    ...branding,
+    [BRAND_VARIABLES.favicon]: Buffer.from("tampered").toString("base64"),
+  };
+  await assert.rejects(
+    restoreBackup(
+      createArchive({ ...f, sourceSha, branding: bad }, schema),
+      privateDirectory(t),
+    ),
+  );
+  assert.equal(
+    readArchive(createArchive({ ...f, sourceSha }, schema), schema).version,
+    1,
+  );
+  assert.ok(branding[MANIFEST_VARIABLE]);
 });

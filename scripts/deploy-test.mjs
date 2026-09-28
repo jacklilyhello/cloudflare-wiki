@@ -3,6 +3,7 @@ import { appendFile, readdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { bootstrapAdmin, prepareAdminBootstrap } from "./admin-bootstrap.mjs";
+import { readBuiltBranding } from "./build-branding.mjs";
 import { verifyWorkerD1Binding } from "./d1-policy.mjs";
 import { buildDeploymentConfig, validateDeployment } from "./deploy-policy.mjs";
 import { provisionStorage } from "./provision-storage.mjs";
@@ -11,6 +12,7 @@ import { workersDevBaseUrl } from "./smoke-policy.mjs";
 
 const env = { ...process.env };
 validateDeployment(env);
+env.BRANDING_JSON = await readBuiltBranding();
 if (!env.GITHUB_OUTPUT) throw new Error("Missing GitHub Actions output file.");
 const setupTokenHash = prepareAdminBootstrap(env);
 delete env.ADMIN_SETUP_TOKEN;
@@ -162,6 +164,22 @@ async function verifyDeploymentReadback() {
     ]);
   verifyWorkerD1Binding(deployedSettings, databaseId);
   verifyWorkerR2Binding(deployedSettings);
+  for (const [name, value] of Object.entries({
+    BRANDING_JSON: env.BRANDING_JSON,
+    PUBLIC_ORIGIN: "https://cf.emby.wiki",
+  })) {
+    const matches =
+      deployedSettings.bindings?.filter((binding) => binding.name === name) ??
+      [];
+    if (
+      matches.length !== 1 ||
+      matches[0].type !== "plain_text" ||
+      matches[0].text !== value
+    )
+      throw new Error(
+        "Deployment branding readback did not match the reviewed build configuration.",
+      );
+  }
   if (
     !deployedDomains.some(
       (domain) =>
