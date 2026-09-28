@@ -737,7 +737,7 @@ export function AdminApp({
     return settings.defaultLanguage;
   });
   const zh = language === "zh";
-  const siteName = siteSettings.locales[language].name;
+  const siteName = brandSettings(siteSettings, branding).locales[language].name;
   const [session, setSession] = useState<AuthSession | null>(null);
   const [setup, setSetup] = useState<BootstrapStatus | null>(null);
   const [loading, setLoading] = useState(true);
