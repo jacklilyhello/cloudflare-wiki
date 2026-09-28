@@ -2,6 +2,7 @@ import type { Language } from "./contracts";
 import type { SiteSettingsValues } from "./settings";
 
 export interface WikiPage {
+  linkBasePath?: string;
   id: string;
   translationId: string;
   language: Language;

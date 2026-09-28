@@ -10,9 +10,9 @@ import type {
 import type { ContentWriteAccess } from "../worker/auth/access";
 import { PageDirectoryService } from "../worker/content/directories";
 import { getPage, searchPages } from "../worker/content/public";
-import type { ContentService } from "../worker/content/service";
+import { ContentService } from "../worker/content/service";
 import { RedirectService } from "../worker/redirects/service";
-import { contentFixture } from "./content-fixture";
+import { contentFixture, legacyRevisionDatabase } from "./content-fixture";
 
 const migrations = (env as Env & { TEST_MIGRATIONS: D1Migration[] })
   .TEST_MIGRATIONS;
@@ -398,13 +398,17 @@ describe("directory movement", () => {
     );
     await applyD1Migrations(env.DB, migrations.slice(0, index));
     const fixture = await contentFixture(env.DB);
-    content = fixture.service;
+    content = new ContentService(
+      legacyRevisionDatabase(env.DB),
+      fixture.access,
+    );
     const initial = await page("legacy-directory/one", true);
     const audit = (
       await env.DB.prepare("SELECT * FROM audit_records ORDER BY seq").all()
     ).results;
     await applyD1Migrations(env.DB, migrations);
     service = new PageDirectoryService(env.DB, fixture.access);
+    content = fixture.service;
     expect(
       (await env.DB.prepare("SELECT * FROM audit_records ORDER BY seq").all())
         .results,

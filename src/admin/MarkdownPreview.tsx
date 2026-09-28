@@ -10,8 +10,10 @@ export function MarkdownPreview({
   language,
   session,
   onExpired,
+  linkBasePath,
 }: {
   markdown: string;
+  linkBasePath?: string;
   language: Language;
   session: AuthSession;
   onExpired?: () => void;
@@ -26,7 +28,11 @@ export function MarkdownPreview({
     setState("loading");
     const timer = setTimeout(() => {
       void request<{ html: string }>("preview", {
-        ...mutation("POST", { markdown, language }, session.csrfToken),
+        ...mutation(
+          "POST",
+          { markdown, language, ...(linkBasePath ? { linkBasePath } : {}) },
+          session.csrfToken,
+        ),
         signal: controller.signal,
       })
         .then((result) => {
@@ -45,7 +51,7 @@ export function MarkdownPreview({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [markdown, language, session.csrfToken]);
+  }, [markdown, language, linkBasePath, session.csrfToken]);
   useEffect(() => {
     const node = container.current;
     if (!node || !html) return;

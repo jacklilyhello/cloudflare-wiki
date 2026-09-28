@@ -56,6 +56,7 @@ export function EditorPage({
   );
   const [translation, setTranslation] = useState<AdminTranslation | null>(null);
   const [translations, setTranslations] = useState<AdminTranslation[]>([]);
+  const [linkBasePath, setLinkBasePath] = useState<string>();
   const [fields, setFields] = useState<Fields>(empty);
   const [baseline, setBaseline] = useState(JSON.stringify(empty));
   const [initialPath] = useState(() => {
@@ -151,6 +152,7 @@ export function EditorPage({
           tags: detail.draft.tags.join(", "),
           changeNote: "",
         };
+        setLinkBasePath(detail.draft.linkBasePath);
         setFields(next);
         setBaseline(JSON.stringify(next));
         setTranslation(detail.translation);
@@ -819,6 +821,7 @@ export function EditorPage({
               <span>{contentLanguage === "zh" ? "中文" : "English"}</span>
             </div>
             <MarkdownPreview
+              linkBasePath={linkBasePath ?? path}
               markdown={fields.markdown}
               language={contentLanguage}
               session={auth}
@@ -826,6 +829,14 @@ export function EditorPage({
             />
           </div>
         </div>
+        <p className="admin-hint">
+          {zh
+            ? "相对链接基准（移动后保留）："
+            : "Relative link base (preserved on move): "}
+          <code>
+            /{contentLanguage}/{linkBasePath ?? path}
+          </code>
+        </p>
         <footer className="wiki-writing-footer">
           <span>
             {new TextEncoder().encode(fields.markdown).length.toLocaleString()}{" "}

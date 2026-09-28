@@ -15,6 +15,7 @@ import {
 } from "../../shared/directories";
 import { indexSearchText } from "../../shared/search";
 import { type ContentWriteAccess, sessionGuard } from "../auth/access";
+import { moveLinks } from "./move-links";
 import { ContentError, validateContentPath } from "./service";
 
 type SqlValue = string | number | null;
@@ -447,11 +448,15 @@ export class PageDirectoryService {
     if (!state.rows.length) throw new ContentError(404, "Directory not found.");
     const members = this.members(state.rows, paths.fromPath, paths.toPath);
     if (state.occupied) conflict();
+    const links = await moveLinks(this.db, this.access, locale, members);
     return {
       language: locale,
       ...paths,
       version: state.version,
-      members,
+      members: members.map((member) => ({
+        ...member,
+        links: links.get(member.id) ?? [],
+      })),
       publishedCount: members.filter((member) => member.published).length,
     };
   }
@@ -487,6 +492,7 @@ export class PageDirectoryService {
       stale();
     const members = this.members(state.rows, paths.fromPath, paths.toPath);
     if (state.occupied) conflict();
+    await moveLinks(this.db, this.access, locale, members);
     const plan: Plan[] = members.map((member) => ({
       id: member.id,
       version: member.version,

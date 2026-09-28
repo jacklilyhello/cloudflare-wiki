@@ -16,6 +16,7 @@ interface PublishedRow {
   title: string;
   description: string;
   markdown: string;
+  link_base_path: string;
   tags_json: string;
   updated_at: string;
 }
@@ -44,6 +45,7 @@ function toPage(row: PublishedRow): WikiPage {
     title: row.title,
     description: row.description,
     markdown: row.markdown,
+    linkBasePath: row.link_base_path,
     tags: tagsFromJson(row.tags_json),
     updatedAt: row.updated_at,
   };
@@ -61,6 +63,7 @@ export async function getPage(
     .prepare(`
     SELECT t.id, t.page_id, t.language, t.slug,
            r.title, r.description, r.markdown, r.tags_json,
+           (SELECT path FROM revision_link_bases WHERE revision_id=r.id) AS link_base_path,
            t.published_at AS updated_at
     FROM page_routes AS route
     JOIN page_translations AS t
