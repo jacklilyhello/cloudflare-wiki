@@ -3,26 +3,27 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { captureBranding } from "./backup-branding.mjs";
 import {
   BACKUP_PREFIX,
   BackupError,
-  LIMITS,
   backupSchema,
   canonical,
   createArchive,
   fail,
+  LIMITS,
   sha256,
   snapshotRows,
 } from "./backup-format.mjs";
 import { backupR2, boundedBytes } from "./backup-r2.mjs";
-import { restoreBackup } from "./restore-backup.mjs";
-import { ownedD1 } from "./owned-d1.mjs";
 import { validateDeployment } from "./deploy-policy.mjs";
+import { ownedD1 } from "./owned-d1.mjs";
+import { verifyWorkerR2Binding } from "./r2-policy.mjs";
 import {
   createR2Reader,
   verifyR2OwnershipAndPrivacy,
 } from "./r2-readiness.mjs";
-import { verifyWorkerR2Binding } from "./r2-policy.mjs";
+import { restoreBackup } from "./restore-backup.mjs";
 
 export function validateBackupContext(env) {
   if (
@@ -79,6 +80,7 @@ export async function captureSnapshot({
   r2,
   schema = backupSchema(),
   sourceSha,
+  branding,
 }) {
   const known = new Set([
     ...schema.tables.map((table) => table.name),
@@ -135,7 +137,10 @@ export async function captureSnapshot({
     fail(
       "Content changed during backup. No partial snapshot was accepted; rerun after editing/uploads stop.",
     );
-  const bytes = createArchive({ tables: before, objects, sourceSha }, schema);
+  const bytes = createArchive(
+    { tables: before, objects, sourceSha, branding },
+    schema,
+  );
   if (
     archives.reduce((sum, item) => sum + item.size, 0) + bytes.length >
     LIMITS.retainedBytes
@@ -169,12 +174,22 @@ export async function runBackup(
       if (!archives.length) fail("No private backup exists to verify.");
       bytes = await r2.get(archives[0].key, LIMITS.archive);
     } else {
+      const branding = await captureBranding(settings, fetchRequest);
       bytes = await captureSnapshot({
         query: snapshotReader(env, databaseId, fetchRequest),
         r2,
         schema,
         sourceSha: env.GITHUB_SHA,
+        branding,
       });
+      const current = await api.get(
+        `/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/workers/scripts/cloudflare-wiki/settings`,
+      );
+      if (
+        canonical(branding) !==
+        canonical(await captureBranding(current, fetchRequest))
+      )
+        fail("Deployed branding changed during backup; nothing was stored.");
     }
     const report = await restore(bytes, join(directory, "restored"));
     if (env.BACKUP_OPERATION === "backup") {

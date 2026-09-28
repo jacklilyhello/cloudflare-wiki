@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
+import { brandSettings, parseBranding } from "../shared/branding.ts";
 import { validateSmokeBaseUrl } from "./smoke-policy.mjs";
 
 const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:4173";
@@ -175,10 +177,14 @@ export async function checkAdmin(getResponse) {
   checkReaderHeaders(page);
   const html = await page.text();
   const settings = inertData(html, "site-settings");
+  const branding = parseBranding(
+    JSON.stringify(inertData(html, "deployment-branding")),
+  );
+  const displayed = brandSettings(settings, branding);
   checkSettings(settings, html);
   checkTitle(
     html,
-    `Administration · ${settings.locales[settings.defaultLanguage].name}`,
+    `Administration · ${displayed.locales[settings.defaultLanguage].name}`,
   );
   assert.ok(/<div\b[^>]*id="root"/.test(html), "Administrator mount point");
   assert.ok(
@@ -267,6 +273,7 @@ export async function checkAdmin(getResponse) {
 async function check() {
   const page = await get("/");
   const html = await checkHome(page);
+  await checkBranding(html, get);
   for (const language of ["zh", "en"])
     await checkHome(await get(`/${language}/home`), language);
   const script = html.match(
@@ -369,6 +376,52 @@ async function check() {
   console.log(
     `Smoke passed: ${base} configured homepage and explicit articles/search zh/en; localized metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API, reader and file 404; admin shell; anonymous content/revision/event/directory/navigation/redirect/settings/audit/file APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
   );
+}
+
+export async function checkBranding(html, getResponse) {
+  const data = inertData(html, "reader-data");
+  const branding = parseBranding(JSON.stringify(data.branding));
+  for (const asset of Object.values(branding.assets)) {
+    const response = await getResponse(asset.path);
+    assert.equal(
+      response.status,
+      200,
+      "Branding image must be anonymously accessible",
+    );
+    assert.equal(
+      response.headers.get("content-type")?.split(";")[0],
+      asset.mime,
+      "Branding MIME",
+    );
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    assert.equal(bytes.length, asset.bytes, "Branding byte length");
+    assert.equal(
+      createHash("sha256").update(bytes).digest("hex"),
+      asset.sha256,
+      "Branding checksum",
+    );
+  }
+  if (branding.assets.ogImage)
+    assert.ok(
+      html.includes(
+        `<meta property="og:image" content="https://cf.emby.wiki${branding.assets.ogImage.path}">`,
+      ),
+      "Open Graph image must use the configured absolute HTTPS origin",
+    );
+  if (branding.assets.favicon)
+    assert.ok(
+      html.includes(`sizes="32x32" href="${branding.assets.favicon.path}"`),
+      "Favicon metadata",
+    );
+  if (branding.assets.appleTouch)
+    assert.ok(
+      html.includes(
+        `sizes="180x180" href="${branding.assets.appleTouch.path}"`,
+      ),
+      "Apple Touch metadata",
+    );
+  return branding;
 }
 if (
   process.argv[1] &&

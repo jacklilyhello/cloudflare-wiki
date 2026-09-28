@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
-import { gzipSync, gunzipSync } from "node:zlib";
+import { gunzipSync, gzipSync } from "node:zlib";
 import { indexSearchText } from "../shared/search.ts";
 import { validateMarker } from "./d1-policy.mjs";
 import { R2_OWNER_KEY, validateR2Marker } from "./r2-policy.mjs";
@@ -233,15 +233,25 @@ export function validateObjects(objects, tables) {
   return total;
 }
 export function createArchive(
-  { tables, objects, sourceSha, createdAt = new Date().toISOString() },
+  {
+    tables,
+    objects,
+    sourceSha,
+    branding,
+    createdAt = new Date().toISOString(),
+  },
   schema,
 ) {
   if (!/^[a-f0-9]{40}$/.test(sourceSha)) fail();
   validateObjects(objects, tables);
-  const payload = { tables, objects };
+  const payload = {
+    tables,
+    objects,
+    ...(branding === undefined ? {} : { branding }),
+  };
   const backup = {
     format: "cloudflare-wiki-backup",
-    version: 1,
+    version: branding === undefined ? 1 : 2,
     createdAt,
     sourceSha,
     migrations: schema.migrations,
@@ -260,7 +270,7 @@ export function readArchive(bytes, schema) {
   );
   if (
     backup?.format !== "cloudflare-wiki-backup" ||
-    backup.version !== 1 ||
+    ![1, 2].includes(backup.version) ||
     canonical(backup.migrations) !== canonical(schema.migrations) ||
     !/^[a-f0-9]{40}$/.test(backup.sourceSha) ||
     typeof backup.createdAt !== "string" ||
@@ -269,6 +279,8 @@ export function readArchive(bytes, schema) {
   )
     fail("Backup version, migrations or integrity verification failed.");
   const payload = backup.payload;
+  if ((backup.version === 2) !== Object.hasOwn(payload ?? {}, "branding"))
+    fail("Backup branding version is inconsistent.");
   if (
     !payload?.tables ||
     canonical(Object.keys(payload.tables).sort()) !==
@@ -283,7 +295,14 @@ export function readArchive(bytes, schema) {
     schema,
   );
   validateObjects(payload.objects, tables);
-  return { ...backup, payload: { tables, objects: payload.objects } };
+  return {
+    ...backup,
+    payload: {
+      tables,
+      objects: payload.objects,
+      ...(backup.version === 2 ? { branding: payload.branding } : {}),
+    },
+  };
 }
 export function restoredRows(tables, versions, now = Date.now()) {
   const result = structuredClone(tables);

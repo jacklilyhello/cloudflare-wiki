@@ -30,6 +30,8 @@
   "vars": {
     "APP_ID": "jacklilyhello/cloudflare-wiki",
     "APP_ENV": "test",
-    "BUILD_SHA": "local"
+    "BUILD_SHA": "local",
+    "BRANDING_JSON": "{}",
+    "PUBLIC_ORIGIN": "https://cf.emby.wiki"
   }
 }
