@@ -26,12 +26,13 @@ describe("Worker HTTP boundary", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toContain("application/json");
     expect(response.headers.get("Cache-Control")).toBe("no-store");
-    expect(await response.json()).toEqual({
-      status: "ok",
-      service: "cloudflare-wiki",
-      environment: "test",
-      revision: "local",
-    });
+    const health = await response.json<{ ok: boolean; timestamp: string }>();
+    expect(Object.keys(health).sort()).toEqual(["ok", "timestamp"]);
+    expect(health.ok).toBe(true);
+    expect(new Date(health.timestamp).toISOString()).toBe(health.timestamp);
+    expect(Math.abs(Date.now() - Date.parse(health.timestamp))).toBeLessThan(
+      1000,
+    );
   });
   it("supports bodyless HEAD health checks", async () => {
     const response = await exports.default.fetch("https://example.com/health", {

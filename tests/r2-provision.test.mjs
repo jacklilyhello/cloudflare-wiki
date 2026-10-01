@@ -17,7 +17,7 @@ const env = {
   CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
   CLOUDFLARE_ZONE_ID: "c".repeat(32),
   CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-  TEST_DOMAIN: "cf.emby.wiki",
+  PRODUCTION_DOMAIN: "emby.wiki",
 };
 const binding = { binding: "MEDIA", bucket_name: R2_BUCKET, remote: false };
 const config = { name: "cloudflare-wiki", r2_buckets: [binding] };
@@ -201,7 +201,7 @@ for (const [key, value] of Object.entries({
   CLOUDFLARE_ACCOUNT_ID: "../other",
   CLOUDFLARE_ZONE_ID: "invalid",
   CLOUDFLARE_WORKER_NAME: "other",
-  TEST_DOMAIN: "emby.wiki",
+  PRODUCTION_DOMAIN: "unapproved.example",
 })) {
   test(`rejects unsafe Actions environment ${key} before requests`, async () => {
     const h = harness();

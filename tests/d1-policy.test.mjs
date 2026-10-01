@@ -25,7 +25,7 @@ const env = {
   CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
   CLOUDFLARE_ZONE_ID: "c".repeat(32),
   CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-  TEST_DOMAIN: "cf.emby.wiki",
+  PRODUCTION_DOMAIN: "emby.wiki",
 };
 const config = {
   name: "cloudflare-wiki",
@@ -306,7 +306,7 @@ for (const [label, override] of [
   ["local execution", { env: { ...env, GITHUB_ACTIONS: "false" } }],
   ["pull request", { env: { ...env, GITHUB_EVENT_NAME: "pull_request" } }],
   ["other branch", { env: { ...env, GITHUB_REF: "refs/heads/feature/test" } }],
-  ["production", { env: { ...env, TEST_DOMAIN: "emby.wiki" } }],
+  ["production", { env: { ...env, PRODUCTION_DOMAIN: "unapproved.example" } }],
   ["unexpected built Worker", { config: { ...config, name: "other-worker" } }],
   ["relative migration path", { migrationsDirectory: "migrations" }],
   ["relative config path", { configPath: "wrangler.json" }],

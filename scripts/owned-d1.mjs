@@ -4,7 +4,7 @@ import { inspectD1 } from "./d1-provision.mjs";
 import { validateDeployment } from "./deploy-policy.mjs";
 import { verifyWorkerOwnership } from "./r2-policy.mjs";
 
-// Fixed test resource, read-only ownership/ledger inspection. No provisioning.
+// Existing retained resource, read-only ownership/ledger inspection. No provisioning.
 export async function ownedD1(env, fetchRequest = fetch) {
   validateDeployment(env);
   const api = cloudflareClient(env, fetchRequest);

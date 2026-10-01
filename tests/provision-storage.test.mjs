@@ -16,7 +16,7 @@ const env = {
   CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
   CLOUDFLARE_ZONE_ID: "c".repeat(32),
   CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-  TEST_DOMAIN: "cf.emby.wiki",
+  PRODUCTION_DOMAIN: "emby.wiki",
 };
 const input = {
   env,

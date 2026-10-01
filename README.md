@@ -2,18 +2,18 @@
 
 A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public reader** and a single-administrator content workspace. It includes original starter documentation, a Monaco Markdown editor, live preview, publication controls, revision history, visual navigation and redirect management, an administrator audit trail, and bilingual site settings with appearance controls. D1 stores published content, drafts, immutable revisions, a bilingual full-text index, navigation, route aliases, site settings and authentication state. Private R2 stores immutable file objects with D1 metadata, authenticated upload and explicit public delivery APIs. The visual File Manager supports private uploads, folder organization and explicit publication; the editor inserts published images and attachments. No code/data is inherited from Cloudflare-Native-Wiki.
 
-- Test: <https://cf.emby.wiki>
-- Future production: `emby.wiki` — not configured or deployed here.
+- Production: <https://emby.wiki> and <https://www.emby.wiki>.
+- Retained public domain: <https://cf.emby.wiki>. Canonical URLs use `https://emby.wiki` on all three hosts.
 - Stack: React, TypeScript, Vite, Workers Static Assets, official Cloudflare Vite plugin.
 - Read `AGENTS.md`, then `codex.md` before development.
 
 ## Public reader
 
-- `/`: server-rendered Emby handbook cover with shared light/dark appearance, Chinese/English selection and Continue links to `/zh/home` or `/en/home`. `/?lang=zh` and `/?lang=en` retain the reading choice on refresh and work without JavaScript. The root has its own canonical/website metadata and remains noindex.
+- `/`: server-rendered Emby handbook cover with shared light/dark appearance, Chinese/English selection and Continue links to `/zh/home` or `/en/home`. `/?lang=zh` and `/?lang=en` retain the reading choice on refresh and work without JavaScript. The root has its own canonical/website metadata and permits production indexing.
 - `/zh/home` and `/en/home`: translated articles, nested navigation, breadcrumbs, contents, heading links, theme selection, code copying, image viewing and responsive layout.
 - `/{language}/search?q=...`: server-rendered search over titles, descriptions, body, tags and paths; matches stay in the selected language. Queries are limited to 200 characters.
 - `/api/public/search?lang=zh&q=...`: read-only JSON search; only `zh` and `en` are accepted.
-- `/sitemap.xml`: current published catalog, with a fixed test origin. Article responses include canonical, translated-language and OpenGraph metadata. The test environment remains noindex and robots-blocked.
+- `/sitemap.xml`: current published catalog, with the fixed production origin `https://emby.wiki`. Article responses include canonical, translated-language and OpenGraph metadata. Production permits public indexing; admin, APIs, search results and errors remain noindex. `/robots.txt` advertises the sitemap and excludes private/operational routes.
 - Unknown document routes return a genuine 404; public article and API writes are rejected.
 
 The Worker renders the article before JavaScript runs. React hydrates reading controls; ordinary links, search, content and disclosure blocks work without JavaScript. `migrations/0003_starter_content.sql` publishes six original starter articles once when the database is initialized. `content/` keeps their original Markdown as reference; changing those files does not overwrite persisted articles. `worker/content/public.ts` reads only the current published revision from D1. Drafts, deleted pages and unpublished translations are excluded from articles, navigation, metadata, search and sitemap.
@@ -120,7 +120,7 @@ Application rollback must retain the `redirect` audit decoder once redirect even
 
 `/admin/settings` edits the Chinese and English site names and short descriptions, default language, default theme (`system`, `light`, `dark`), accent (`forest`, `ocean`, `plum`) and built-in logo (`emby`, `book`, `none`). Names are required and limited to 80 UTF-16 code units; descriptions may be empty and are limited to 300. Control characters are rejected. These are public presentation values, never a place for credentials, arbitrary CSS, scripts or remote logo URLs.
 
-The reader uses the current language's identity in its header, footer, title and OpenGraph metadata. An article's own description takes precedence; the site description is its fallback. `/` and search requests without an explicit language use the configured default; `/zh/...` and `/en/...` remain explicit. Canonical origins, the bilingual sitemap and test noindex policy remain fixed. A visitor's saved light/dark choice takes precedence over the site default. A small same-origin script applies it before styles load without broadening CSP; system mode follows the browser preference.
+The reader uses the current language's identity in its header, footer, title and OpenGraph metadata. An article's own description takes precedence; the site description is its fallback. `/` and search requests without an explicit language use the configured default; `/zh/...` and `/en/...` remain explicit. The production canonical origin and bilingual sitemap remain fixed; indexing policy is independent of editable presentation settings. A visitor's saved light/dark choice takes precedence over the site default. A small same-origin script applies it before styles load without broadening CSP; system mode follows the browser preference.
 
 `GET/PUT /api/admin/settings` accepts no query parameters and requires a live administrator session. PUT additionally requires exact Origin, CSRF and closed JSON of at most 4 KiB. The version condition and live session are checked again inside the D1 update. A changed save increments the version once and records only changed field names atomically; an unchanged save leaves its version, timestamp and audit trail unchanged. A stale version returns 412. The UI preserves input on conflict, connection loss or session changes, requires explicit comparison with the latest settings before retrying an uncertain save, and never retries a write automatically.
 
@@ -138,11 +138,9 @@ Audit details contain only a closed set of metadata: revision IDs and old/new pa
 
 Open `/admin` to initialize the sole administrator or sign in. The interface selects the form from the server's initialization state; it has no registration or ordinary user accounts. The dashboard shows content counts and recent changes. `/admin/account` changes the username or password after verifying the current password. The admin module and CSS load only on admin routes, with Chinese and English interface controls.
 
-The owner enables one-time setup by adding **`ADMIN_SETUP_TOKEN` as a GitHub Actions Secret**: an unpadded base64url encoding of at least 32 cryptographically random bytes, 43–256 characters. A password manager's cryptographically generated 64-character token using only letters and digits is a valid option. Keep this token in the owner's password manager and enter it only in the setup form over HTTPS. Do not put it in URLs, repository files, local environment files, Worker secrets, build variables, logs or task messages.
+One-time initialization is complete. Normal **Deploy Production** never reads `ADMIN_SETUP_TOKEN`, writes bootstrap state, or changes administrator credentials. The original optional Actions setup Secret and `scripts/admin-bootstrap.mjs` belong to the completed initialization; they cannot reopen setup after an administrator exists or its marker is consumed. Never clear authentication records or bootstrap markers to regain access.
 
-The next authorized main deployment hashes the optional secret with SHA-256 in Actions, after deployment guards pass. After D1 ownership and migrations are verified, a single guarded statement stores only the hash and a 24-hour expiry in `admin_bootstrap`. The raw token is removed from the deployment process environment before Wrangler runs; it is never a Worker binding. Without the secret, deployment skips bootstrap and public reading continues. Removing a configured Actions secret does not invalidate an already active setup window.
-
-Repeated deployments with the **same token do not extend or reopen** its window, even after expiry. Before initialization, changing the Actions secret to a new random token and deploying main replaces the unconsumed hash and starts a new 24-hour window. Once an administrator exists or setup has been consumed, deployments cannot reopen setup or overwrite the administrator. Clear the optional Actions secret after successful initialization. The owner-controlled **Administrator Recovery** manual Actions workflow can recover the original administrator through a protected Environment Secret; it does not expose an HTTP reset interface or reopen setup. Follow [the recovery runbook](docs/administrator-recovery.md). Do not delete authentication records or clear the consumed marker to regain access.
+The owner-controlled **Administrator Recovery** manual Actions workflow can recover the original administrator through a protected Environment Secret; it does not expose an HTTP reset interface or reopen setup. Follow [the recovery runbook](docs/administrator-recovery.md). Keep all setup/recovery credentials outside repository files, Worker/browser variables, URLs and logs.
 
 Passwords contain 12–128 Unicode characters, at most 512 UTF-8 bytes, and are stored as salted scrypt hashes with fixed parameters (`N=16384`, `r=8`, `p=5`). Session bearers contain 32 random bytes and are sent only in a `Secure`, `HttpOnly`, `SameSite=Strict`, host-only cookie; D1 stores their SHA-256 hashes. Sessions expire after eight hours or 30 minutes without activity. Logout revokes the current session; changing either username or password atomically advances the credential version and revokes all sessions, requiring sign-in again.
 
@@ -176,22 +174,21 @@ Settings → Secrets and variables → Actions:
 | Type | Name | Value |
 | --- | --- | --- |
 | Secret | `CLOUDFLARE_API_TOKEN` | Owner-provided deployment token; never reveal/copy locally |
-| Secret | `ADMIN_SETUP_TOKEN` | Optional owner-generated one-time setup token; Actions hashes it before writing D1 |
 | Variable | `CLOUDFLARE_ACCOUNT_ID` | Actual account ID |
 | Variable | `CLOUDFLARE_ZONE_ID` | Actual active emby.wiki zone ID |
 | Variable | `CLOUDFLARE_WORKER_NAME` | `cloudflare-wiki` |
-| Variable | `TEST_DOMAIN` | `cf.emby.wiki` (hostname only) |
+| Variable | `PRODUCTION_DOMAIN` | `emby.wiki` (hostname only); the fixed domain set also includes `www.emby.wiki` and `cf.emby.wiki` |
 
-The existing token must support Worker deployment and Custom Domain management for the selected account/zone, plus preflight reads of zone, DNS, Worker settings, domains and routes, and D1 read/write access for the test database. No new permission is granted by this repository. Missing permissions stop deployment; never expand them automatically. Conflicts stop without deleting resources. Do not enable an additional Cloudflare Git deployment integration.
+The existing token must support Worker deployment and Custom Domain management for the selected account/zone, plus preflight reads of zone, DNS, Worker settings, domains and routes, and D1 inspection of the retained database. Normal deployment performs no D1/R2 writes; separate authorized backup/recovery workflows retain their existing permissions. No new permission is granted by this repository. Missing permissions stop deployment; never expand them automatically. Conflicts stop without deleting resources. Do not enable an additional Cloudflare Git deployment integration.
 
 ## Delivery
 
 1. Branch from current main using `feature/`, `fix/`, `chore/`, `docs/`, `refactor/` or `test/`.
 2. Implement, run `npm run verify`, inspect secrets and open a PR.
 3. Require successful `CI` and resolved conversations; squash merge when authorized.
-4. Main push triggers `Deploy Test`: validation, preflight, deployment, smoke test.
+4. Main push triggers `Deploy Production`: validation, preflight, deployment, smoke test.
 
-PR CI receives no Cloudflare credential and never deploys. Manual deployment accepts only main. `npm run deploy:test` refuses local execution. All cloud writes and remote migrations run in Actions.
+PR CI receives no Cloudflare credential and never deploys. Manual deployment accepts only main. `npm run deploy:production` refuses local execution. All cloud writes run in Actions. The production deployment refuses absent resources or pending migrations; database changes require a separate authorized task.
 
 After CI exists, import `.github/rulesets/main.json` through **Settings → Rules → Rulesets → New ruleset → Import a ruleset**, or apply it via the authenticated Administration API. A file in Git does **not** activate rules. The policy requires PR/CI/conversation resolution and linear history, blocks deletion/force push, has no bypass actors and permits squash only. Prefer squash-only repository merge settings too. Read back live settings before claiming protection is active.
 
@@ -209,31 +206,36 @@ A successful inventory read establishes visibility, not write permission or perm
 
 ## Private file storage
 
-The Worker has one `MEDIA` binding to `cloudflare-wiki-assets-test`. Its local `remote: false` configuration uses emulated R2 without credentials. The bucket uses default jurisdiction, with no managed public domain or custom domain. Creation explicitly requests Standard storage; a returned non-Standard storage class is rejected. Omitted storage-class metadata is accepted without treating it as proof of the existing class. The Worker mediates every file request; no bucket URL is exposed to readers.
+The Worker has one `MEDIA` binding to `cloudflare-wiki-assets-test`. Its local `remote: false` configuration uses emulated R2 without credentials. This existing bucket and its original `environment: test` ownership marker are retained as provenance; its historical name does not select the application environment. The bucket uses default jurisdiction, with no managed public domain or custom domain. Creation explicitly requests Standard storage; a returned non-Standard storage class is rejected. Omitted storage-class metadata is accepted without treating it as proof of the existing class. The Worker mediates every file request; no bucket URL is exposed to readers.
 
-Actions first inspects D1 ownership and its migration ledger without mutation, then ensures the fixed R2 bucket, then reinspects D1 before creation/migrations and deployment. R2 failure stops before D1 mutation. Existing buckets require the exact `__cloudflare_wiki_owner_v1.json` marker and private-domain checks; unmarked, conflicting or public buckets are never adopted, repaired or deleted. A conclusively absent bucket is created once, marked once in the same invocation, and read back before proceeding. Ambiguous creation or marker-upload outcomes stop without retry or cleanup and require an explicit recovery decision. The marker is an ownership consistency check, not authentication.
+`scripts/production-storage.mjs` verifies the already deployed Worker ownership, exact DB/MEDIA bindings, existing D1 ownership and complete migration ledger, and existing R2 ownership/private-domain state. Missing or conflicting resources stop deployment. This path never invokes provisioning and executes only D1 SELECTs and R2 GETs; it never creates resources, applies remote migrations, writes markers, uploads files or reopens administrator setup. Historical initialization helpers remain separately tested, outside the normal production path.
 
-The existing Actions credential must permit R2 resource inspection/creation and marker-object access; the workflow never expands permissions or activates subscriptions. A missing-permission or account-enablement failure stops delivery. There are no local Cloudflare writes, separate S3 credentials, new public storage domains or live user-file smoke writes. Post-deployment readback checks the exact `MEDIA` binding alongside the D1 binding.
+The existing Actions credential is reused without permission expansion, paid activation or new storage domains. Post-deployment readback checks the same database UUID and MEDIA bucket. Deployment smoke remains anonymous and never writes live user files.
 
 ## Deployment and health
 
-Actions manages only Worker `cloudflare-wiki`, Custom Domain `cf.emby.wiki`, D1 database `cloudflare-wiki-test` and private R2 bucket `cloudflare-wiki-assets-test`. KV is not provisioned. Actions locates the exact D1 name, validates the project ownership marker and migration ledger, applies pending reviewed migrations, and verifies the Worker DB binding after deployment. An existing unmarked database is never adopted or replaced. If creation succeeds but initialization fails before the marker is committed, the workflow stops for explicit recovery; it does not retry creation or delete the resource. Wrangler automatic resource provisioning is disabled. Database creation and remote SQL never run locally. Its stable `cloudflare-wiki.<account-subdomain>.workers.dev` address is enabled only for GitHub Actions post-deploy smoke tests; the deployment script reads the account subdomain through Cloudflare's API and publishes the exact URL as a step output. `cf.emby.wiki` remains the actual test Custom Domain. Versioned and aliased Preview URLs remain disabled.
+Actions deploys Worker `cloudflare-wiki` to exactly three Custom Domains: `emby.wiki`, `www.emby.wiki` and `cf.emby.wiki`. The canonical origin is `https://emby.wiki`; workers.dev and Preview URLs remain disabled. Preflight rejects conflicting Worker ownership, domains, routes or address/alias DNS records while preserving unrelated TXT/CAA records. Wrangler manages Custom Domain DNS/certificates through Actions only.
 
-`GET /health` returns uncached public liveness metadata:
+Production keeps the existing D1 `cloudflare-wiki-test` and private R2 `cloudflare-wiki-assets-test`, including their original ownership markers. `APP_ENV=production` controls application behavior independently of those retained resource names. The local DB UUID remains a placeholder; Actions resolves and verifies the already bound database and refuses creation or pending migrations. Both automatic-provisioning flags are disabled.
+
+`GET /health` returns only uncached public liveness:
 
 ```json
-{ "status": "ok", "service": "cloudflare-wiki", "environment": "test", "revision": "<commit SHA or local>" }
+{ "ok": true, "timestamp": "2026-10-01T00:00:00.000Z" }
 ```
 
-HEAD is supported; writes are rejected. Unknown `/api/*` outside the protected admin namespace returns JSON 404 even for browser navigation. Smoke checks verify exact revision, server-rendered articles, language-specific search, genuine reader 404s, metadata, sitemap, JS assets, robots policy and API behavior. Anonymous GET checks also verify the admin shell, protected session/overview/content/navigation/redirect/settings/audit/file endpoints, missing public file responses and setup-status shape in any initialization state. Smoke never submits setup credentials, logs in or consumes a setup token. Test responses are noindex.
+The timestamp is the current server response time. HEAD is supported; writes are rejected. Build SHA remains an internal Worker binding verified through authenticated Cloudflare API readback; public health exposes no environment, service or revision metadata.
+
+Actions smoke checks every Custom Domain for server-rendered bilingual articles, search, genuine reader/API/file 404s, canonical metadata, sitemap, JS/branding assets, generic health, public indexing and robots policy. Anonymous GET checks also verify the admin shell, protected session/overview/content/navigation/redirect/settings/audit/file endpoints, exact editor/history redirects and setup-status shape. Smoke never submits credentials, logs in or consumes a setup token. CSP, no-store, no-sniff, framing and authentication/CSRF policies remain intact.
 
 ```sh
-SMOKE_BASE_URL=https://cf.emby.wiki EXPECTED_SHA=<main-commit-sha> npm run smoke
+SMOKE_BASE_URL=https://emby.wiki npm run smoke
+gh workflow run deploy-production.yml --repo jacklilyhello/cloudflare-wiki --ref main
 ```
 
-Inspect failed workflow jobs/steps/logs and repair through PR. Never bypass tests or deploy with a local write token. Rollbacks use normal revert/fix PRs and main deployment, not history rewrites or arbitrary old-branch deployment. Applied database migrations are immutable and retained in the ledger: use additive forward migrations for schema repairs. Reverting application behavior must preserve the D1 binding and migration files; do not delete the database or undo stored revisions.
+Inspect failed workflow jobs/steps/logs and repair through PRs. Never bypass tests or deploy with a local write token. Rollbacks use normal revert/fix PRs and main deployment, retaining the original D1/R2 bindings, production-domain/disabled workers.dev policy and stored revisions. Applied database migrations and ownership markers stay immutable. Storage or schema changes require a separately reviewed task; never delete the database or undo stored revisions.
 
-`codex.md` records product constraints, implemented boundaries and remaining module/storage plans. Production needs a separate explicit task.
+`codex.md` records product constraints, implemented boundaries and remaining module/storage plans. Product development and any data/schema migration need a separate explicit task.
 
 ## Private backups and isolated restore
 
@@ -241,4 +243,4 @@ The main-only **Site Backup** Actions workflow captures application D1 data and 
 
 ## Deployment branding
 
-Custom light/dark logos, favicon, Apple Touch Icon, Open Graph image and bilingual footer/copyright use validated GitHub Repository Variables and same-origin deployment assets. Missing configuration keeps the existing built-in appearance. See [branding configuration and private image preparation](docs/branding.md) for formats, limits, previews, precedence and the manual main Deploy Test workflow.
+Custom light/dark logos, favicon, Apple Touch Icon, Open Graph image and bilingual footer/copyright use validated GitHub Repository Variables and same-origin deployment assets. Missing configuration keeps the existing built-in appearance. See [branding configuration and private image preparation](docs/branding.md) for formats, limits, previews, precedence and the manual main Deploy Production workflow.

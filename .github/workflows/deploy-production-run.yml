@@ -1,12 +1,10 @@
-name: Deploy Test implementation
+name: Deploy Production implementation
 
 on:
   workflow_call:
     secrets:
       CLOUDFLARE_API_TOKEN:
         required: true
-      ADMIN_SETUP_TOKEN:
-        required: false
       WIKI_BRAND_MANIFEST:
         required: false
       WIKI_BRAND_LOGO_LIGHT_B64:
@@ -28,13 +26,13 @@ env:
 
 jobs:
   deploy:
-    name: Deploy Test
+    name: Deploy Production
     if: github.repository == 'jacklilyhello/cloudflare-wiki' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
-      name: test
-      url: https://cf.emby.wiki
+      name: production
+      url: https://emby.wiki
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -62,19 +60,16 @@ jobs:
           WIKI_BRAND_OG_IMAGE_B64: ${{ secrets.WIKI_BRAND_OG_IMAGE_B64 }}
       - name: Build same-origin branding assets
         run: npm run build
-      - name: Preflight and deploy test only
-        id: deploy
-        run: npm run deploy:test
+      - name: Validate existing storage and deploy production
+        run: npm run deploy:production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          ADMIN_SETUP_TOKEN: ${{ secrets.ADMIN_SETUP_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
           CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
-          TEST_DOMAIN: ${{ vars.TEST_DOMAIN }}
-      - name: Smoke test deployed workers.dev revision
-        run: npm run smoke
-        env:
-          SMOKE_BASE_URL: ${{ steps.deploy.outputs.workers_dev_url }}
-          SMOKE_WORKERS_DEV_SUBDOMAIN: ${{ steps.deploy.outputs.workers_dev_subdomain }}
-          EXPECTED_SHA: ${{ github.sha }}
+          PRODUCTION_DOMAIN: ${{ vars.PRODUCTION_DOMAIN }}
+      - name: Smoke test all production Custom Domains
+        run: |
+          for domain in emby.wiki www.emby.wiki cf.emby.wiki; do
+            SMOKE_BASE_URL="https://${domain}" npm run smoke
+          done

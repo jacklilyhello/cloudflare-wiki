@@ -1,3 +1,4 @@
+import { PUBLIC_ORIGIN } from "./deploy-policy.mjs";
 import { parseBranding } from "../shared/branding.ts";
 import { fail, sha256 } from "./backup-format.mjs";
 import { boundedBytes } from "./backup-r2.mjs";
@@ -19,7 +20,7 @@ export async function captureBranding(settings, fetchRequest = fetch) {
   const branding = parseBranding(matches[0]?.text);
   const variables = { [MANIFEST_VARIABLE]: JSON.stringify(branding) };
   for (const [role, asset] of Object.entries(branding.assets)) {
-    const response = await fetchRequest(`https://cf.emby.wiki${asset.path}`, {
+    const response = await fetchRequest(`${PUBLIC_ORIGIN}${asset.path}`, {
       method: "GET",
       redirect: "error",
       signal: AbortSignal.timeout(30000),

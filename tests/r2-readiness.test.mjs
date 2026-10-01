@@ -19,7 +19,7 @@ const env = {
   CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
   CLOUDFLARE_ZONE_ID: "c".repeat(32),
   CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-  TEST_DOMAIN: "cf.emby.wiki",
+  PRODUCTION_DOMAIN: "emby.wiki",
 };
 const prefix = `/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}`;
 const inventoryPath = `${prefix}/r2/buckets`;
@@ -175,7 +175,7 @@ for (const [label, change] of [
   ["invalid zone", { CLOUDFLARE_ZONE_ID: "" }],
   ["invalid SHA", { GITHUB_SHA: "main" }],
   ["other Worker", { CLOUDFLARE_WORKER_NAME: "other" }],
-  ["production domain", { TEST_DOMAIN: "emby.wiki" }],
+  ["production domain", { PRODUCTION_DOMAIN: "unapproved.example" }],
 ]) {
   test(`rejects ${label} before any request`, async () => {
     const h = harness();

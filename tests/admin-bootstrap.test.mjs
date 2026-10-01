@@ -18,7 +18,7 @@ const validEnv = {
   CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
   CLOUDFLARE_ZONE_ID: "c".repeat(32),
   CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-  TEST_DOMAIN: "cf.emby.wiki",
+  PRODUCTION_DOMAIN: "emby.wiki",
 };
 const databaseId = "12345678-1234-1234-1234-123456789abc";
 const testToken = Buffer.alloc(32, 7).toString("base64url");
@@ -122,7 +122,7 @@ for (const [key, value] of Object.entries({
   GITHUB_REF: "refs/heads/feature/admin-auth",
   GITHUB_EVENT_NAME: "pull_request",
   GITHUB_SHA: "invalid",
-  TEST_DOMAIN: "emby.wiki",
+  PRODUCTION_DOMAIN: "unapproved.example",
   CLOUDFLARE_WORKER_NAME: "other-worker",
   CLOUDFLARE_ACCOUNT_ID: "invalid",
   CLOUDFLARE_API_TOKEN: "",

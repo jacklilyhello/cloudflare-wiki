@@ -24,6 +24,6 @@ test("product UI omits development status labels while retaining technical workf
       new URL("../src/admin/SettingsPage.tsx", import.meta.url),
       "utf8",
     ),
-    /Deploy Test/,
+    /Deploy Production/,
   );
 });

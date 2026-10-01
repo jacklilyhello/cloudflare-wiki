@@ -5,59 +5,32 @@ import { runInNewContext } from "node:vm";
 import {
   LOCAL_SMOKE_BASE_URL,
   validateSmokeBaseUrl,
-  workersDevBaseUrl,
 } from "../scripts/smoke-policy.mjs";
 import { checkAdmin, checkHome, checkLanding } from "../scripts/smoke-test.mjs";
 
-const accountSubdomain = "account-subdomain";
-const workersDevBase = workersDevBaseUrl(accountSubdomain);
-
-test("allows localhost and the fixed test Custom Domain", () => {
-  assert.equal(
-    validateSmokeBaseUrl(LOCAL_SMOKE_BASE_URL).origin,
+test("allows localhost and all three production Custom Domains", () => {
+  for (const base of [
     LOCAL_SMOKE_BASE_URL,
-  );
-  assert.equal(
-    validateSmokeBaseUrl("https://cf.emby.wiki").hostname,
-    "cf.emby.wiki",
-  );
+    "https://emby.wiki",
+    "https://www.emby.wiki",
+    "https://cf.emby.wiki",
+  ])
+    assert.equal(validateSmokeBaseUrl(base).origin, base);
 });
 
-test("allows only the exact Cloudflare-derived workers.dev smoke URL", () => {
-  assert.equal(
-    validateSmokeBaseUrl(workersDevBase, accountSubdomain).href,
-    `${workersDevBase}/`,
-  );
-  assert.throws(() =>
-    validateSmokeBaseUrl(
-      "https://cloudflare-wiki.other-account.workers.dev",
-      accountSubdomain,
-    ),
-  );
-  assert.throws(() => validateSmokeBaseUrl(workersDevBase));
-});
-
-test("rejects arbitrary external, production, and malformed smoke targets", () => {
+test("rejects workers.dev, arbitrary origins and malformed smoke targets", () => {
   for (const base of [
     "https://example.com",
-    "https://emby.wiki",
-    "https://cf.emby.wiki/",
+    "http://emby.wiki",
+    "https://emby.wiki/",
+    "https://emby.wiki/health",
+    "https://emby.wiki?bypass=1",
+    "https://user:password@emby.wiki",
+    "https://cf.emby.wiki:8443",
+    "https://cloudflare-wiki.account-subdomain.workers.dev",
     "https://cloudflare-wiki.account-subdomain.workers.dev/health",
-  ]) {
-    assert.throws(() => validateSmokeBaseUrl(base, accountSubdomain));
-  }
-});
-
-test("rejects invalid Cloudflare Workers account subdomains", () => {
-  for (const subdomain of [
-    "",
-    "-invalid",
-    "invalid-",
-    "with.dot",
-    "UPPERCASE",
-  ]) {
-    assert.throws(() => workersDevBaseUrl(subdomain));
-  }
+  ])
+    assert.throws(() => validateSmokeBaseUrl(base));
 });
 
 const adminHeaders = {
@@ -305,16 +278,27 @@ function homepage(language, defaultLanguage = language) {
       description: "Article description",
     },
   };
-  return `<html lang="${language}" data-theme="system" data-accent="forest"><head>${appearanceScript}<title>Home · ${identity.name}</title><link rel="canonical" href="https://cf.emby.wiki/${language}/home"><meta property="og:site_name" content="${identity.name}"><meta property="og:title" content="Home · ${identity.name}"><meta name="description" content="Article description"><link rel="alternate" hreflang="zh" href="https://cf.emby.wiki/zh/home"><link rel="alternate" hreflang="en" href="https://cf.emby.wiki/en/home"></head><body><article><h1>Home</h1><a href="#section">Section</a></article><script id="reader-data" type="application/json">${JSON.stringify(data)}</script></body></html>`;
+  return `<html lang="${language}" data-theme="system" data-accent="forest"><head>${appearanceScript}<title>Home · ${identity.name}</title><link rel="canonical" href="https://emby.wiki/${language}/home"><meta property="og:site_name" content="${identity.name}"><meta property="og:title" content="Home · ${identity.name}"><meta name="description" content="Article description"><link rel="alternate" hreflang="zh" href="https://emby.wiki/zh/home"><link rel="alternate" hreflang="en" href="https://emby.wiki/en/home"></head><body><article><h1>Home</h1><a href="#section">Section</a></article><script id="reader-data" type="application/json">${JSON.stringify(data)}</script></body></html>`;
 }
 
 test("homepage smoke follows configured language while checking both explicit article routes", async () => {
   for (const language of ["zh", "en"]) {
     const response = (html) =>
       new Response(html, {
-        headers: { ...adminHeaders, "Content-Type": "text/html" },
+        headers: {
+          ...adminHeaders,
+          "X-Robots-Tag": "index, follow",
+          "Content-Type": "text/html",
+        },
       });
     await checkHome(response(homepage(language)));
+    await assert.rejects(
+      checkHome(
+        new Response(homepage(language), {
+          headers: { ...adminHeaders, "Content-Type": "text/html" },
+        }),
+      ),
+    );
     await checkHome(
       response(homepage(language, language === "zh" ? "en" : "zh")),
       language,
@@ -323,7 +307,7 @@ test("homepage smoke follows configured language while checking both explicit ar
       homepage(language, language === "zh" ? "en" : "zh"),
       homepage(language).replace('rel="canonical"', 'rel="removed"'),
       homepage(language).replace(
-        `https://cf.emby.wiki/${language}/home`,
+        `https://emby.wiki/${language}/home`,
         `https://attacker.invalid/${language}/home`,
       ),
       homepage(language).replace('property="og:title"', 'property="removed"'),
@@ -334,6 +318,10 @@ test("homepage smoke follows configured language while checking both explicit ar
       homepage(language).replace('name="description"', 'name="removed"'),
       homepage(language).replace('hreflang="en"', 'hreflang="fr"'),
       homepage(language).replace("<article>", "<section>"),
+      homepage(language).replace(
+        "<head>",
+        '<head><meta name="robots" content="noindex, nofollow">',
+      ),
     ])
       await assert.rejects(checkHome(response(broken)));
   }
@@ -433,10 +421,14 @@ test("cover smoke rejects old article routing, wrong canonical metadata and brok
       searchResults: [],
       translations: { zh: "/?lang=zh", en: "/?lang=en" },
     };
-    const html = `<html lang="${language}" data-theme="system" data-accent="forest"><head>${appearanceScript}<title>${identity.name} · ${language === "zh" ? "Emby 技术手册" : "The Emby Handbook"}</title><link rel="canonical" href="https://cf.emby.wiki/"><link rel="alternate" hreflang="zh" href="https://cf.emby.wiki/?lang=zh"><link rel="alternate" hreflang="en" href="https://cf.emby.wiki/?lang=en"><link rel="alternate" hreflang="x-default" href="https://cf.emby.wiki/"><meta property="og:url" content="https://cf.emby.wiki/"><meta property="og:type" content="website"><meta name="theme-color" content="#f5f4ee"><meta name="description" content="${identity.description}"></head><body><main id="cover-content"><h1 id="cover-title">${identity.name}</h1><a href="/${language}/home">Continue</a><a href="/?lang=zh">中文</a><a href="/?lang=en">English</a></main><script id="reader-data" type="application/json">${JSON.stringify(data)}</script></body></html>`;
+    const html = `<html lang="${language}" data-theme="system" data-accent="forest"><head>${appearanceScript}<title>${identity.name} · ${language === "zh" ? "Emby 技术手册" : "The Emby Handbook"}</title><link rel="canonical" href="https://emby.wiki/"><link rel="alternate" hreflang="zh" href="https://emby.wiki/?lang=zh"><link rel="alternate" hreflang="en" href="https://emby.wiki/?lang=en"><link rel="alternate" hreflang="x-default" href="https://emby.wiki/"><meta property="og:url" content="https://emby.wiki/"><meta property="og:type" content="website"><meta name="theme-color" content="#f5f4ee"><meta name="description" content="${identity.description}"></head><body><main id="cover-content"><h1 id="cover-title">${identity.name}</h1><a href="/${language}/home">Continue</a><a href="/?lang=zh">中文</a><a href="/?lang=en">English</a></main><script id="reader-data" type="application/json">${JSON.stringify(data)}</script></body></html>`;
     const response = (text) =>
       new Response(text, {
-        headers: { ...adminHeaders, "Content-Type": "text/html" },
+        headers: {
+          ...adminHeaders,
+          "X-Robots-Tag": "index, follow",
+          "Content-Type": "text/html",
+        },
       });
     await checkLanding(response(html));
     for (const broken of [
@@ -444,12 +436,16 @@ test("cover smoke rejects old article routing, wrong canonical metadata and brok
       html.replace('rel="canonical"', 'rel="missing"'),
       html.replace('content="website"', 'content="article"'),
       html.replace(
-        'href="https://cf.emby.wiki/"',
-        'href="https://cf.emby.wiki/zh/home"',
+        'href="https://emby.wiki/"',
+        'href="https://emby.wiki/zh/home"',
       ),
       html.replace(`href="/${language}/home"`, 'href="/admin"'),
       html.replace('href="/?lang=en"', 'href="/?lang=fr"'),
       html.replace('name="theme-color"', 'name="missing"'),
+      html.replace(
+        "<head>",
+        '<head><meta name="robots" content="noindex, nofollow">',
+      ),
     ])
       await assert.rejects(checkLanding(response(broken)));
     await assert.rejects(

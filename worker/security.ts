@@ -9,6 +9,13 @@ export const securityHeaders = {
     "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
 };
 
+// Only successful public documents and crawler resources opt into indexing.
+// APIs, admin documents, search results and errors retain the private policy.
+export function publicSecurityHeaders(env: { APP_ENV: string }) {
+  const { "X-Robots-Tag": _robots, ...headers } = securityHeaders;
+  return env.APP_ENV === "production" ? headers : securityHeaders;
+}
+
 export function jsonError(message: string, status: number) {
   return Response.json(
     { error: message },

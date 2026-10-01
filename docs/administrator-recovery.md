@@ -1,12 +1,12 @@
 # Owner-controlled administrator recovery
 
-Recovery keeps the original administrator ID and username. It never reopens setup or creates an account. There is no reset HTTP endpoint. Ordinary `Deploy Test` runs never read the recovery Secret or execute recovery SQL.
+Recovery keeps the original administrator ID and username. It never reopens setup or creates an account. There is no reset HTTP endpoint. Ordinary `Deploy Production` runs never read the recovery Secret or execute recovery SQL.
 
 ## Protection and configuration
 
 Create the GitHub Environment **`administrator-recovery`** with the sole required reviewer `jacklilyhello`, and one deployment branch policy: type `branch`, name `main`. The owner can approve their own recovery because this project has one owner. The workflow verifies the actual environment and branch rules through GitHub's read-only API; an absent/unprotected environment fails before Cloudflare inspection or recovery. Repository main PR/CI protection still applies.
 
-The manual **Administrator Recovery** workflow accepts only `operation=status|apply` (default `status`). It shares the test deployment lock, rejects stale main and validates the fixed test Worker, owned D1 database and complete migration ledger. Its token has only `contents: read` and `actions: read` GitHub permissions. Cloudflare operations use the existing Actions deployment Secret; no permission expansion or new Cloudflare resource is needed.
+The manual **Administrator Recovery** workflow accepts only `operation=status|apply` (default `status`). It shares the production deployment lock, rejects stale main and validates the fixed production Worker, owned D1 database and complete migration ledger. Its token has only `contents: read` and `actions: read` GitHub permissions. Cloudflare operations use the existing Actions deployment Secret; no permission expansion or new Cloudflare resource is needed.
 
 Configure **`ADMIN_RECOVERY_BUNDLE` as an Environment Secret in `administrator-recovery`**. Do not use a Repository Variable, dispatch input, URL, repository file or workflow artifact. The Secret is a closed JSON object containing:
 
@@ -35,7 +35,7 @@ No network mutation is automatically retried. If the workflow fails after dispat
 
 ## Validation and rollback
 
-`npm run verify` includes real workerd/D1 isolation tests for forgotten-password recovery, original identity, old password/session invalidation, new login, closed setup, concurrent recovery, expiry, atomic failure and secret-free audit. Node tests exercise the Actions driver, fixed password profile, readback, replay/ambiguous-write handling, environment guard and private bundle tool. These fixtures are separate from the current test site; they are not evidence that its real administrator was reset.
+`npm run verify` includes real workerd/D1 isolation tests for forgotten-password recovery, original identity, old password/session invalidation, new login, closed setup, concurrent recovery, expiry, atomic failure and secret-free audit. Node tests exercise the Actions driver, fixed password profile, readback, replay/ambiguous-write handling, environment guard and private bundle tool. These fixtures are separate from the live production site; they are not evidence that its real administrator was reset.
 
 Keep migration `0013_administrator_recovery.sql` and its immutable ledger when reverting application/workflow code. The prior Worker remains compatible with the new nullable column and triggers. Restoring an older database requires the separately reviewed backup procedure and invalidation of sessions and credentials; do not use a destructive restore as a password reset.
 

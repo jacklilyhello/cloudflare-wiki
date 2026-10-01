@@ -1,4 +1,4 @@
-name: Deploy Test
+name: Deploy Production
 
 on:
   push:
@@ -9,18 +9,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-cloudflare-wiki-test
+  group: deploy-cloudflare-wiki-production
   cancel-in-progress: false
 
 jobs:
   deploy:
     if: github.repository == 'jacklilyhello/cloudflare-wiki' && github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/deploy-test-run.yml
+    uses: ./.github/workflows/deploy-production-run.yml
     # Runtime secret arguments mask Repository Variables before the runner logs
     # step environments. No additional persistent secret or GitHub token is used.
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      ADMIN_SETUP_TOKEN: ${{ secrets.ADMIN_SETUP_TOKEN }}
       WIKI_BRAND_MANIFEST: ${{ vars.WIKI_BRAND_MANIFEST }}
       WIKI_BRAND_LOGO_LIGHT_B64: ${{ vars.WIKI_BRAND_LOGO_LIGHT_B64 }}
       WIKI_BRAND_LOGO_DARK_B64: ${{ vars.WIKI_BRAND_LOGO_DARK_B64 }}

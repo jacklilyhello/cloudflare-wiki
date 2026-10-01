@@ -3,11 +3,11 @@ import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { brandSettings, parseBranding } from "../shared/branding.ts";
+import { PUBLIC_ORIGIN } from "./deploy-policy.mjs";
 import { validateSmokeBaseUrl } from "./smoke-policy.mjs";
 
 const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:4173";
-const url = validateSmokeBaseUrl(base, process.env.SMOKE_WORKERS_DEV_SUBDOMAIN);
-const expectedRevision = process.env.EXPECTED_SHA ?? "local";
+const url = validateSmokeBaseUrl(base);
 async function get(path, options) {
   return fetch(new URL(path, base), {
     redirect: "error",
@@ -15,9 +15,14 @@ async function get(path, options) {
     ...options,
   });
 }
-function checkSecurityHeaders(response) {
+function checkSecurityHeaders(response, indexable = false) {
   assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.match(response.headers.get("x-robots-tag") ?? "", /noindex/);
+  if (indexable)
+    assert.doesNotMatch(
+      response.headers.get("x-robots-tag") ?? "",
+      /noindex|nofollow/i,
+    );
+  else assert.match(response.headers.get("x-robots-tag") ?? "", /noindex/);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("x-frame-options"), "DENY");
   assert.match(
@@ -35,9 +40,16 @@ function checkSecurityHeaders(response) {
     "Anonymous responses must retain strict script and style policies",
   );
 }
-function checkReaderHeaders(response) {
+function checkReaderHeaders(response, indexable = false) {
   assert.match(response.headers.get("content-type") ?? "", /text\/html/);
-  checkSecurityHeaders(response);
+  checkSecurityHeaders(response, indexable);
+}
+
+function checkIndexableHtml(html) {
+  for (const tag of html.matchAll(/<meta\b[^>]*>/gi)) {
+    if (/name=["'](?:robots|googlebot|bingbot)["']/i.test(tag[0]))
+      assert.doesNotMatch(tag[0], /noindex|nofollow/i);
+  }
 }
 
 function inertData(html, id) {
@@ -112,8 +124,9 @@ export async function checkLanding(response, explicitLanguage) {
     null,
     "Root is a document, not a redirect",
   );
-  checkReaderHeaders(response);
+  checkReaderHeaders(response, true);
   const html = await response.text();
+  checkIndexableHtml(html);
   const data = inertData(html, "reader-data");
   checkSettings(data.settings, html);
   const language = explicitLanguage ?? data.settings.defaultLanguage;
@@ -141,20 +154,18 @@ export async function checkLanding(response, explicitLanguage) {
     );
     assert.ok(
       html.includes(
-        `<link rel="alternate" hreflang="${locale}" href="https://cf.emby.wiki/?lang=${locale}">`,
+        `<link rel="alternate" hreflang="${locale}" href="${PUBLIC_ORIGIN}/?lang=${locale}">`,
       ),
     );
   }
-  assert.ok(
-    html.includes('<link rel="canonical" href="https://cf.emby.wiki/">'),
-  );
+  assert.ok(html.includes(`<link rel="canonical" href="${PUBLIC_ORIGIN}/">`));
   assert.ok(
     html.includes(
-      '<link rel="alternate" hreflang="x-default" href="https://cf.emby.wiki/">',
+      `<link rel="alternate" hreflang="x-default" href="${PUBLIC_ORIGIN}/">`,
     ),
   );
   assert.ok(
-    html.includes('<meta property="og:url" content="https://cf.emby.wiki/">'),
+    html.includes(`<meta property="og:url" content="${PUBLIC_ORIGIN}/">`),
   );
   assert.ok(html.includes('<meta property="og:type" content="website">'));
   assert.ok(html.includes('<meta name="theme-color"'));
@@ -173,8 +184,9 @@ export async function checkLanding(response, explicitLanguage) {
 
 export async function checkHome(response, explicitLanguage) {
   assert.equal(response.status, 200, "Homepage HTTP status");
-  checkReaderHeaders(response);
+  checkReaderHeaders(response, true);
   const html = await response.text();
+  checkIndexableHtml(html);
   const data = inertData(html, "reader-data");
   checkSettings(data.settings, html);
   const language = explicitLanguage ?? data.settings.defaultLanguage;
@@ -201,9 +213,9 @@ export async function checkHome(response, explicitLanguage) {
   assert.match(html, /href="#[^"]+"/, "Article must contain heading links");
   assert.ok(
     html.includes(
-      `<link rel="canonical" href="https://cf.emby.wiki/${language}/home">`,
+      `<link rel="canonical" href="${PUBLIC_ORIGIN}/${language}/home">`,
     ),
-    "Canonical URL remains the selected language on the test Custom Domain",
+    "Canonical URL remains the selected language on the production origin",
   );
   const identity = data.settings.locales[language];
   checkTitle(html, `${data.page.title} · ${identity.name}`);
@@ -224,12 +236,12 @@ export async function checkHome(response, explicitLanguage) {
   );
   assert.ok(
     html.includes(
-      '<link rel="alternate" hreflang="zh" href="https://cf.emby.wiki/zh/home">',
+      `<link rel="alternate" hreflang="zh" href="${PUBLIC_ORIGIN}/zh/home">`,
     ),
   );
   assert.ok(
     html.includes(
-      '<link rel="alternate" hreflang="en" href="https://cf.emby.wiki/en/home">',
+      `<link rel="alternate" hreflang="en" href="${PUBLIC_ORIGIN}/en/home">`,
     ),
   );
   return html;
@@ -429,12 +441,11 @@ async function check() {
   assert.equal(health.status, 200, "Health HTTP status");
   assert.match(health.headers.get("content-type") ?? "", /application\/json/);
   assert.equal(health.headers.get("cache-control"), "no-store");
-  assert.deepEqual(await health.json(), {
-    status: "ok",
-    service: "cloudflare-wiki",
-    environment: "test",
-    revision: expectedRevision,
-  });
+  const payload = await health.json();
+  assert.deepEqual(Object.keys(payload).sort(), ["ok", "timestamp"]);
+  assert.equal(payload.ok, true);
+  assert.equal(new Date(payload.timestamp).toISOString(), payload.timestamp);
+  assert.ok(Math.abs(Date.now() - Date.parse(payload.timestamp)) < 60_000);
   const missing = await get("/api/not-implemented", {
     headers: { "Sec-Fetch-Mode": "navigate" },
   });
@@ -451,13 +462,23 @@ async function check() {
   const sitemap = await get("/sitemap.xml");
   assert.equal(sitemap.status, 200, "Sitemap HTTP status");
   assert.match(sitemap.headers.get("content-type") ?? "", /xml/);
-  assert.match(sitemap.headers.get("x-robots-tag") ?? "", /noindex/);
+  checkSecurityHeaders(sitemap, true);
   const sitemapXml = await sitemap.text();
-  assert.match(sitemapXml, /<loc>https:\/\/cf\.emby\.wiki\/zh\/home<\/loc>/);
-  assert.match(sitemapXml, /<loc>https:\/\/cf\.emby\.wiki\/en\/home<\/loc>/);
+  for (const language of ["zh", "en"])
+    assert.ok(
+      sitemapXml.includes(`<loc>${PUBLIC_ORIGIN}/${language}/home</loc>`),
+    );
+  for (const entry of sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g))
+    assert.equal(new URL(entry[1]).origin, PUBLIC_ORIGIN);
   const robots = await get("/robots.txt");
   assert.equal(robots.status, 200);
-  assert.match(await robots.text(), /Disallow: \//);
+  checkSecurityHeaders(robots, true);
+  const robotsText = await robots.text();
+  assert.match(robotsText, /^Allow: \/$/m);
+  assert.doesNotMatch(robotsText, /^Disallow: \/$/m);
+  assert.ok(robotsText.includes(`Sitemap: ${PUBLIC_ORIGIN}/sitemap.xml`));
+  assert.match(robotsText, /^Disallow: \/admin$/m);
+  assert.match(robotsText, /^Disallow: \/api\/$/m);
   await checkAdmin(get);
   for (const representation of ["download", "image", "thumbnail"]) {
     const missingFile = await get(
@@ -475,7 +496,7 @@ async function check() {
     );
   }
   console.log(
-    `Smoke passed: ${base} configured homepage and explicit articles/search zh/en; localized metadata and sitemap; assets 200; health 200; revision ${expectedRevision}; API, reader and file 404; admin shell; anonymous content/revision/event/directory/navigation/redirect/settings/audit/file APIs 401 and editor documents 303; strict anonymous CSP; noindex.`,
+    `Smoke passed: ${base} production cover and articles zh/en; canonical metadata and sitemap; public indexing allowed; assets 200; generic health 200; API, reader and file 404; admin shell; anonymous content/revision/event/directory/navigation/redirect/settings/audit/file APIs 401 and editor documents 303; strict anonymous CSP; private routes noindex.`,
   );
 }
 
@@ -506,7 +527,7 @@ export async function checkBranding(html, getResponse) {
   if (branding.assets.ogImage)
     assert.ok(
       html.includes(
-        `<meta property="og:image" content="https://cf.emby.wiki${branding.assets.ogImage.path}">`,
+        `<meta property="og:image" content="${PUBLIC_ORIGIN}${branding.assets.ogImage.path}">`,
       ),
       "Open Graph image must use the configured absolute HTTPS origin",
     );
