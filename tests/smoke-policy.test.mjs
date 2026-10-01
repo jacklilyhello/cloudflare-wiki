@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
 import {
+  createSmokeGet,
   LOCAL_SMOKE_BASE_URL,
   validateSmokeBaseUrl,
 } from "../scripts/smoke-policy.mjs";
@@ -31,6 +32,80 @@ test("rejects workers.dev, arbitrary origins and malformed smoke targets", () =>
     "https://cloudflare-wiki.account-subdomain.workers.dev/health",
   ])
     assert.throws(() => validateSmokeBaseUrl(base));
+});
+
+test("WWW smoke verifies the exact canonical path and query before checking the application", async () => {
+  const calls = [];
+  const get = createSmokeGet(
+    "https://www.emby.wiki",
+    async (url, options) => {
+      calls.push(url.href);
+      assert.equal(options.redirect, "manual");
+      return Response.json({ ok: true });
+    },
+    async (url, options) => {
+      calls.push(url.href);
+      assert.equal(options.redirect, "manual");
+      return new Response(null, {
+        status: 301,
+        headers: { Location: "https://emby.wiki/zh/search?q=Emby" },
+      });
+    },
+  );
+  assert.equal((await get("/zh/search?q=Emby")).status, 200);
+  assert.deepEqual(calls, [
+    "https://www.emby.wiki/zh/search?q=Emby",
+    "https://emby.wiki/zh/search?q=Emby",
+  ]);
+});
+
+test("WWW smoke rejects missing, external and lossy redirects without requesting their target", async () => {
+  for (const location of [
+    "https://attacker.example/zh/home?q=keep",
+    "http://emby.wiki/zh/home?q=keep",
+    "https://emby.wiki/en/home?q=keep",
+    "https://emby.wiki/zh/home",
+    "/zh/home?q=keep",
+    "https://user:password@emby.wiki/zh/home?q=keep",
+  ]) {
+    const get = createSmokeGet(
+      "https://www.emby.wiki",
+      () => assert.fail("Unexpected follow-up request"),
+      async () =>
+        new Response(null, { status: 301, headers: { Location: location } }),
+    );
+    await assert.rejects(get("/zh/home?q=keep"));
+  }
+});
+
+test("smoke rejects cross-origin requests, credentials and writes before invoking transport", async () => {
+  const get = createSmokeGet("https://emby.wiki", () =>
+    assert.fail("Unexpected request"),
+  );
+  for (const [path, options] of [
+    ["https://attacker.example/health"],
+    ["//attacker.example/health"],
+    ["/api/admin/login", { method: "POST" }],
+    ["/api/admin/session", { headers: { Authorization: "fixture" } }],
+    ["/api/admin/session", { headers: { Cookie: "fixture" } }],
+  ])
+    await assert.rejects(get(path, options));
+});
+
+test("smoke inspects editor redirects and fails unexpected document redirects", async () => {
+  const get = createSmokeGet(
+    "https://emby.wiki",
+    async () =>
+      new Response(null, {
+        status: 303,
+        headers: { Location: "/admin?returnTo=%2Fadmin%2Fpages%2Fnew" },
+      }),
+  );
+  await assert.rejects(get("/"));
+  assert.equal(
+    (await get("/admin/pages/new", { redirect: "manual" })).status,
+    303,
+  );
 });
 
 const adminHeaders = {

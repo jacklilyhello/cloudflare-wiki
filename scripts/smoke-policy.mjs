@@ -20,3 +20,52 @@ export function validateSmokeBaseUrl(base) {
   }
   return url;
 }
+
+export function createSmokeGet(
+  base,
+  transport = fetch,
+  aliasTransport = fetch,
+) {
+  const origin = validateSmokeBaseUrl(base).origin;
+  return async (path, options = {}) => {
+    const requested = new URL(path, origin);
+    if (requested.origin !== origin || requested.username || requested.password)
+      throw new Error(
+        "Smoke requests must remain on the selected public origin.",
+      );
+    if (options.method && options.method !== "GET")
+      throw new Error("Smoke requests are anonymous GETs only.");
+    const headers = new Headers(options.headers);
+    if (headers.has("authorization") || headers.has("cookie"))
+      throw new Error(
+        "Smoke requests cannot supply authentication credentials.",
+      );
+    const target = new URL(requested);
+    if (origin === "https://www.emby.wiki") {
+      const alias = await aliasTransport(requested, {
+        redirect: "manual",
+        signal: AbortSignal.timeout(15_000),
+      });
+      target.hostname = "emby.wiki";
+      if (alias.status !== 301 || alias.headers.get("location") !== target.href)
+        throw new Error(
+          "WWW must redirect only to the same production path and query.",
+        );
+      await alias.body?.cancel();
+    }
+    const response = await transport(target, {
+      signal: AbortSignal.timeout(15_000),
+      ...options,
+      method: "GET",
+      redirect: "manual",
+    });
+    if (
+      options.redirect !== "manual" &&
+      [301, 302, 303, 307, 308].includes(response.status)
+    )
+      throw new Error(
+        "Unexpected application redirect during production smoke.",
+      );
+    return response;
+  };
+}
