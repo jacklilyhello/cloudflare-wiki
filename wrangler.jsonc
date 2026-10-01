@@ -3,7 +3,7 @@
   "name": "cloudflare-wiki",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-21",
-  "workers_dev": true,
+  "workers_dev": false,
   "preview_urls": false,
   "d1_databases": [
     {
@@ -29,9 +29,9 @@
   },
   "vars": {
     "APP_ID": "jacklilyhello/cloudflare-wiki",
-    "APP_ENV": "test",
+    "APP_ENV": "production",
     "BUILD_SHA": "local",
     "BRANDING_JSON": "{}",
-    "PUBLIC_ORIGIN": "https://cf.emby.wiki"
+    "PUBLIC_ORIGIN": "https://emby.wiki"
   }
 }

@@ -1,4 +1,10 @@
-export const TEST_DOMAIN = "cf.emby.wiki";
+export const PRODUCTION_DOMAIN = "emby.wiki";
+export const PUBLIC_ORIGIN = `https://${PRODUCTION_DOMAIN}`;
+export const PUBLIC_DOMAINS = Object.freeze([
+  PRODUCTION_DOMAIN,
+  "www.emby.wiki",
+  "cf.emby.wiki",
+]);
 export const WORKER_NAME = "cloudflare-wiki";
 
 import { parseBranding } from "../shared/branding.ts";
@@ -19,7 +25,7 @@ export function validateDeployment(env) {
     "CLOUDFLARE_ACCOUNT_ID",
     "CLOUDFLARE_ZONE_ID",
     "CLOUDFLARE_WORKER_NAME",
-    "TEST_DOMAIN",
+    "PRODUCTION_DOMAIN",
   ];
   const missing = required.filter((name) => !env[name]);
   if (missing.length)
@@ -30,8 +36,10 @@ export function validateDeployment(env) {
     if (!/^[a-f0-9]{32}$/i.test(env[name]))
       throw new Error(`Invalid Variable: ${name}`);
   }
-  if (env.TEST_DOMAIN !== TEST_DOMAIN)
-    throw new Error("Only cf.emby.wiki may be deployed.");
+  if (env.PRODUCTION_DOMAIN !== PRODUCTION_DOMAIN)
+    throw new Error(
+      "Only the fixed emby.wiki production domains may be deployed.",
+    );
   if (env.CLOUDFLARE_WORKER_NAME !== WORKER_NAME)
     throw new Error("Only the cloudflare-wiki Worker may be deployed.");
   if (!/^[a-f0-9]{40}$/.test(env.GITHUB_SHA ?? ""))
@@ -44,9 +52,10 @@ export function buildDeploymentConfig(config, env) {
   const branding = JSON.stringify(parseBranding(env.BRANDING_JSON));
   const vars = {
     ...config.vars,
+    APP_ENV: "production",
     BUILD_SHA: env.GITHUB_SHA,
     BRANDING_JSON: branding,
-    PUBLIC_ORIGIN: "https://cf.emby.wiki",
+    PUBLIC_ORIGIN,
   };
   if (
     Object.values(vars).some(
@@ -61,14 +70,12 @@ export function buildDeploymentConfig(config, env) {
   return {
     ...config,
     account_id: env.CLOUDFLARE_ACCOUNT_ID,
-    routes: [
-      {
-        pattern: TEST_DOMAIN,
-        custom_domain: true,
-        zone_id: env.CLOUDFLARE_ZONE_ID,
-      },
-    ],
-    workers_dev: true,
+    routes: PUBLIC_DOMAINS.map((pattern) => ({
+      pattern,
+      custom_domain: true,
+      zone_id: env.CLOUDFLARE_ZONE_ID,
+    })),
+    workers_dev: false,
     preview_urls: false,
     vars,
   };

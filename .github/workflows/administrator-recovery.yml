@@ -15,7 +15,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: deploy-cloudflare-wiki-test
+  group: deploy-cloudflare-wiki-production
   cancel-in-progress: false
 
 jobs:
@@ -47,4 +47,4 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
           CLOUDFLARE_WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME }}
-          TEST_DOMAIN: ${{ vars.TEST_DOMAIN }}
+          PRODUCTION_DOMAIN: ${{ vars.PRODUCTION_DOMAIN }}

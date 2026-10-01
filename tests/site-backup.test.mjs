@@ -476,7 +476,7 @@ test("only the fixed main backup workflow may write private archives; ordinary d
     CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
     CLOUDFLARE_ZONE_ID: "c".repeat(32),
     CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-    TEST_DOMAIN: "cf.emby.wiki",
+    PRODUCTION_DOMAIN: "emby.wiki",
     CLOUDFLARE_API_TOKEN: "fixture-only",
   };
   validateBackupContext(env);
@@ -485,7 +485,7 @@ test("only the fixed main backup workflow may write private archives; ordinary d
     { GITHUB_REF: "refs/heads/feature/test" },
     { GITHUB_EVENT_NAME: "push" },
     { GITHUB_WORKFLOW_REF: "wrong" },
-    { TEST_DOMAIN: "emby.wiki" },
+    { PRODUCTION_DOMAIN: "unapproved.example" },
     { BACKUP_OPERATION: "restore-remote" },
   ])
     assert.throws(() => validateBackupContext({ ...env, ...change }));
@@ -533,7 +533,7 @@ test("Actions backup and verify-latest reuse owned private resources and never m
     CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
     CLOUDFLARE_ZONE_ID: "c".repeat(32),
     CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-    TEST_DOMAIN: "cf.emby.wiki",
+    PRODUCTION_DOMAIN: "emby.wiki",
     CLOUDFLARE_API_TOKEN: "fixture-only",
   };
   const objects = new Map(

@@ -6,7 +6,11 @@ export default defineConfig(async () => ({
     cloudflareTest({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
-        bindings: { TEST_MIGRATIONS: await readD1Migrations("./migrations") },
+        bindings: {
+          APP_ENV: "test",
+          PUBLIC_ORIGIN: "https://cf.emby.wiki",
+          TEST_MIGRATIONS: await readD1Migrations("./migrations"),
+        },
         assets: {
           directory: "tests/fixtures/assets",
           binding: "ASSETS",

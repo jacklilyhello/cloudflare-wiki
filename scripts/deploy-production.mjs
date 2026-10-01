@@ -1,25 +1,28 @@
 import { spawnSync } from "node:child_process";
-import { appendFile, readdir, readFile, writeFile } from "node:fs/promises";
+import { readdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { bootstrapAdmin, prepareAdminBootstrap } from "./admin-bootstrap.mjs";
 import { readBuiltBranding } from "./build-branding.mjs";
 import { verifyWorkerD1Binding } from "./d1-policy.mjs";
-import { buildDeploymentConfig, validateDeployment } from "./deploy-policy.mjs";
-import { provisionStorage } from "./provision-storage.mjs";
-import { verifyWorkerR2Binding } from "./r2-provision.mjs";
-import { workersDevBaseUrl } from "./smoke-policy.mjs";
+import {
+  buildDeploymentConfig,
+  PUBLIC_DOMAINS,
+  PUBLIC_ORIGIN,
+  validateDeployment,
+} from "./deploy-policy.mjs";
+import { validateDomainPreflight, validateDomains } from "./domain-policy.mjs";
+import { productionStorage } from "./production-storage.mjs";
+import { verifyWorkerR2Binding } from "./r2-policy.mjs";
 
 const env = { ...process.env };
 validateDeployment(env);
 env.BRANDING_JSON = await readBuiltBranding();
-if (!env.GITHUB_OUTPUT) throw new Error("Missing GitHub Actions output file.");
-const setupTokenHash = prepareAdminBootstrap(env);
 delete env.ADMIN_SETUP_TOKEN;
 delete process.env.ADMIN_SETUP_TOKEN;
 
 async function cf(path, allowNotFound = false) {
   const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
+    redirect: "error",
     headers: { Authorization: `Bearer ${env.CLOUDFLARE_API_TOKEN}` },
     signal: AbortSignal.timeout(30_000),
   });
@@ -46,61 +49,27 @@ if (
   );
 }
 const domains = await cf(`${account}/workers/domains`);
-const workersSubdomain = await cf(`${account}/workers/subdomain`);
-const workersDevUrl = workersDevBaseUrl(workersSubdomain.subdomain);
-for (const domain of domains) {
-  if (
-    domain.hostname === env.TEST_DOMAIN &&
-    domain.service !== env.CLOUDFLARE_WORKER_NAME
-  ) {
-    throw new Error(
-      "The test hostname belongs to another Worker; refusing to replace it.",
-    );
-  }
-  if (
-    domain.service === env.CLOUDFLARE_WORKER_NAME &&
-    domain.hostname !== env.TEST_DOMAIN
-  ) {
-    throw new Error(
-      "The selected Worker has another hostname; refusing to modify it.",
-    );
-  }
-}
 const settings = await cf(
   `${account}/workers/scripts/${env.CLOUDFLARE_WORKER_NAME}/settings`,
   true,
 );
-if (
-  settings &&
-  !settings.bindings?.some(
-    (binding) =>
-      binding.name === "APP_ID" &&
-      binding.text === "jacklilyhello/cloudflare-wiki",
-  )
-) {
-  throw new Error(
-    "An existing Worker has no project ownership marker; refusing to overwrite it.",
-  );
-}
 const routes = await cf(`/zones/${env.CLOUDFLARE_ZONE_ID}/workers/routes`);
-if (routes.some((route) => route.script === env.CLOUDFLARE_WORKER_NAME)) {
-  throw new Error(
-    "The Worker already has a route; inspect it before deploying this custom-domain-only project.",
-  );
-}
-const records = await cf(
-  `/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records?name=${encodeURIComponent(env.TEST_DOMAIN)}`,
+const records = Object.fromEntries(
+  await Promise.all(
+    PUBLIC_DOMAINS.map(async (hostname) => [
+      hostname,
+      await cf(
+        `/zones/${env.CLOUDFLARE_ZONE_ID}/dns_records?name=${encodeURIComponent(hostname)}&per_page=5000`,
+      ),
+    ]),
+  ),
 );
-const ownedDomain = domains.some(
-  (domain) =>
-    domain.hostname === env.TEST_DOMAIN &&
-    domain.service === env.CLOUDFLARE_WORKER_NAME,
-);
-if (records.length && !ownedDomain) {
-  throw new Error(
-    "The test hostname has existing DNS records; refusing to replace or delete them.",
-  );
-}
+validateDomainPreflight({
+  domains,
+  routes,
+  records,
+  zoneId: env.CLOUDFLARE_ZONE_ID,
+});
 
 const path = resolve("dist/cloudflare_wiki/wrangler.json");
 const config = buildDeploymentConfig(
@@ -124,7 +93,7 @@ const migrationNames = (
 )
   .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
   .map((entry) => entry.name);
-const { databaseId } = await provisionStorage(
+const { databaseId, config: resolved } = await productionStorage(
   {
     env,
     config,
@@ -135,16 +104,12 @@ const { databaseId } = await provisionStorage(
   },
   {
     fetch,
-    writeConfig: (resolved) =>
-      writeFile(path, `${JSON.stringify(resolved, null, 2)}\n`),
-    runWrangler,
   },
 );
-const bootstrapStatus = await bootstrapAdmin(
-  { env, databaseId, tokenHash: setupTokenHash },
-  { fetch },
+await writeFile(path, `${JSON.stringify(resolved, null, 2)}\n`);
+console.log(
+  "Existing D1/R2 ownership, bindings and complete migration ledger verified; storage unchanged.",
 );
-console.log(`Administrator bootstrap: ${bootstrapStatus}.`);
 runWrangler([
   "deploy",
   "--config",
@@ -165,8 +130,11 @@ async function verifyDeploymentReadback() {
   verifyWorkerD1Binding(deployedSettings, databaseId);
   verifyWorkerR2Binding(deployedSettings);
   for (const [name, value] of Object.entries({
+    APP_ID: "jacklilyhello/cloudflare-wiki",
+    APP_ENV: "production",
+    BUILD_SHA: env.GITHUB_SHA,
     BRANDING_JSON: env.BRANDING_JSON,
-    PUBLIC_ORIGIN: "https://cf.emby.wiki",
+    PUBLIC_ORIGIN,
   })) {
     const matches =
       deployedSettings.bindings?.filter((binding) => binding.name === name) ??
@@ -177,23 +145,13 @@ async function verifyDeploymentReadback() {
       matches[0].text !== value
     )
       throw new Error(
-        "Deployment branding readback did not match the reviewed build configuration.",
+        "Deployment variables did not match the reviewed production build.",
       );
   }
-  if (
-    !deployedDomains.some(
-      (domain) =>
-        domain.hostname === env.TEST_DOMAIN &&
-        domain.service === env.CLOUDFLARE_WORKER_NAME,
-    )
-  ) {
+  validateDomains(deployedDomains, env.CLOUDFLARE_ZONE_ID, true);
+  if (scriptSubdomain.enabled !== false) {
     throw new Error(
-      "Cloudflare API readback did not confirm cf.emby.wiki is bound to cloudflare-wiki.",
-    );
-  }
-  if (scriptSubdomain.enabled !== true) {
-    throw new Error(
-      "Cloudflare API readback did not confirm workers.dev is enabled for cloudflare-wiki.",
+      "Cloudflare API readback did not confirm workers.dev is disabled.",
     );
   }
   if (scriptSubdomain.previews_enabled !== false) {
@@ -219,11 +177,6 @@ for (let attempt = 1; attempt <= 12; attempt++) {
 }
 if (readbackFailure) throw readbackFailure;
 
-await appendFile(
-  env.GITHUB_OUTPUT,
-  `workers_dev_url=${workersDevUrl}\nworkers_dev_subdomain=${workersSubdomain.subdomain}\n`,
-  "utf8",
-);
 console.log(
-  "Cloudflare API readback confirmed custom-domain and workers.dev bindings.",
+  "Cloudflare API readback confirmed all three production Custom Domains, exact deployment SHA, existing storage and disabled workers.dev/Preview URLs.",
 );

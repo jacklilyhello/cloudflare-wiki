@@ -9,7 +9,7 @@ import {
 } from "../scripts/d1-policy.mjs";
 import {
   buildDeploymentConfig,
-  TEST_DOMAIN,
+  PUBLIC_DOMAINS,
   validateDeployment,
   WORKER_NAME,
 } from "../scripts/deploy-policy.mjs";
@@ -26,7 +26,7 @@ const valid = {
   CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
   CLOUDFLARE_ZONE_ID: "c".repeat(32),
   CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-  TEST_DOMAIN: "cf.emby.wiki",
+  PRODUCTION_DOMAIN: "emby.wiki",
 };
 test("allows only main push or manual main deployment", () => {
   assert.doesNotThrow(() => validateDeployment(valid));
@@ -34,12 +34,14 @@ test("allows only main push or manual main deployment", () => {
     validateDeployment({ ...valid, GITHUB_EVENT_NAME: "workflow_dispatch" }),
   );
 });
-test("keeps workers.dev enabled and Preview URLs disabled in source and deployment config", async () => {
+test("disables workers.dev and Preview URLs while retaining existing storage in production", async () => {
   const sourceConfig = JSON.parse(
     await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8"),
   );
-  assert.equal(sourceConfig.workers_dev, true);
+  assert.equal(sourceConfig.workers_dev, false);
   assert.equal(sourceConfig.preview_urls, false);
+  assert.equal(sourceConfig.vars.APP_ENV, "production");
+  assert.equal(sourceConfig.vars.PUBLIC_ORIGIN, "https://emby.wiki");
   assert.doesNotThrow(() => validateD1Config(sourceConfig));
   assert.doesNotThrow(() => validateR2Config(sourceConfig));
   assert.deepEqual(sourceConfig.r2_buckets, [
@@ -65,15 +67,18 @@ test("keeps workers.dev enabled and Preview URLs disabled in source and deployme
     },
     valid,
   );
-  assert.equal(config.workers_dev, true);
+  assert.equal(config.workers_dev, false);
   assert.equal(config.preview_urls, false);
-  assert.deepEqual(config.routes, [
-    {
-      pattern: TEST_DOMAIN,
+  assert.deepEqual(
+    config.routes,
+    PUBLIC_DOMAINS.map((pattern) => ({
+      pattern,
       custom_domain: true,
       zone_id: valid.CLOUDFLARE_ZONE_ID,
-    },
-  ]);
+    })),
+  );
+  assert.equal(config.vars.APP_ENV, "production");
+  assert.equal(config.vars.PUBLIC_ORIGIN, "https://emby.wiki");
   assert.equal(config.vars.BUILD_SHA, valid.GITHUB_SHA);
   assert.doesNotThrow(() => validateR2Config(config));
   assert.deepEqual(config.r2_buckets, sourceConfig.r2_buckets);
@@ -88,7 +93,7 @@ for (const [key, value] of Object.entries({
   GITHUB_REPOSITORY: "other/repo",
   GITHUB_REF: "refs/heads/feature/test",
   GITHUB_EVENT_NAME: "pull_request",
-  TEST_DOMAIN: "emby.wiki",
+  PRODUCTION_DOMAIN: "unapproved.example",
   CLOUDFLARE_WORKER_NAME: "other-worker",
   CLOUDFLARE_API_TOKEN: "",
   CLOUDFLARE_ACCOUNT_ID: "invalid",

@@ -192,7 +192,7 @@ test("48 KiB individual, 256 KiB combined and UTF-8 5 KiB Worker boundaries fail
     { name: "cloudflare-wiki", vars: {} },
     { BRANDING_JSON: variables[MANIFEST_VARIABLE], GITHUB_SHA: "a".repeat(40) },
   );
-  assert.equal(built.vars.PUBLIC_ORIGIN, "https://cf.emby.wiki");
+  assert.equal(built.vars.PUBLIC_ORIGIN, "https://emby.wiki");
   assert.ok(
     !JSON.stringify(built.vars).includes(variables[BRAND_VARIABLES.favicon]),
   );
@@ -316,7 +316,7 @@ test("private backup captures only fixed-origin branding bytes without credentia
     ],
   };
   const captured = await captureBranding(settings, async (url, init) => {
-    assert.equal(new URL(url).origin, "https://cf.emby.wiki");
+    assert.equal(new URL(url).origin, "https://emby.wiki");
     assert.equal(init.redirect, "error");
     assert.equal(init.headers.Authorization, undefined);
     const role = BRAND_ROLES.find((role) => url.includes(`/${role}-`));
@@ -336,15 +336,18 @@ test("private backup captures only fixed-origin branding bytes without credentia
 });
 test("deployment passes encoded Repository Variables only as reusable-workflow secrets", async () => {
   const caller = await readFile(
-    new URL("../.github/workflows/deploy-test.yml", import.meta.url),
+    new URL("../.github/workflows/deploy-production.yml", import.meta.url),
     "utf8",
   );
   const called = await readFile(
-    new URL("../.github/workflows/deploy-test-run.yml", import.meta.url),
+    new URL("../.github/workflows/deploy-production-run.yml", import.meta.url),
     "utf8",
   );
-  assert.match(caller, /uses: \.\/\.github\/workflows\/deploy-test-run\.yml/);
-  assert.match(caller, /group: deploy-cloudflare-wiki-test/);
+  assert.match(
+    caller,
+    /uses: \.\/\.github\/workflows\/deploy-production-run\.yml/,
+  );
+  assert.match(caller, /group: deploy-cloudflare-wiki-production/);
   assert.match(called, /workflow_call:/);
   assert.doesNotMatch(called, /workflow_dispatch:|\$\{\{ vars\.WIKI_BRAND_/);
   assert.doesNotMatch(

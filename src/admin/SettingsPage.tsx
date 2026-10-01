@@ -712,8 +712,8 @@ export function SettingsPage({
                 </header>
                 <p>
                   {zh
-                    ? "这里展示当前部署的图片和文字。通过 GitHub Repository Variables 配置，并手动运行 main 的 Deploy Test 发布；本页保存只更新数据库设置。明确配置的品牌名称、描述和图片优先，其余沿用数据库设置。"
-                    : "These images and text belong to the current deployment. Configure GitHub Repository Variables, then run Deploy Test on main. Saving this page updates database settings. Explicit branding names, descriptions and images take precedence; other settings keep their database values."}
+                    ? "这里展示当前部署的图片和文字。通过 GitHub Repository Variables 配置，并手动运行 main 的 Deploy Production 发布；本页保存只更新数据库设置。明确配置的品牌名称、描述和图片优先，其余沿用数据库设置。"
+                    : "These images and text belong to the current deployment. Configure GitHub Repository Variables, then run Deploy Production on main. Saving this page updates database settings. Explicit branding names, descriptions and images take precedence; other settings keep their database values."}
                 </p>
                 <div className="deployment-branding-images">
                   {BRAND_ROLES.map((role) => {

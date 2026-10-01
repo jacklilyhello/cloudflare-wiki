@@ -34,7 +34,7 @@ const env = {
   CLOUDFLARE_ACCOUNT_ID: "b".repeat(32),
   CLOUDFLARE_ZONE_ID: "c".repeat(32),
   CLOUDFLARE_WORKER_NAME: "cloudflare-wiki",
-  TEST_DOMAIN: "cf.emby.wiki",
+  PRODUCTION_DOMAIN: "emby.wiki",
   CLOUDFLARE_API_TOKEN: "test-only-placeholder",
 };
 const databaseId = "12345678-1234-1234-1234-123456789abc";

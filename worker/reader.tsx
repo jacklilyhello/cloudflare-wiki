@@ -17,6 +17,7 @@ import {
   escapeHtml,
   jsonError,
   methodNotAllowed,
+  publicSecurityHeaders,
   securityHeaders,
 } from "./security";
 import { getSiteSettings } from "./settings/service";
@@ -83,11 +84,30 @@ export async function sitemap(request: Request, env: Env) {
         : `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${entries}</urlset>`,
       {
         headers: {
-          ...securityHeaders,
+          ...publicSecurityHeaders(env),
           "Content-Type": "application/xml; charset=utf-8",
         },
       },
     );
+  } catch {
+    return contentUnavailable(request);
+  }
+}
+
+export function robots(request: Request, env: Env) {
+  if (!["GET", "HEAD"].includes(request.method)) return methodNotAllowed();
+  try {
+    const origin = publicOrigin(env);
+    const body =
+      env.APP_ENV === "production"
+        ? `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /health\nDisallow: /zh/search\nDisallow: /en/search\nSitemap: ${origin}/sitemap.xml\n`
+        : "User-agent: *\nDisallow: /\n";
+    return new Response(request.method === "HEAD" ? null : body, {
+      headers: {
+        ...publicSecurityHeaders(env),
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
   } catch {
     return contentUnavailable(request);
   }
@@ -160,7 +180,7 @@ async function renderReaderDocument(
     return new Response(null, {
       status: 301,
       headers: {
-        ...securityHeaders,
+        ...publicSecurityHeaders(env),
         Location: publicPath(page.language, page.path) + url.search,
       },
     });
@@ -193,6 +213,7 @@ async function renderReaderDocument(
     searchResults,
   };
   const status = data.mode === "not-found" ? 404 : 200;
+  const indexable = landing || data.mode === "article";
   const title = landing
     ? language === "zh"
       ? "Emby 技术手册"
@@ -238,6 +259,11 @@ async function renderReaderDocument(
   const template = await env.ASSETS.fetch(templateRequest);
   if (!template.ok) return jsonError("Reader assets unavailable", 503);
   const transformed = new HTMLRewriter()
+    .on('meta[name="robots"]', {
+      element(element) {
+        if (env.APP_ENV === "production" && indexable) element.remove();
+      },
+    })
     .on("html", {
       element(element) {
         element.setAttribute("lang", language);
@@ -288,6 +314,9 @@ async function renderReaderDocument(
     .transform(template);
   return new Response(request.method === "HEAD" ? null : transformed.body, {
     status,
-    headers: { ...securityHeaders, "Content-Type": "text/html; charset=utf-8" },
+    headers: {
+      ...(indexable ? publicSecurityHeaders(env) : securityHeaders),
+      "Content-Type": "text/html; charset=utf-8",
+    },
   });
 }

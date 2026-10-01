@@ -119,7 +119,7 @@ export async function installBranding(
     repository,
     configuredVariables: Object.keys(variables),
     readback: "verified",
-    deployment: "Run Deploy Test manually on main",
+    deployment: "Run Deploy Production manually on main",
   };
 }
 if (
