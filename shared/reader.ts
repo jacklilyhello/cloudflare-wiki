@@ -51,7 +51,7 @@ export interface ReaderData {
   rendered: RenderedMarkdown | null;
   navigation: NavigationEntry[];
   translations: Partial<Record<Language, string>>;
-  mode: "article" | "search" | "not-found";
+  mode: "landing" | "article" | "search" | "not-found";
   searchQuery: string;
   searchResults: SearchResult[];
 }

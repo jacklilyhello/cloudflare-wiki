@@ -21,7 +21,7 @@ import {
 } from "./security";
 import { getSiteSettings } from "./settings/service";
 
-function isLanguage(value: string | undefined): value is Language {
+function isLanguage(value: string | null | undefined): value is Language {
   return value === "zh" || value === "en";
 }
 
@@ -120,9 +120,11 @@ async function renderReaderDocument(
   const branding = parseBranding(env.BRANDING_JSON);
   const settings = brandSettings(storedSettings, branding);
   const canonicalOrigin = publicOrigin(env);
+  const landing = url.pathname === "/";
   const segments = url.pathname.split("/").filter(Boolean);
-  const language = isLanguage(segments[0])
-    ? segments[0]
+  const selectedLanguage = landing ? url.searchParams.get("lang") : segments[0];
+  const language = isLanguage(selectedLanguage)
+    ? selectedLanguage
     : settings.defaultLanguage;
   const identity = settings.locales[language];
   const validLanguage = url.pathname === "/" || isLanguage(segments[0]);
@@ -146,10 +148,13 @@ async function renderReaderDocument(
   const search = validLanguage && path === "search";
   const query = url.searchParams.get("q") ?? "";
   if (query.length > 200) return jsonError("Search query is too long", 400);
+  // The cover needs only public presentation settings, never the content tree.
   const [page, navigation, searchResults] = await Promise.all([
-    !search && validLanguage ? getPage(env.DB, language, path) : null,
-    getNavigation(env.DB, language),
-    search ? searchPages(env.DB, language, query) : [],
+    !landing && !search && validLanguage
+      ? getPage(env.DB, language, path)
+      : null,
+    landing ? [] : getNavigation(env.DB, language),
+    !landing && search ? searchPages(env.DB, language, query) : [],
   ]);
   if (page && page.path !== path) {
     return new Response(null, {
@@ -169,37 +174,56 @@ async function renderReaderDocument(
       ? await renderMarkdown(page.markdown, language, page.linkBasePath)
       : null,
     navigation,
-    translations: search
-      ? {
-          zh: `/zh/search?q=${encodeURIComponent(query)}`,
-          en: `/en/search?q=${encodeURIComponent(query)}`,
-        }
-      : await getTranslations(env.DB, page),
-    mode: search ? "search" : page ? "article" : "not-found",
+    translations: landing
+      ? { zh: "/?lang=zh", en: "/?lang=en" }
+      : search
+        ? {
+            zh: `/zh/search?q=${encodeURIComponent(query)}`,
+            en: `/en/search?q=${encodeURIComponent(query)}`,
+          }
+        : await getTranslations(env.DB, page),
+    mode: landing
+      ? "landing"
+      : search
+        ? "search"
+        : page
+          ? "article"
+          : "not-found",
     searchQuery: search ? query : "",
     searchResults,
   };
   const status = data.mode === "not-found" ? 404 : 200;
-  const title =
-    page?.title ??
-    (search
-      ? language === "zh"
-        ? "搜索文档"
-        : "Search documentation"
-      : language === "zh"
-        ? "找不到页面"
-        : "Page not found");
+  const title = landing
+    ? language === "zh"
+      ? "Emby 技术手册"
+      : "The Emby Handbook"
+    : (page?.title ??
+      (search
+        ? language === "zh"
+          ? "搜索文档"
+          : "Search documentation"
+        : language === "zh"
+          ? "找不到页面"
+          : "Page not found"));
   const description = page?.description || identity.description;
-  const canonical =
-    canonicalOrigin +
-    publicPath(language, page?.path ?? (search ? "search" : "home"));
+  const documentTitle = landing
+    ? `${identity.name} · ${title}`
+    : `${title} · ${identity.name}`;
+  const canonical = landing
+    ? `${canonicalOrigin}/`
+    : canonicalOrigin +
+      publicPath(language, page?.path ?? (search ? "search" : "home"));
   const alternateLinks = Object.entries(data.translations)
     .map(
       ([lang, path]) =>
         `<link rel="alternate" hreflang="${lang}" href="${escapeHtml(canonicalOrigin + path)}">`,
     )
     .join("");
-  const metadata = `<meta name="description" content="${escapeHtml(description)}"><meta property="og:title" content="${escapeHtml(`${title} · ${identity.name}`)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:type" content="article"><meta property="og:site_name" content="${escapeHtml(identity.name)}"><meta property="og:url" content="${escapeHtml(canonical)}">${page ? `<link rel="canonical" href="${escapeHtml(canonical)}">` : ""}${alternateLinks}`;
+  const themeColors = landing
+    ? { light: "#f5f4ee", dark: "#091410" }
+    : { light: "#ffffff", dark: "#151a18" };
+  const themeMetadata = `<meta name="theme-color" content="${settings.theme === "dark" ? themeColors.dark : themeColors.light}" data-light="${themeColors.light}" data-dark="${themeColors.dark}">`;
+  const metadata = `<meta name="description" content="${escapeHtml(description)}"><meta property="og:title" content="${escapeHtml(documentTitle)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:type" content="${landing ? "website" : "article"}"><meta property="og:site_name" content="${escapeHtml(identity.name)}"><meta property="og:url" content="${escapeHtml(canonical)}">${page || landing ? `<link rel="canonical" href="${escapeHtml(canonical)}">` : ""}${alternateLinks}${landing ? `<link rel="alternate" hreflang="x-default" href="${escapeHtml(canonical)}"><meta property="og:locale" content="${language === "zh" ? "zh_CN" : "en_US"}"><meta property="og:locale:alternate" content="${language === "zh" ? "en_US" : "zh_CN"}">` : ""}`;
   // Inert JSON cannot close its script element; no executable inline code or
   // user-provided HTML crosses this boundary except the sanitized renderer output.
   const serialized = JSON.stringify(data)
@@ -219,18 +243,20 @@ async function renderReaderDocument(
         element.setAttribute("lang", language);
         element.setAttribute("data-theme", settings.theme);
         element.setAttribute("data-accent", settings.accent);
+        if (landing) element.setAttribute("data-document", "landing");
       },
     })
     .on("title", {
       element(element) {
-        element.setInnerContent(`${title} · ${identity.name}`);
+        element.setInnerContent(documentTitle);
       },
     })
     .on("head", {
       element(element) {
-        element.prepend('<script src="/assets/site-appearance.js"></script>', {
-          html: true,
-        });
+        element.prepend(
+          `${themeMetadata}<script src="/assets/site-appearance.js"></script>`,
+          { html: true },
+        );
         element.append(
           metadata +
             brandIcons(branding) +

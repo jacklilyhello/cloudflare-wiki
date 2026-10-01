@@ -61,7 +61,6 @@ describe("public site settings", () => {
       logo: "book",
     });
     for (const [path, language] of [
-      ["/", "en"],
       ["/en/home", "en"],
       ["/zh/home", "zh"],
     ] as const) {

@@ -1311,7 +1311,7 @@ export function AdminApp({
         <div className="admin-sidebar-bottom">
           <div className="admin-sidebar-note">
             <span className="admin-status-dot" />
-            {zh ? "测试工作空间" : "Test workspace"}
+            {zh ? "内容工作空间" : "Content workspace"}
           </div>
           <div className="admin-sidebar-user">
             <span className="admin-avatar">

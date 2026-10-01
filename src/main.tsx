@@ -7,6 +7,7 @@ import { App } from "./App";
 import { applySiteAppearance } from "./site-appearance";
 import "./styles.css";
 import "./branding.css";
+import "./landing.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing application root");

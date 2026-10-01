@@ -105,6 +105,72 @@ function checkSettings(settings, html) {
   );
 }
 
+export async function checkLanding(response, explicitLanguage) {
+  assert.equal(response.status, 200, "Cover HTTP status");
+  assert.equal(
+    response.headers.get("Location"),
+    null,
+    "Root is a document, not a redirect",
+  );
+  checkReaderHeaders(response);
+  const html = await response.text();
+  const data = inertData(html, "reader-data");
+  checkSettings(data.settings, html);
+  const language = explicitLanguage ?? data.settings.defaultLanguage;
+  assert.equal(data.mode, "landing");
+  assert.equal(data.language, language);
+  assert.equal(data.page, null);
+  assert.equal(data.rendered, null);
+  assert.deepEqual(data.navigation, []);
+  assert.deepEqual(data.searchResults, []);
+  assert.deepEqual(data.translations, { zh: "/?lang=zh", en: "/?lang=en" });
+  assert.match(html, /<main\b[^>]*id="cover-content"/);
+  assert.match(html, /<h1\b[^>]*id="cover-title"/);
+  assert.ok(
+    !/<article\b/.test(html),
+    "Root must not contain Wiki article content",
+  );
+  assert.ok(
+    html.includes(`href="/${language}/home"`),
+    "Continue enters the selected reader language",
+  );
+  for (const locale of ["zh", "en"]) {
+    assert.ok(
+      html.includes(`href="/?lang=${locale}"`),
+      "Both languages work before hydration",
+    );
+    assert.ok(
+      html.includes(
+        `<link rel="alternate" hreflang="${locale}" href="https://cf.emby.wiki/?lang=${locale}">`,
+      ),
+    );
+  }
+  assert.ok(
+    html.includes('<link rel="canonical" href="https://cf.emby.wiki/">'),
+  );
+  assert.ok(
+    html.includes(
+      '<link rel="alternate" hreflang="x-default" href="https://cf.emby.wiki/">',
+    ),
+  );
+  assert.ok(
+    html.includes('<meta property="og:url" content="https://cf.emby.wiki/">'),
+  );
+  assert.ok(html.includes('<meta property="og:type" content="website">'));
+  assert.ok(html.includes('<meta name="theme-color"'));
+  const identity = data.settings.locales[language];
+  checkTitle(
+    html,
+    `${identity.name} · ${language === "zh" ? "Emby 技术手册" : "The Emby Handbook"}`,
+  );
+  assert.ok(
+    html.includes(
+      `<meta name="description" content="${escapeHtml(identity.description)}">`,
+    ),
+  );
+  return html;
+}
+
 export async function checkHome(response, explicitLanguage) {
   assert.equal(response.status, 200, "Homepage HTTP status");
   checkReaderHeaders(response);
@@ -272,10 +338,12 @@ export async function checkAdmin(getResponse) {
 
 async function check() {
   const page = await get("/");
-  const html = await checkHome(page);
+  const html = await checkLanding(page);
   await checkBranding(html, get);
-  for (const language of ["zh", "en"])
+  for (const language of ["zh", "en"]) {
+    await checkLanding(await get(`/?lang=${language}`), language);
     await checkHome(await get(`/${language}/home`), language);
+  }
   const script = html.match(
     /src="(\/assets\/(?!site-appearance\.js)[^"]+\.js)"/,
   );
