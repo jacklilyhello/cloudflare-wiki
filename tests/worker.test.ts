@@ -61,7 +61,7 @@ describe("Worker HTTP boundary", () => {
 });
 
 describe("Public reader HTTP boundary", () => {
-  it.each(["/", "/zh/home", "/zh/guide/reading", "/zh/guide/markdown"])(
+  it.each(["/zh/home", "/zh/guide/reading", "/zh/guide/markdown"])(
     "renders article content before JavaScript executes for %s",
     async (path) => {
       const response = await exports.default.fetch(

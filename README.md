@@ -9,6 +9,7 @@ A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public 
 
 ## Public reader
 
+- `/`: server-rendered Emby handbook cover with shared light/dark appearance, Chinese/English selection and Continue links to `/zh/home` or `/en/home`. `/?lang=zh` and `/?lang=en` retain the reading choice on refresh and work without JavaScript. The root has its own canonical/website metadata and remains noindex.
 - `/zh/home` and `/en/home`: translated articles, nested navigation, breadcrumbs, contents, heading links, theme selection, code copying, image viewing and responsive layout.
 - `/{language}/search?q=...`: server-rendered search over titles, descriptions, body, tags and paths; matches stay in the selected language. Queries are limited to 200 characters.
 - `/api/public/search?lang=zh&q=...`: read-only JSON search; only `zh` and `en` are accepted.

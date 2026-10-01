@@ -3,53 +3,9 @@ import { publicPath } from "../shared/paths";
 import type { NavigationEntry, ReaderData, WikiPage } from "../shared/reader";
 import { SiteLogo } from "./components/SiteLogo";
 import { enhanceTabsets } from "./reader/tabs";
-import { applySiteAppearance, effectiveTheme } from "./site-appearance";
-
-type IconName =
-  | "search"
-  | "sun"
-  | "moon"
-  | "arrow"
-  | "chevron"
-  | "book"
-  | "menu"
-  | "close"
-  | "clock";
-
-function Icon({
-  name,
-  className = "",
-}: {
-  name: IconName;
-  className?: string;
-}) {
-  const paths: Record<IconName, string> = {
-    search: "m21 21-4.6-4.6M19 10.5a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0",
-    sun: "M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
-    moon: "M20.9 13a9 9 0 1 1-9.9-9.9A7 7 0 0 0 20.9 13Z",
-    arrow: "M5 12h14m-6-6 6 6-6 6",
-    chevron: "m9 5 7 7-7 7",
-    book: "M12 5c-3-2-6-2-10-1v15c4-1 7-1 10 1m0-15c3-2 6-2 10-1v15c-4-1-7-1-10 1V5",
-    menu: "M4 6h16M4 12h16M4 18h16",
-    close: "m6 6 12 12M6 18 18 6",
-    clock: "M12 8v4l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0",
-  };
-  return (
-    <svg
-      className={`icon ${className}`}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.65"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d={paths[name]} />
-    </svg>
-  );
-}
+import { LandingPage } from "./LandingPage";
+import { Icon } from "./components/Icon";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 function containsPath(entry: NavigationEntry, path: string): boolean {
   return (
@@ -139,6 +95,14 @@ function formatUpdated(page: WikiPage, zh: boolean): string {
 }
 
 export function App({ data }: { data: ReaderData }) {
+  return data.mode === "landing" ? (
+    <LandingPage data={data} />
+  ) : (
+    <Reader data={data} />
+  );
+}
+
+function Reader({ data }: { data: ReaderData }) {
   const zh = data.language === "zh";
   const identity = data.settings.locales[data.language];
   const home = `/${data.language}/home`;
@@ -171,16 +135,6 @@ export function App({ data }: { data: ReaderData }) {
   const currentIndex = pages.findIndex((entry) => entry.path === currentPath);
   const previous = currentIndex > 0 ? pages[currentIndex - 1] : undefined;
   const next = currentIndex >= 0 ? pages[currentIndex + 1] : undefined;
-
-  useEffect(() => {
-    applySiteAppearance(data.settings);
-    const update = (event: StorageEvent) => {
-      if (event.key === "wiki-theme" || event.key === null)
-        applySiteAppearance(data.settings);
-    };
-    window.addEventListener("storage", update);
-    return () => window.removeEventListener("storage", update);
-  }, [data.settings]);
 
   useEffect(() => {
     const article = articleRef.current;
@@ -276,21 +230,6 @@ export function App({ data }: { data: ReaderData }) {
       imageDialogRef.current.showModal();
   }, [selectedImage]);
 
-  function toggleTheme() {
-    const theme = effectiveTheme(
-      data.settings.theme,
-      document.documentElement.dataset.theme,
-      window.matchMedia("(prefers-color-scheme: dark)").matches,
-    );
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = nextTheme;
-    try {
-      localStorage.setItem("wiki-theme", nextTheme);
-    } catch {
-      /* The current theme does not require persistent storage. */
-    }
-  }
-
   return (
     <>
       <a className="skip-link" href="#main-content">
@@ -368,16 +307,7 @@ export function App({ data }: { data: ReaderData }) {
               )}
             </nav>
             <span className="header-divider" aria-hidden="true" />
-            <button
-              className="theme-toggle"
-              type="button"
-              onClick={toggleTheme}
-              aria-label={zh ? "切换明暗主题" : "Switch color theme"}
-              title={zh ? "切换明暗主题" : "Switch color theme"}
-            >
-              <Icon name="moon" className="theme-moon" />
-              <Icon name="sun" className="theme-sun" />
-            </button>
+            <ThemeToggle settings={data.settings} language={data.language} />
           </div>
         </div>
       </header>
@@ -390,9 +320,7 @@ export function App({ data }: { data: ReaderData }) {
             </nav>
             <div className="sidebar-note">
               <span className="status-dot" aria-hidden="true" />
-              <span>
-                {zh ? "公开文档 · 测试环境" : "Public wiki · Test environment"}
-              </span>
+              <span>{zh ? "公开文档 · 自由阅读" : "Public documentation"}</span>
             </div>
           </div>
         </aside>

@@ -7,7 +7,7 @@ import {
   validateSmokeBaseUrl,
   workersDevBaseUrl,
 } from "../scripts/smoke-policy.mjs";
-import { checkAdmin, checkHome } from "../scripts/smoke-test.mjs";
+import { checkAdmin, checkHome, checkLanding } from "../scripts/smoke-test.mjs";
 
 const accountSubdomain = "account-subdomain";
 const workersDevBase = workersDevBaseUrl(accountSubdomain);
@@ -354,8 +354,9 @@ test("first-paint theme script accepts only explicit visitor choices and preserv
     ]) {
       const dataset = { theme, accent: "ocean" };
       runInNewContext(source, {
-        document: { documentElement: { dataset } },
+        document: { documentElement: { dataset }, querySelector: () => null },
         localStorage: { getItem: () => saved },
+        matchMedia: () => ({ matches: false, addEventListener() {} }),
       });
       assert.deepEqual(dataset, {
         theme: ["light", "dark"].includes(saved) ? saved : theme,
@@ -364,7 +365,8 @@ test("first-paint theme script accepts only explicit visitor choices and preserv
     }
   const dataset = { theme: "dark", accent: "plum" };
   runInNewContext(source, {
-    document: { documentElement: { dataset } },
+    document: { documentElement: { dataset }, querySelector: () => null },
+    matchMedia: () => ({ matches: false, addEventListener() {} }),
     localStorage: {
       getItem() {
         throw new Error("Storage blocked");
@@ -415,5 +417,85 @@ test("all fixed accent palettes retain readable text contrast in light and dark 
         `${selector} ${theme} selected text contrast`,
       );
     }
+  }
+});
+
+test("cover smoke rejects old article routing, wrong canonical metadata and broken language choices", async () => {
+  for (const language of ["zh", "en"]) {
+    const identity = siteSettings.locales[language];
+    const data = {
+      settings: { ...siteSettings, defaultLanguage: language },
+      language,
+      mode: "landing",
+      page: null,
+      rendered: null,
+      navigation: [],
+      searchResults: [],
+      translations: { zh: "/?lang=zh", en: "/?lang=en" },
+    };
+    const html = `<html lang="${language}" data-theme="system" data-accent="forest"><head>${appearanceScript}<title>${identity.name} · ${language === "zh" ? "Emby 技术手册" : "The Emby Handbook"}</title><link rel="canonical" href="https://cf.emby.wiki/"><link rel="alternate" hreflang="zh" href="https://cf.emby.wiki/?lang=zh"><link rel="alternate" hreflang="en" href="https://cf.emby.wiki/?lang=en"><link rel="alternate" hreflang="x-default" href="https://cf.emby.wiki/"><meta property="og:url" content="https://cf.emby.wiki/"><meta property="og:type" content="website"><meta name="theme-color" content="#f5f4ee"><meta name="description" content="${identity.description}"></head><body><main id="cover-content"><h1 id="cover-title">${identity.name}</h1><a href="/${language}/home">Continue</a><a href="/?lang=zh">中文</a><a href="/?lang=en">English</a></main><script id="reader-data" type="application/json">${JSON.stringify(data)}</script></body></html>`;
+    const response = (text) =>
+      new Response(text, {
+        headers: { ...adminHeaders, "Content-Type": "text/html" },
+      });
+    await checkLanding(response(html));
+    for (const broken of [
+      homepage(language),
+      html.replace('rel="canonical"', 'rel="missing"'),
+      html.replace('content="website"', 'content="article"'),
+      html.replace(
+        'href="https://cf.emby.wiki/"',
+        'href="https://cf.emby.wiki/zh/home"',
+      ),
+      html.replace(`href="/${language}/home"`, 'href="/admin"'),
+      html.replace('href="/?lang=en"', 'href="/?lang=fr"'),
+      html.replace('name="theme-color"', 'name="missing"'),
+    ])
+      await assert.rejects(checkLanding(response(broken)));
+    await assert.rejects(
+      checkLanding(
+        new Response(null, { status: 302, headers: { Location: "/zh/home" } }),
+      ),
+    );
+  }
+});
+
+test("browser chrome follows first-paint theme and subsequent system changes, with visitor choices winning", () => {
+  const source = readFileSync(
+    new URL("../public/assets/site-appearance.js", import.meta.url),
+    "utf8",
+  );
+  for (const systemDark of [false, true]) {
+    let update;
+    const system = {
+      matches: systemDark,
+      addEventListener: (_, callback) => {
+        update = callback;
+      },
+    };
+    const meta = {
+      dataset: { light: "#f5f4ee", dark: "#091410" },
+      content: "#f5f4ee",
+    };
+    const dataset = { theme: "system" };
+    runInNewContext(source, {
+      document: { documentElement: { dataset }, querySelector: () => meta },
+      localStorage: { getItem: () => null },
+      matchMedia: () => system,
+    });
+    assert.equal(
+      meta.content,
+      systemDark ? meta.dataset.dark : meta.dataset.light,
+    );
+    system.matches = !systemDark;
+    update();
+    assert.equal(
+      meta.content,
+      systemDark ? meta.dataset.light : meta.dataset.dark,
+    );
+    dataset.theme = "dark";
+    system.matches = false;
+    update();
+    assert.equal(meta.content, meta.dataset.dark);
   }
 });
