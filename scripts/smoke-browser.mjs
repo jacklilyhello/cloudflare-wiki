@@ -33,6 +33,7 @@ const chrome = spawn(
   ],
   { env: childEnv, stdio: ["ignore", "ignore", "ignore", "pipe", "pipe"] },
 );
+const chromeClosed = new Promise((resolve) => chrome.once("close", resolve));
 let sequence = 0;
 let buffer = "";
 const decoder = new StringDecoder("utf8");
@@ -199,5 +200,17 @@ try {
   } catch {
     chrome.kill("SIGTERM");
   }
-  await rm(profile, { recursive: true, force: true });
+  await Promise.race([
+    chromeClosed,
+    delay(10_000, null, { ref: false }).then(async () => {
+      chrome.kill("SIGKILL");
+      await chromeClosed;
+    }),
+  ]);
+  await rm(profile, {
+    recursive: true,
+    force: true,
+    maxRetries: 5,
+    retryDelay: 100,
+  });
 }
