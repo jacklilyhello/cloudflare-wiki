@@ -71,5 +71,5 @@ jobs:
       - name: Smoke test all production Custom Domains
         run: |
           for domain in emby.wiki www.emby.wiki cf.emby.wiki; do
-            SMOKE_BASE_URL="https://${domain}" npm run smoke
+            SMOKE_BASE_URL="https://${domain}" xvfb-run --auto-servernum node scripts/smoke-browser.mjs
           done

@@ -4,17 +4,11 @@ import { setTimeout } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { brandSettings, parseBranding } from "../shared/branding.ts";
 import { PUBLIC_ORIGIN } from "./deploy-policy.mjs";
-import { validateSmokeBaseUrl } from "./smoke-policy.mjs";
+import { createSmokeGet, validateSmokeBaseUrl } from "./smoke-policy.mjs";
 
 const base = process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:4173";
 const url = validateSmokeBaseUrl(base);
-async function get(path, options) {
-  return fetch(new URL(path, base), {
-    redirect: "error",
-    signal: AbortSignal.timeout(15_000),
-    ...options,
-  });
-}
+const get = createSmokeGet(base);
 function checkSecurityHeaders(response, indexable = false) {
   assert.equal(response.headers.get("cache-control"), "no-store");
   if (indexable)
@@ -412,7 +406,8 @@ export async function checkPublishedSearch(homeHtml, language, getResponse) {
   );
 }
 
-async function check() {
+export async function check(getResponse = get) {
+  const get = getResponse;
   const page = await get("/");
   const html = await checkLanding(page);
   await checkBranding(html, get);

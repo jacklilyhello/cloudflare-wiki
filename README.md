@@ -4,6 +4,7 @@ A new Cloudflare-native bilingual Markdown wiki with a **server-rendered public 
 
 - Production: <https://emby.wiki> and <https://www.emby.wiki>.
 - Retained public domain: <https://cf.emby.wiki>. Canonical URLs use `https://emby.wiki` on all three hosts.
+- The existing Cloudflare WWW redirect preserves path/query and sends `www.emby.wiki` to the canonical root domain.
 - Stack: React, TypeScript, Vite, Workers Static Assets, official Cloudflare Vite plugin.
 - Read `AGENTS.md`, then `codex.md` before development.
 
@@ -227,6 +228,8 @@ Production keeps the existing D1 `cloudflare-wiki-test` and private R2 `cloudfla
 The timestamp is the current server response time. HEAD is supported; writes are rejected. Build SHA remains an internal Worker binding verified through authenticated Cloudflare API readback; public health exposes no environment, service or revision metadata.
 
 Actions smoke checks every Custom Domain for server-rendered bilingual articles, search, genuine reader/API/file 404s, canonical metadata, sitemap, JS/branding assets, generic health, public indexing and robots policy. Anonymous GET checks also verify the admin shell, protected session/overview/content/navigation/redirect/settings/audit/file endpoints, exact editor/history redirects and setup-status shape. Smoke never submits credentials, logs in or consumes a setup token. CSP, no-store, no-sniff, framing and authentication/CSRF policies remain intact.
+
+The Actions runner uses its installed Chrome under Xvfb with a fresh temporary profile and Chrome's sandbox/default security controls. It executes the same HTTP assertions through actual browser GET responses, retaining response status/headers/body for editor redirects and assets. WWW checks first require an exact 301 to the same HTTPS root path/query. No bot-protection settings, challenge solvers or stealth flags are used; a browser that cannot reach the reader fails the deployment smoke. The ordinary Node smoke remains available for local or independent HTTP checks.
 
 ```sh
 SMOKE_BASE_URL=https://emby.wiki npm run smoke
