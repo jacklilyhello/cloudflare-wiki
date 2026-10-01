@@ -336,13 +336,78 @@ export async function checkAdmin(getResponse) {
   assert.ok(!status.initialized || !status.setupAvailable);
 }
 
+function checkSearchResults(results, language, page) {
+  assert.ok(
+    Array.isArray(results) && results.length > 0,
+    `${language} search returns results`,
+  );
+  for (const result of results) {
+    assert.ok(
+      typeof result.path === "string" &&
+        result.path.startsWith(`/${language}/`),
+      "Search isolates locale",
+    );
+    assert.equal(typeof result.title, "string");
+    assert.equal(typeof result.excerpt, "string");
+  }
+  assert.ok(
+    results.some(
+      (result) =>
+        result.path === `/${language}/home` && result.title === page.title,
+    ),
+    "Search finds the current published homepage",
+  );
+}
+
+// Derive a bounded query from an observed published document. Deployment must
+// verify the owner's current content, without relying on or restoring seed data.
+export async function checkPublishedSearch(homeHtml, language, getResponse) {
+  const home = inertData(homeHtml, "reader-data");
+  assert.equal(home.mode, "article");
+  assert.equal(home.language, language);
+  assert.equal(home.page?.language, language);
+  assert.equal(home.page?.path, "home");
+  const query = home.page.title;
+  assert.ok(
+    typeof query === "string" &&
+      query.length > 0 &&
+      query.length <= 200 &&
+      /[\p{L}\p{N}]/u.test(query),
+    "Published homepage supplies a bounded searchable title",
+  );
+  const encodedQuery = encodeURIComponent(query);
+  const search = await getResponse(
+    `/api/public/search?lang=${language}&q=${encodedQuery}`,
+  );
+  assert.equal(search.status, 200, `${language} search HTTP status`);
+  assert.match(search.headers.get("content-type") ?? "", /application\/json/);
+  checkSecurityHeaders(search);
+  checkSearchResults((await search.json()).results, language, home.page);
+
+  const searchPage = await getResponse(`/${language}/search?q=${encodedQuery}`);
+  assert.equal(searchPage.status, 200, `${language} search page HTTP status`);
+  checkReaderHeaders(searchPage);
+  const html = await searchPage.text();
+  const data = inertData(html, "reader-data");
+  checkSettings(data.settings, html);
+  assert.equal(data.mode, "search");
+  assert.equal(data.language, language);
+  assert.equal(data.searchQuery, query);
+  checkSearchResults(data.searchResults, language, home.page);
+  assert.ok(
+    html.includes(`href="/${language}/home"`),
+    "Search page renders the published result link",
+  );
+}
+
 async function check() {
   const page = await get("/");
   const html = await checkLanding(page);
   await checkBranding(html, get);
   for (const language of ["zh", "en"]) {
     await checkLanding(await get(`/?lang=${language}`), language);
-    await checkHome(await get(`/${language}/home`), language);
+    const homeHtml = await checkHome(await get(`/${language}/home`), language);
+    await checkPublishedSearch(homeHtml, language, get);
   }
   const script = html.match(
     /src="(\/assets\/(?!site-appearance\.js)[^"]+\.js)"/,
@@ -375,38 +440,6 @@ async function check() {
   });
   assert.equal(missing.status, 404, "API must not fall back to SPA HTML");
   assert.deepEqual(await missing.json(), { error: "Not found" });
-  for (const language of ["zh", "en"]) {
-    const search = await get(`/api/public/search?lang=${language}&q=Markdown`);
-    assert.equal(search.status, 200, `${language} search HTTP status`);
-    assert.match(search.headers.get("content-type") ?? "", /application\/json/);
-    assert.equal(search.headers.get("cache-control"), "no-store");
-    const payload = await search.json();
-    assert.ok(payload.results.length > 0, `${language} search returns results`);
-    for (const result of payload.results) {
-      assert.ok(
-        result.path.startsWith(`/${language}/`),
-        "Search isolates locale",
-      );
-      assert.equal(typeof result.title, "string");
-      assert.equal(typeof result.excerpt, "string");
-    }
-  }
-
-  const chineseSearch = await get(
-    `/api/public/search?lang=zh&q=${encodeURIComponent("阅读指南")}`,
-  );
-  assert.equal(chineseSearch.status, 200, "Chinese phrase search HTTP status");
-  const chineseResults = (await chineseSearch.json()).results;
-  assert.ok(
-    chineseResults.some((result) => result.path === "/zh/guide/reading"),
-    "Chinese phrase search finds the published reading guide",
-  );
-
-  const searchPage = await get("/zh/search?q=Markdown");
-  assert.equal(searchPage.status, 200, "Search page HTTP status");
-  checkReaderHeaders(searchPage);
-  assert.match(await searchPage.text(), /href="\/zh\/guide\/markdown"/);
-
   for (const path of ["/zh/missing", "/fr/home"]) {
     const notFound = await get(path, {
       headers: { "Sec-Fetch-Mode": "navigate" },
