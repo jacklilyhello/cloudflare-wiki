@@ -18,7 +18,7 @@
   <a href="https://emby.wiki/">在线演示</a> · <a href="#部署">部署指南</a> · <a href="https://github.com/jacklilyhello/cloudflare-wiki/issues">问题反馈</a> · <a href="https://hellogithub.com/user/IDCJ570U6V8P4sn">HelloGitHub 主页</a>
 </p>
 
-![Cloudflare Wiki 封面：emby.wiki 实际站点](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWDmq_y9q4Y-KWmh_JpoI81rNtK89xAALvDmsb1nn4UTVN2R3CzA2qAQADAgADeQADPQQ.jpg)
+![Cloudflare Wiki 封面：emby.wiki 实际站点](docs/screenshots/wiki-01-cover.jpg)
 
 Cloudflare Wiki 是使用 **React、TypeScript、Cloudflare Workers、D1 和私有 R2** 构建的文档与知识库应用。在后台编写 Markdown、实时预览并发布，读者可以通过双语导航、目录和全文搜索查找内容。
 
@@ -80,68 +80,63 @@ Markdown 支持 GFM 表格与任务列表、脚注、语法高亮、内部 Wiki 
 
 ### 中文阅读
 
-![中文阅读界面：侧边导航、文章和右侧目录](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWD2q_zBWL6-fnxUMFQ502GtRCjdPFAALyDmsb1nn4UWLcdjBMsdJDAQADAgADeQADPQQ.jpg)
+![中文阅读界面：侧边导航、文章和右侧目录](docs/screenshots/wiki-02-reader-zh.jpg)
 
-### Markdown 编辑与实时预览
+### 英文阅读
 
-![Monaco Markdown 源码与实时预览分栏](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWFmq_zHntvDcn1MChdJiJiZ_SdI3OAAL5Dmsb1nn4UWEEQbAJl8FVAQADAgADeQADPQQ.jpg)
+![英文阅读界面](docs/screenshots/wiki-03-reader-en.jpg)
+
+### 深色主题
+
+![深色阅读界面](docs/screenshots/wiki-04-dark-theme.jpg)
+
+### 全文搜索
+
+![已发布文章的搜索结果](docs/screenshots/wiki-05-search.jpg)
+
+### 管理员登录
+
+![管理员登录页](docs/screenshots/wiki-06-admin-login.jpg)
 
 ### 管理概览
 
-![后台概览：发布统计与最近更新](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWFGq_zG9qEXEy2H3zP4AUxDPEb4mwAAL3Dmsb1nn4USjGhtNk3V2zAQADAgADeQADPQQ.jpg)
+![后台概览：发布统计与最近更新](docs/screenshots/wiki-07-admin-dashboard.jpg)
 
-<details>
-<summary><strong>展开全部界面：双语阅读、搜索、版本、导航、文件与设置</strong></summary>
+### 页面目录
 
-**英文阅读**
+![双语页面目录管理](docs/screenshots/wiki-08-admin-pages.jpg)
 
-![英文阅读界面](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWEGq_zDC_DUDNffTkJX_6GFbk35i4AALzDmsb1nn4UcJwjX4o3TKrAQADAgADeQADPQQ.jpg)
+### Markdown 编辑与实时预览
 
-**深色主题**
+![Monaco Markdown 源码与实时预览分栏](docs/screenshots/wiki-09-admin-editor.jpg)
 
-![深色阅读界面](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWEWq_zDb_T1anY7YLx8LD6RuZXe-lAAL0Dmsb1nn4UQRIEy1sWWVsAQADAgADeQADPQQ.jpg)
+### 版本历史与源码对比
 
-**全文搜索**
+![版本记录与 Markdown 修改对比](docs/screenshots/wiki-10-admin-history.jpg)
 
-![已发布文章的搜索结果](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWEmq_zDzpqGuU4_qHEKTYPw54i3z4AAL1Dmsb1nn4Uewybn7_09oEAQADAgADeQADPQQ.jpg)
+### 可视化导航编辑
 
-**管理员登录**
+![导航树及所选条目的属性](docs/screenshots/wiki-11-admin-navigation.jpg)
 
-![管理员登录页](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWE2q_zGlxOQQlGH6eNagVQe4LHBF1AAL2Dmsb1nn4UQOUts9dwzqJAQADAgADeQADPQQ.jpg)
+### 文件管理
 
-**页面目录**
+![私有文件库与文件夹管理入口](docs/screenshots/wiki-12-admin-files.jpg)
 
-![双语页面目录管理](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWFWq_zHS16ZdWLt1oQBT0rNopbOGEAAL4Dmsb1nn4UTon8qpBuQfHAQADAgADeQADPQQ.jpg)
+### 重定向管理
 
-**版本历史与源码对比**
+![页面别名与重定向目标](docs/screenshots/wiki-13-admin-redirects.jpg)
 
-![版本记录与 Markdown 修改对比](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWF2q_zH9YWjwloP9LNjz5HZRKrQ_qAAL6Dmsb1nn4UQcZXA0YthU6AQADAgADeQADPQQ.jpg)
+### 站点设置与部署品牌
 
-**可视化导航编辑**
+![双语站点名称及已部署品牌资源](docs/screenshots/wiki-14-admin-settings.jpg)
 
-![导航树及所选条目的属性](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWGGq_zLffuJqF5Stm726GQSfhz6OqAAL7Dmsb1nn4UTiSG55TNcR7AQADAgADeQADPQQ.jpg)
+### 审计记录
 
-**文件管理**
+![只读后台操作审计](docs/screenshots/wiki-15-admin-audit.jpg)
 
-![私有文件库与文件夹管理入口](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWGWq_zLzN9gSYR0MhSgT6emCRq8vTAAL8Dmsb1nn4UWmavkb5quBlAQADAgADeQADPQQ.jpg)
+### 管理员账号
 
-**重定向管理**
-
-![页面别名与重定向目标](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWGmq_zMPrOE_XfqkggNlWpdaVZ0etAAL9Dmsb1nn4URO8XZZ_1Bw8AQADAgADeQADPQQ.jpg)
-
-**站点设置与部署品牌**
-
-![双语站点名称及已部署品牌资源](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWG2q_zMkn-_zHJEZHs2VO6AInE2tYAAL-Dmsb1nn4UZppGxmXqBJCAQADAgADeQADPQQ.jpg)
-
-**审计记录**
-
-![只读后台操作审计](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWHGq_zM4pv9OSQL1jTZZy1z76hyZDAAL_Dmsb1nn4UcGDq71Ys7xiAQADAgADeQADPQQ.jpg)
-
-**管理员账号**
-
-![单管理员账号设置](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWHWq_zNPB9Ej4c4hw6zB7RYs1ZMtMAAMPaxvWefhRshn4cnBX48cBAAMCAAN5AAM9BA.jpg)
-
-</details>
+![单管理员账号设置](docs/screenshots/wiki-16-admin-account.jpg)
 
 ## 技术架构
 

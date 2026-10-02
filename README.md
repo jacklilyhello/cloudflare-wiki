@@ -18,7 +18,7 @@
   <a href="https://emby.wiki/">Live demo</a> · <a href="#deployment">Deployment</a> · <a href="https://github.com/jacklilyhello/cloudflare-wiki/issues">Issues</a> · <a href="https://hellogithub.com/user/IDCJ570U6V8P4sn">HelloGitHub profile</a>
 </p>
 
-![Cloudflare Wiki cover — the live emby.wiki example](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWDmq_y9q4Y-KWmh_JpoI81rNtK89xAALvDmsb1nn4UTVN2R3CzA2qAQADAgADeQADPQQ.jpg)
+![Cloudflare Wiki cover — the live emby.wiki example](docs/screenshots/wiki-01-cover.jpg)
 
 Cloudflare Wiki is a documentation and knowledge-base application built with **React, TypeScript, Cloudflare Workers, D1 and private R2 storage**. Write Markdown in the administrator workspace, preview it beside the source, and publish it to a server-rendered reader with bilingual navigation and search.
 
@@ -80,68 +80,63 @@ These are browser captures of the live emby.wiki reader and authenticated worksp
 
 ### English reader
 
-![English documentation reader with navigation and table of contents](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWEGq_zDC_DUDNffTkJX_6GFbk35i4AALzDmsb1nn4UcJwjX4o3TKrAQADAgADeQADPQQ.jpg)
+![English documentation reader with navigation and table of contents](docs/screenshots/wiki-03-reader-en.jpg)
 
-### Markdown editor with live preview
+### Chinese reader
 
-![Monaco Markdown source beside its live preview](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWFmq_zHntvDcn1MChdJiJiZ_SdI3OAAL5Dmsb1nn4UWEEQbAJl8FVAQADAgADeQADPQQ.jpg)
+![Chinese documentation reader](docs/screenshots/wiki-02-reader-zh.jpg)
+
+### Dark appearance
+
+![English reader in dark mode](docs/screenshots/wiki-04-dark-theme.jpg)
+
+### Full-text search
+
+![Published-document search results](docs/screenshots/wiki-05-search.jpg)
+
+### Administrator sign-in
+
+![Administrator sign-in page](docs/screenshots/wiki-06-admin-login.jpg)
 
 ### Administrator overview
 
-![Administrator dashboard with publication counts and recent updates](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWFGq_zG9qEXEy2H3zP4AUxDPEb4mwAAL3Dmsb1nn4USjGhtNk3V2zAQADAgADeQADPQQ.jpg)
+![Administrator dashboard with publication counts and recent updates](docs/screenshots/wiki-07-admin-dashboard.jpg)
 
-<details>
-<summary><strong>Explore all interfaces: reader, search, versions, navigation, files and settings</strong></summary>
+### Page directories
 
-**Chinese reader**
+![Bilingual page directory browser](docs/screenshots/wiki-08-admin-pages.jpg)
 
-![Chinese documentation reader](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWD2q_zBWL6-fnxUMFQ502GtRCjdPFAALyDmsb1nn4UWLcdjBMsdJDAQADAgADeQADPQQ.jpg)
+### Markdown editor with live preview
 
-**Dark appearance**
+![Monaco Markdown source beside its live preview](docs/screenshots/wiki-09-admin-editor.jpg)
 
-![English reader in dark mode](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWEWq_zDb_T1anY7YLx8LD6RuZXe-lAAL0Dmsb1nn4UQRIEy1sWWVsAQADAgADeQADPQQ.jpg)
+### Revision history and comparison
 
-**Full-text search**
+![Immutable revisions and Markdown comparison](docs/screenshots/wiki-10-admin-history.jpg)
 
-![Published-document search results](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWEmq_zDzpqGuU4_qHEKTYPw54i3z4AAL1Dmsb1nn4Uewybn7_09oEAQADAgADeQADPQQ.jpg)
+### Visual navigation editor
 
-**Administrator sign-in**
+![Navigation tree and selected entry properties](docs/screenshots/wiki-11-admin-navigation.jpg)
 
-![Administrator sign-in page](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWE2q_zGlxOQQlGH6eNagVQe4LHBF1AAL2Dmsb1nn4UQOUts9dwzqJAQADAgADeQADPQQ.jpg)
+### File Manager
 
-**Page directories**
+![Private file library with folders and publication controls](docs/screenshots/wiki-12-admin-files.jpg)
 
-![Bilingual page directory browser](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWFWq_zHS16ZdWLt1oQBT0rNopbOGEAAL4Dmsb1nn4UTon8qpBuQfHAQADAgADeQADPQQ.jpg)
+### Redirect Manager
 
-**Revision history and comparison**
+![Internal page aliases and redirect targets](docs/screenshots/wiki-13-admin-redirects.jpg)
 
-![Immutable revisions and Markdown comparison](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWF2q_zH9YWjwloP9LNjz5HZRKrQ_qAAL6Dmsb1nn4UQcZXA0YthU6AQADAgADeQADPQQ.jpg)
+### Site settings and deployed branding
 
-**Visual navigation editor**
+![Bilingual site identity and deployed brand assets](docs/screenshots/wiki-14-admin-settings.jpg)
 
-![Navigation tree and selected entry properties](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWGGq_zLffuJqF5Stm726GQSfhz6OqAAL7Dmsb1nn4UTiSG55TNcR7AQADAgADeQADPQQ.jpg)
+### Audit trail
 
-**File Manager**
+![Read-only administrator audit trail](docs/screenshots/wiki-15-admin-audit.jpg)
 
-![Private file library with folders and publication controls](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWGWq_zLzN9gSYR0MhSgT6emCRq8vTAAL8Dmsb1nn4UWmavkb5quBlAQADAgADeQADPQQ.jpg)
+### Administrator account
 
-**Redirect Manager**
-
-![Internal page aliases and redirect targets](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWGmq_zMPrOE_XfqkggNlWpdaVZ0etAAL9Dmsb1nn4URO8XZZ_1Bw8AQADAgADeQADPQQ.jpg)
-
-**Site settings and deployed branding**
-
-![Bilingual site identity and deployed brand assets](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWG2q_zMkn-_zHJEZHs2VO6AInE2tYAAL-Dmsb1nn4UZppGxmXqBJCAQADAgADeQADPQQ.jpg)
-
-**Audit trail**
-
-![Read-only administrator audit trail](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWHGq_zM4pv9OSQL1jTZZy1z76hyZDAAL_Dmsb1nn4UcGDq71Ys7xiAQADAgADeQADPQQ.jpg)
-
-**Administrator account**
-
-![Single-administrator account settings](https://photo.lily.lat/file/AgACAgQAAyEGAASLgSpZAAIWHWq_zNPB9Ej4c4hw6zB7RYs1ZMtMAAMPaxvWefhRshn4cnBX48cBAAMCAAN5AAM9BA.jpg)
-
-</details>
+![Single-administrator account settings](docs/screenshots/wiki-16-admin-account.jpg)
 
 ## Architecture
 
