@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="README.md">English</a> · <strong>简体中文</strong><br>
-  <a href="https://emby.wiki/">在线演示</a> · <a href="#部署">部署指南</a> · <a href="https://github.com/jacklilyhello/cloudflare-wiki/issues">问题反馈</a> · <a href="https://hellogithub.com/user/IDCJ570U6V8P4sn">HelloGitHub 主页</a>
+  <a href="https://emby.wiki/">在线演示</a> · <a href="#部署">部署指南</a> · <a href="https://github.com/jacklilyhello/cloudflare-wiki/issues">问题反馈</a> 
 </p>
 
 ![Cloudflare Wiki 封面：emby.wiki 实际站点](docs/screenshots/wiki-01-cover.jpg)
